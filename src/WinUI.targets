@@ -7,7 +7,6 @@
       <WinUIWinmdPath Required="true" />
       <ObjDir Required="true" />
       <Platform Required="true" />
-      <MagpieWindowsKitsPath Required="true" />
       <WinUIDllPath Output="true" />
       <WinUIPriPath Output="true" />
       <IsWinUIPrerelease ParameterType="System.Boolean" Output="true" />
@@ -91,8 +90,8 @@ using (StreamWriter writer = new("version.txt")) {
 ///////////////////////////////////////////////////////////////////
     
 // 获取最新的 Windows SDK 目录
-string windowsSdkBinDir = Path.Combine(MagpieWindowsKitsPath, "bin");
-string windowsSdkDir = Directory.GetDirectories(windowsSdkBinDir)
+string programFilesX86Path = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86);
+string windowsSdkDir = Directory.GetDirectories(Path.Combine(programFilesX86Path, "Windows Kits\\10\\bin"))
     .OrderByDescending(dir => dir)
     .FirstOrDefault(dir => dir.Contains("10."));
 if (windowsSdkDir == null) {
@@ -204,7 +203,7 @@ File.Delete(configFileName);
       <_ReferenceRelatedPaths Remove="@(_ReferenceRelatedPaths)" Condition="'%(Filename)' == 'Microsoft.UI.Xaml' And '%(Extension)' != '.winmd'" />
     </ItemGroup>
 
-    <ExtractWinUIRuntime Condition="'@(_WinUIWinmdReference)' != ''" WinUIWinmdPath="@(_WinUIWinmdReference)" ObjDir="$(SolutionDir)\obj" Platform="$(Platform)" MagpieWindowsKitsPath="D:\Windows Kits\10">
+    <ExtractWinUIRuntime Condition="'@(_WinUIWinmdReference)' != ''" WinUIWinmdPath="@(_WinUIWinmdReference)" ObjDir="$(SolutionDir)\obj" Platform="$(Platform)">
       <Output TaskParameter="WinUIDllPath" PropertyName="WinUIDllPath" />
       <Output TaskParameter="WinUIPriPath" PropertyName="WinUIPriPath" />
       <Output TaskParameter="IsWinUIPrerelease" PropertyName="IsWinUIPrerelease" />
@@ -252,4 +251,3 @@ File.Delete(configFileName);
     </ItemGroup>
   </Target>
 </Project>
-

@@ -8,9 +8,7 @@
     <CppWinRTRootNamespaceAutoMerge>true</CppWinRTRootNamespaceAutoMerge>
     <CppWinRTGenerateWindowsMetadata>true</CppWinRTGenerateWindowsMetadata>
     <CppWinRTEnablePlatformProjection>false</CppWinRTEnablePlatformProjection>
-    <CppWinRT_IncludePath>E:\Magpie-0.6.5-build\native-cppwinrt\union\</CppWinRT_IncludePath>
     <CppWinRTVerbosity>low</CppWinRTVerbosity>
-    <CppWinRTPath>&quot;D:\Windows Kits\10\bin\10.0.26100.0\x64\&quot;</CppWinRTPath>
     <MinimalCoreWin>true</MinimalCoreWin>
     <ProjectGuid>{1239537c-e5b8-427a-9e7f-ea443d1f3529}</ProjectGuid>
     <RootNamespace>$(MSBuildProjectName)</RootNamespace>
@@ -73,7 +71,6 @@
   <ImportGroup Label="PropertySheets">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
     <Import Project="$([Microsoft.Build.Utilities.ToolLocationHelper]::GetPlatformExtensionSDKLocation(`WindowsDesktop, Version=10.0.26100.0`, $(TargetPlatformIdentifier), $(TargetPlatformVersion),  $(SDKReferenceDirectoryRoot), $(SDKExtensionDirectoryRoot), $(SDKReferenceRegistryRoot)))\DesignTime\CommonConfiguration\Neutral\WindowsDesktop.props" Condition="exists('$([Microsoft.Build.Utilities.ToolLocationHelper]::GetPlatformExtensionSDKLocation(`WindowsDesktop, Version=10.0.26100.0`, $(TargetPlatformIdentifier), $(TargetPlatformVersion),  $(SDKReferenceDirectoryRoot), $(SDKExtensionDirectoryRoot), $(SDKReferenceRegistryRoot)))\DesignTime\CommonConfiguration\Neutral\WindowsDesktop.props')" />
-    <Import Project="$(MagpieWindowsKitsPath)\Extension SDKs\WindowsDesktop\10.0.26100.0\DesignTime\CommonConfiguration\Neutral\WindowsDesktop.props" Condition="Exists('$(MagpieWindowsKitsPath)\Extension SDKs\WindowsDesktop\10.0.26100.0\DesignTime\CommonConfiguration\Neutral\WindowsDesktop.props')" />
     <Import Project="..\Common.Post.props" />
     <Import Project="..\WinUI.targets" />
   </ImportGroup>
@@ -85,7 +82,7 @@
       <PreprocessorDefinitions>_VSDESIGNER_DONT_LOAD_AS_DLL;DISABLE_XAML_GENERATED_MAIN;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <!-- 不知为何 Directory.Build.props 中的不起作用 -->
       <WarningLevel>Level4</WarningLevel>
-      <AdditionalIncludeDirectories>E:\Magpie-0.6.5-build\native-cppwinrt\union;..\Magpie.Core\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\Magpie.Core\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <ClCompile Condition="$(UseClangCL)">
       <AdditionalOptions>$(LlvmArchitectureSwitch) %(AdditionalOptions)</AdditionalOptions>

@@ -7,7 +7,6 @@
     <CppWinRTRootNamespaceAutoMerge>true</CppWinRTRootNamespaceAutoMerge>
     <CppWinRTGenerateWindowsMetadata>false</CppWinRTGenerateWindowsMetadata>
     <CppWinRTEnablePlatformProjection>false</CppWinRTEnablePlatformProjection>
-    <CppWinRT_IncludePath>E:\Magpie-0.6.5-build\native-cppwinrt\union\</CppWinRT_IncludePath>
     <CppWinRTVerbosity>low</CppWinRTVerbosity>
     <Keyword>Win32Proj</Keyword>
     <ProjectGuid>{0e5205ae-dfa9-4cb8-b662-e43cd6512e2a}</ProjectGuid>
@@ -34,7 +33,7 @@
   <PropertyGroup Label="UserMacros" />
   <ItemDefinitionGroup>
     <ClCompile>
-      <AdditionalIncludeDirectories>E:\Magpie-0.6.5-build\native-cppwinrt\union;include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions Condition="'$(EnableFrameTrace)' == 'true'">MP_ENABLE_FRAME_TRACE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <FxCompile>
