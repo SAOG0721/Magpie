@@ -45,10 +45,10 @@ DLSSNRSettings ParseDLSSNRSettings(const EffectOption& option, bool hdrEnabled) 
 			"reflectionGlowMultiplier", 1.0f, 0.0f, 2.0f),
 		.style = std::clamp(static_cast<int>(std::lround(
 			getParameter("style", 0.0f))), 0, 2),
-		.intensity = getClamped("intensity", 1.0f, 0.0f, 1.0f),
-		.localToneStrength = getClamped("localToneStrength", 1.0f, 0.0f, 1.0f),
+		.intensity = getClamped("intensity", 1.0f, 0.0f, 2.0f),
+		.localToneStrength = getClamped("localToneStrength", 1.0f, 0.0f, 2.0f),
 		.localStructureStrength = getClamped(
-			"localStructureStrength", 1.0f, 0.0f, 1.0f),
+			"localStructureStrength", 1.0f, 0.0f, 2.0f),
 		.skinStructureStrength = getClamped(
 			"skinStructureStrength", -1.0f, -1.0f, 2.0f),
 		.useAutoMask = getParameter("useAutoMask", 0.0f) >= 0.5f,
@@ -172,7 +172,7 @@ RWTexture2D<float4> OutputColor : register(u0);
 cbuffer ResampleParams : register(b0) {
     uint2 SourceExtent;
     uint2 TargetExtent;
-    uint Padding0;
+    uint PreserveHdrRange;
     float2 MotionScale;
     float ResidualMultiplier;
     float ResidualSaturation;
@@ -244,7 +244,7 @@ RWTexture2D<float> OutputConfidence : register(u2);
 cbuffer ResampleParams : register(b0) {
     uint2 SourceExtent;
     uint2 TargetExtent;
-    uint Padding0;
+    uint PreserveHdrRange;
     float2 MotionScale;
     float ResidualMultiplier;
     float ResidualSaturation;
@@ -307,7 +307,7 @@ RWTexture2D<float4> ControlledResidual : register(u0);
 cbuffer ResampleParams : register(b0) {
     uint2 SourceExtent;
     uint2 TargetExtent;
-    uint Padding0;
+    uint PreserveHdrRange;
     float2 MotionScale;
     float ResidualMultiplier;
     float ResidualSaturation;
@@ -369,6 +369,23 @@ float3 ToLinear(float3 color) {
 float3 ApplyResidualControls(float3 original, float3 residual) {
     residual *= ResidualMultiplier;
     if (all(residual == 0.0)) return original;
+    if (PreserveHdrRange != 0) {
+        // HDR residual controls operate on the luma/chroma decomposition of
+        // the residual itself. Chroma scaling around an unclamped Y keeps the
+        // operation linear in the FP16 domain: saturation multiplies only the
+        // zero-Y chroma part, so ResidualSaturation=2 cannot bleed luma into
+        // chroma channels the way an HSL-style mix around a raw dot product
+        // did (that variant tinted highlights when non-default controls were
+        // combined with the 4.5x scRGB white normalization).
+        float deltaY = dot(residual, float3(0.2126, 0.7152, 0.0722));
+        float directionalMultiplier = deltaY < 0.0 ? ShadowStructureMultiplier :
+            (deltaY > 0.0 ? ReflectionGlowMultiplier : 1.0);
+        float3 chroma = residual - deltaY;
+        float chromaScale = saturate(ResidualSaturation);
+        residual = deltaY * directionalMultiplier * ResidualLightness +
+            chroma * chromaScale * directionalMultiplier;
+        return original + residual;
+    }
     float4 fineControls = float4(
         ResidualSaturation, ResidualLightness,
         ShadowStructureMultiplier, ReflectionGlowMultiplier);
@@ -421,7 +438,7 @@ RWTexture2D<float4> HorizontalResidual : register(u0);
 cbuffer ResampleParams : register(b0) {
     uint2 SourceExtent;
     uint2 TargetExtent;
-    uint Padding0;
+    uint PreserveHdrRange;
     float2 MotionScale;
     float ResidualMultiplier;
     float ResidualSaturation;
@@ -471,7 +488,7 @@ RWTexture2D<float4> OutputColor : register(u0);
 cbuffer ResampleParams : register(b0) {
     uint2 SourceExtent;
     uint2 TargetExtent;
-    uint Padding0;
+    uint PreserveHdrRange;
     float2 MotionScale;
     float ResidualMultiplier;
     float ResidualSaturation;
@@ -512,8 +529,9 @@ void CompositeResidualVertical(uint3 tid : SV_DispatchThreadID) {
         }
         residual /= abs(totalWeight) > 1e-6 ? totalWeight : 1.0;
     }
-    OutputColor[tid.xy] = float4(
-        saturate(original + residual), storedOriginal.a);
+    float3 output = PreserveHdrRange != 0 ? original + residual :
+        saturate(original + residual);
+    OutputColor[tid.xy] = float4(output, storedOriginal.a);
 }
 )";
 
@@ -522,7 +540,7 @@ struct ResampleConstants {
 	uint32_t sourceHeight = 0;
 	uint32_t targetWidth = 0;
 	uint32_t targetHeight = 0;
-	uint32_t padding0 = 0;
+	uint32_t preserveHdrRange = 0;
 	float motionScaleX = 1.0f;
 	float motionScaleY = 1.0f;
 	float residualMultiplier = 1.0f;
@@ -1477,6 +1495,7 @@ static bool PrepareInput(
 			.sourceHeight = impl.sourceHeight,
 			.targetWidth = impl.width,
 			.targetHeight = impl.height,
+			.preserveHdrRange = impl.experimentalHdrPath ? 1u : 0u,
 			.motionScaleX = float(impl.width) / float(impl.sourceWidth),
 			.motionScaleY = float(impl.height) / float(impl.sourceHeight)
 		};
@@ -1577,6 +1596,7 @@ static bool PrepareReducedGuidance(
 		.sourceHeight = impl.sourceHeight,
 		.targetWidth = impl.width,
 		.targetHeight = impl.height,
+		.preserveHdrRange = impl.experimentalHdrPath ? 1u : 0u,
 		.motionScaleX = float(impl.width) / float(impl.sourceWidth),
 		.motionScaleY = float(impl.height) / float(impl.sourceHeight)
 	};
@@ -1682,6 +1702,7 @@ static bool CompositeResidual(
 		.sourceHeight = impl.sourceHeight,
 		.targetWidth = impl.width,
 		.targetHeight = impl.height,
+		.preserveHdrRange = impl.experimentalHdrPath ? 1u : 0u,
 		.motionScaleX = float(impl.width) / float(impl.sourceWidth),
 		.motionScaleY = float(impl.height) / float(impl.sourceHeight),
 		.residualMultiplier = settings.residualMultiplier,
@@ -1867,11 +1888,11 @@ bool DLSSNRFilter::Initialize(
 	_settings.reflectionGlowMultiplier = ClampFinite(
 		_settings.reflectionGlowMultiplier, 0.0f, 2.0f, 1.0f);
 	_settings.intensity = ClampFinite(
-		_settings.intensity, 0.0f, 1.0f, 1.0f);
+		_settings.intensity, 0.0f, 2.0f, 1.0f);
 	_settings.localToneStrength = ClampFinite(
-		_settings.localToneStrength, 0.0f, 1.0f, 1.0f);
+		_settings.localToneStrength, 0.0f, 2.0f, 1.0f);
 	_settings.localStructureStrength = ClampFinite(
-		_settings.localStructureStrength, 0.0f, 1.0f, 1.0f);
+		_settings.localStructureStrength, 0.0f, 2.0f, 1.0f);
 	_ngxCore = &ngxCore;
 	_impl.reset();
 	FrameGuidancePerformance::ResetDlssnrGpuTiming();
@@ -1907,9 +1928,9 @@ bool DLSSNRFilter::Initialize(
 	impl->sourceHeight = inputDesc.Height;
 	impl->experimentalHdrPath = experimentalHdrPath;
 	impl->experimentalHdrScale = settings.experimentalHdr.scale;
-	// Resolution scaling and residual reconstruction are SDR RGBA8 features.
-	// The experimental FP16 route keeps the tested same-resolution call chain.
-	impl->useResolutionScaling = !experimentalHdrPath && settings.enableInputResolutionScaling;
+	// Resolution scaling, guidance resampling, and residual reconstruction use
+	// format-neutral float shaders and preserve the FP16 HDR range explicitly.
+	impl->useResolutionScaling = settings.enableInputResolutionScaling;
 	const uint32_t resolutionPercent = std::clamp(
 		settings.inputResolutionPercent, 25u, 100u);
 	impl->width = impl->useResolutionScaling ? std::max(

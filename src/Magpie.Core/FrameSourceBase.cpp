@@ -255,6 +255,21 @@ ColorDescription FrameSourceBase::_GetSourceColorDescription() const noexcept {
 			desc1.ColorSpace == DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020;
 		const bool measuredPeak = desc1.MaxLuminance > 0.0f;
 		result.displayPeakNits = measuredPeak ? desc1.MaxLuminance : 1000.0f;
+		const float measuredSdrWhite = Win32Helper::GetMonitorSdrWhiteNits(monitor);
+		// Some HDR monitors report MaxLuminance at or below the SDR white
+		// level (observed: 80 nit with a 360-nit SDR white). The bounded
+		// route derives its normalized peak from displayPeak/sdrWhite, so
+		// a peak below the white point leaves zero HDR headroom. Keep the
+		// peak at or above the measured SDR white and make the anomaly
+		// visible in the log instead of degrading silently.
+		const float sdrWhiteFloor = measuredSdrWhite > 0.0f ? measuredSdrWhite : 80.0f;
+		if (result.displayPeakNits < sdrWhiteFloor) {
+			Logger::Get().Warn(fmt::format(
+				"HDR source display peak {:.1f} nit is below the SDR white "
+				"{:.1f} nit; raising the peak to the SDR white level",
+				result.displayPeakNits, sdrWhiteFloor));
+			result.displayPeakNits = sdrWhiteFloor;
+		}
 		result.metadata.maxMasteringLuminanceNits = desc1.MaxLuminance;
 		result.metadata.minMasteringLuminanceNits = desc1.MinLuminance;
 		result.metadata.maxFrameAverageLightLevelNits = desc1.MaxFullFrameLuminance;
@@ -262,9 +277,17 @@ ColorDescription FrameSourceBase::_GetSourceColorDescription() const noexcept {
 		// rendered on an HDR desktop is raised by the monitor's SDR white-level
 		// setting (for example 4.5x == 360 nit), so the source description must
 		// carry that measured white point for the paired SDR bridge.
-		const float measuredSdrWhite = Win32Helper::GetMonitorSdrWhiteNits(monitor);
 		result.referenceWhiteNits = 80.0f;
 		result.sdrWhiteNits = measuredSdrWhite > 0.0f ? measuredSdrWhite : 80.0f;
+		if (measuredSdrWhite <= 0.0f && result.displayHdrEnabled) {
+			// Silent 80-nit fallback shifts every downstream normalization by
+			// the monitor's real SDR white ratio (e.g. 4.5x); make it visible.
+			Logger::Get().Warn(fmt::format(
+				"HDR source SDR-white measurement failed; falling back to 80 nit. "
+				"Display peak={:.1f} colorSpace={:#x}",
+				result.displayPeakNits,
+				static_cast<uint32_t>(desc1.ColorSpace)));
+		}
 		result.range = HdrColorRange::Full;
 		result.isInferred = !measuredPeak;
 

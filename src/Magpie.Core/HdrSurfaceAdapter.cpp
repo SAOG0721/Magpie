@@ -23,6 +23,10 @@ cbuffer Transform : register(b0) {
     uint mode;
     uint preserveAlpha;
     float normalizationScale;
+    float peak;
+    float target;
+    float shoulderK;
+    float tailSlope;
 };
 Texture2D<float4> sourceTexture : register(t0);
 RWTexture2D<float4> outputTexture : register(u0);
@@ -78,6 +82,29 @@ float3 Rec2020ToRec709(float3 value) {
         dot(value, float3(-0.1245505, 1.1328999, -0.0083494)),
         dot(value, float3(-0.0181508, -0.1005789, 1.1187297)));
 }
+float3 MapRec2020ToPqGamut(float3 value) {
+    float minimum = min(value.r, min(value.g, value.b));
+    if (minimum >= 0.0) return value;
+    float luminance = max(dot(value, float3(0.2627, 0.6780, 0.0593)), 0.0);
+    float chromaScale = luminance / max(luminance - minimum, 1e-6);
+    return max(luminance + (value - luminance) * saturate(chromaScale), 0.0);
+}
+// Anchored-shoulder curve, GPU twin of HdrColorTransform's CPU family.
+// x <= 1 identity; 1 < x <= peak: x / (1 + k(x - 1)); linear tail beyond.
+// The constant buffer carries peak/target/k/tailSlope so CPU and GPU stay
+// bit-comparable; highlights never invert and inverse gain stays bounded.
+float ApplyShoulder(float value, float peak, float target, float k, float tailSlope) {
+    value = max(value, 0.0);
+    if (value <= 1.0) return value;
+    if (value <= peak) return value / (1.0 + k * (value - 1.0));
+    return target + tailSlope * (value - peak);
+}
+float InvertShoulder(float value, float peak, float target, float k, float tailSlope) {
+    value = max(value, 0.0);
+    if (value <= 1.0) return value;
+    if (value <= target) return value * (1.0 - k) / max(1.0 - k * value, 1e-6);
+    return peak + (value - target) / max(tailSlope, 1e-6);
+}
 float DecodeTransfer(float value, uint transfer) {
     if (transfer == 2) return DecodeSrgb(value);
     // PQ is absolute-display-referred. Canonical scRGB uses 80 nit as its
@@ -94,21 +121,25 @@ float EncodeTransfer(float value, uint transfer) {
 }
 float3 MapHdrToSdr(float3 value) {
     float referenceWhiteScale = max(sdrWhiteNits / 80.0, 1e-4);
-    float3 normalized = max(value, 0.0) * exposure / referenceWhiteScale;
-    float3 excess = max(normalized - 1.0, 0.0);
-    float headroom = max(hdrPeakNits / 80.0 - 1.0, 1.0);
-    float3 compressed = 1.0 - excess /
-        (excess + headroom * max(shoulder, 1e-3) + 1.0);
-    return normalized <= 1.0 ? normalized : saturate(compressed);
+    // Replicate contract for SDR-compatible backends: identity below the SDR
+    // white point (captured SDR frames reach the backend bit-exact), plain
+    // saturation above it. No shoulder: identity forces f(1)=1 and UNORM8
+    // storage leaves no code space above 1.
+    return saturate(max(value, 0.0) * exposure / referenceWhiteScale);
 }
 float3 MapSdrToHdr(float3 value) {
-    float3 mapped = max(value, 0.0);
-    float3 excess = max(mapped - 1.0, 0.0);
-    float3 denominator = max(1.0 - shoulder * excess, 1e-4);
-    float3 normalized = min(mapped, 1.0) + excess / denominator;
     float referenceWhiteScale = max(sdrWhiteNits / 80.0, 1e-4);
-    float peakScale = max(hdrPeakNits / 80.0, referenceWhiteScale);
-    return min(normalized * referenceWhiteScale * inverseExposure, peakScale);
+    float3 mapped = saturate(value);
+    // Paired inverse of the replicate contract. Saturated whites restore to
+    // the HDR headroom in the normalized domain (peak/sdrWhite), then scale
+    // by the white point once. Multiplying by the white point twice pushed
+    // whites to (peak/80)*(sdrWhite/80) = 20.25 on a 360-nit display.
+    float peakHeadroom = max(hdrPeakNits, sdrWhiteNits) / max(sdrWhiteNits, 1e-4);
+    float3 restored = float3(
+        mapped.r >= 1.0 ? peakHeadroom : mapped.r,
+        mapped.g >= 1.0 ? peakHeadroom : mapped.g,
+        mapped.b >= 1.0 ? peakHeadroom : mapped.b);
+    return restored * referenceWhiteScale * inverseExposure;
 }
 [numthreads(8, 8, 1)]
 void Main(uint3 id : SV_DispatchThreadID) {
@@ -131,15 +162,28 @@ void Main(uint3 id : SV_DispatchThreadID) {
         result = MapSdrToHdr(decoded);
 	} else if (mode == 2) {
 		// Canonical scRGB may use a display SDR-white scale (for example 4.5
-		// for a 360-nit SDR white). Bounded backends operate in the normalized
-		// 0..1 domain, so normalize against the frame's SDR white point.
-		result = max(value.rgb, 0.0) * normalizationScale / max(sdrWhiteNits / 80.0, 1e-4);
+		// for a 360-nit SDR white). Bounded backends operate in a normalized
+		// domain: normalize against the frame's SDR white point, then apply the
+		// anchored shoulder so the model input stays in its validated band.
+		// The consumption domain is [0, inf); clamp out-of-gamut negatives
+		// before they reach the model (inverse mode 3 keeps full range).
+		float3 normalized = max(value.rgb, 0.0) * normalizationScale /
+			max(sdrWhiteNits / 80.0, 1e-4);
+		result = float3(
+			ApplyShoulder(normalized.r, peak, target, shoulderK, tailSlope),
+			ApplyShoulder(normalized.g, peak, target, shoulderK, tailSlope),
+			ApplyShoulder(normalized.b, peak, target, shoulderK, tailSlope));
 	} else if (mode == 3) {
-		result = max(value.rgb, 0.0) * (sdrWhiteNits / 80.0) / max(normalizationScale, 1e-4);
+		// Paired inverse of mode 2; full range on purpose.
+		float3 normalized = float3(
+			InvertShoulder(value.r, peak, target, shoulderK, tailSlope),
+			InvertShoulder(value.g, peak, target, shoulderK, tailSlope),
+			InvertShoulder(value.b, peak, target, shoulderK, tailSlope));
+		result = normalized * (sdrWhiteNits / 80.0) / max(normalizationScale, 1e-4);
 	} else if (mode == 5) {
 		// Canonical scRGB is linear with 1.0 == 80 nit. HDR10 also requires
 		// Rec.2020 primaries, so convert the canonical Rec.709 values first.
-		float3 rec2020 = Rec709ToRec2020(max(value.rgb, 0.0));
+		float3 rec2020 = MapRec2020ToPqGamut(Rec709ToRec2020(value.rgb));
 		result = float3(
 			EncodePq(rec2020.r * 80.0),
 			EncodePq(rec2020.g * 80.0),
@@ -149,7 +193,7 @@ void Main(uint3 id : SV_DispatchThreadID) {
 			DecodePq(value.r) / 80.0,
 			DecodePq(value.g) / 80.0,
 			DecodePq(value.b) / 80.0);
-		result = max(Rec2020ToRec709(rec2020), 0.0);
+		result = Rec2020ToRec709(rec2020);
 	} else {
 		result = value.rgb;
 	}
@@ -158,21 +202,28 @@ void Main(uint3 id : SV_DispatchThreadID) {
 )";
 
 struct AdapterConstants {
-	float exposure;
-	float inverseExposure;
-	float sdrWhiteScale;
-	float hdrPeakNits;
-	float shoulder;
-	float referenceWhiteNits;
-	float sdrWhiteNits;
-	uint32_t inputTransfer;
-	uint32_t outputTransfer;
-	uint32_t mode;
-	uint32_t preserveAlpha;
-	float normalizationScale;
-	float _padding[4]{};
+    float exposure;
+    float inverseExposure;
+    float sdrWhiteScale;
+    float hdrPeakNits;
+    float shoulder;
+    float referenceWhiteNits;
+    float sdrWhiteNits;
+    uint32_t inputTransfer;
+    uint32_t outputTransfer;
+    uint32_t mode;
+    uint32_t preserveAlpha;
+    float normalizationScale;
+    float peak;
+    float target;
+    float shoulderK;
+    float tailSlope;
+    float _padding[12]{};
 };
-static_assert(sizeof(AdapterConstants) == 64, "HDR adapter constant buffer layout must match HLSL");
+// D3D11 constant buffers must be a multiple of 16 bytes; the HLSL cbuffer
+// reads 20 scalars (80 bytes), so the CPU copy pads to 112.
+static_assert(sizeof(AdapterConstants) == 112, "HDR adapter constant buffer layout must match HLSL");
+static_assert(sizeof(AdapterConstants) % 16 == 0, "constant buffer size must stay 16-byte aligned");
 }
 
 bool HdrSurfaceAdapter::Initialize(
@@ -192,7 +243,7 @@ bool HdrSurfaceAdapter::Initialize(
 		return false;
 	}
 	const D3D11_BUFFER_DESC desc{
-		.ByteWidth = 64,
+		.ByteWidth = sizeof(AdapterConstants),
 		.Usage = D3D11_USAGE_DYNAMIC,
 		.BindFlags = D3D11_BIND_CONSTANT_BUFFER,
 		.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE
@@ -228,11 +279,17 @@ bool HdrSurfaceAdapter::_Convert(
 		parameters,
 		hdrToSdr ? HdrTransferFunction::Linear : transfer,
 		hdrToSdr ? transfer : HdrTransferFunction::Linear);
+	// The GPU shoulder must mirror the CPU curve family exactly. Modes 2/3
+	// (bounded) consume the curve; SDR modes (0/1) use the plain replicate
+	// contract (identity + saturate) and ignore the curve coefficients.
+	const HdrColorTransform::ShoulderCurve curve = HdrColorTransform::BuildShoulderCurve(
+		parameters, HdrColorTransform::BoundedRouteHighlightTarget);
 	const AdapterConstants constants{
 		base.exposure, base.inverseExposure, base.sdrWhiteScale, base.hdrPeakNits,
 		base.shoulder, parameters.referenceWhiteNits, parameters.sdrWhiteNits,
 		base.inputTransfer, base.outputTransfer, mode,
-		parameters.preserveAlpha ? 1u : 0u, normalizationScale
+		parameters.preserveAlpha ? 1u : 0u, normalizationScale,
+		curve.peak, curve.target, curve.k, curve.tailSlope
 	};
 	D3D11_MAPPED_SUBRESOURCE mapped{};
 	ID3D11DeviceContext4* context = _deviceResources->GetD3DDC();

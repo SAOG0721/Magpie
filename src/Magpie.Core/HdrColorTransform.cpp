@@ -7,12 +7,85 @@
 namespace Magpie {
 
 namespace {
-constexpr float PQMaxNits = 10000.0f;
+
+// Anchored-shoulder curve family for bounded HDR routes (DLSSNR FP16):
+//   x <= 1            identity (SDR content passes through bit-exact)
+//   1 < x <= peak     anchored Reinhard shoulder f(x) = x / (1 + k(x - 1))
+//   x > peak          linear tail with slope f'(peak)
+// The anchor fixes f(peak) = highlightTarget so k = (peak - T) / (T(peak - 1)).
+// k in (0, 1) keeps f strictly increasing on the shoulder and the tail slope
+// f'(peak) = (1 - k) T^2 / peak^2 stays positive, so highlights never invert
+// and the paired inverse has bounded gain everywhere.
+// SDR-compatible routes cannot use this family: identity below white forces
+// f(1) = 1 and monotonicity then forbids T < 1, while UNORM8 storage has no
+// room above 1. SDR routes use the replicate contract instead: identity and
+// saturate (see MapHdrToSdr/MapSdrToHdr).
+struct ShoulderCoefficients {
+    float peak = 1.0f;      // normalized peak: hdrPeakNits / sdrWhiteNits
+    float target = 1.0f;    // f(peak) by design, always > 1
+    float k = 0.0f;         // shoulder strength in (0, 1)
+    float tailSlope = 1.0f; // f'(peak)
+};
+
+constexpr float IdentityEpsilon = 1e-6f;
+
+// Design target f(peak) for the bounded FP16 route: keeps the DLSSNR model
+// input in the experimentally validated band (scale 2 ~ baseline, 4.5 ~
+// blowout). Public constant mirrors HdrColorTransform's constexpr member.
+constexpr float BoundedRouteHighlightTarget = HdrColorTransform::BoundedRouteHighlightTarget;
+
+ShoulderCoefficients BuildShoulder(
+    const HdrTransformParameters& parameters,
+    float highlightTarget
+) noexcept {
+    ShoulderCoefficients result;
+    result.peak = std::max(
+        parameters.hdrPeakNits / std::max(parameters.sdrWhiteNits, 1e-4f), 1.0f);
+    // Degenerate monitors report MaxLuminance <= SDR white (e.g. 80 <= 360).
+    // There is no HDR headroom then; the curve must degrade to the plain
+    // identity instead of dividing by (peak - 1) == 0 and seeding NaN into
+    // every downstream conversion.
+    if (result.peak <= 1.0f + IdentityEpsilon) {
+        result.target = 1.0f;
+        result.k = 0.0f;
+        result.tailSlope = 1.0f;
+        return result;
+    }
+    result.target = std::clamp(highlightTarget, 1.0f + IdentityEpsilon, result.peak);
+    result.k = std::clamp(
+        (result.peak - result.target) /
+            (result.target * (result.peak - 1.0f)),
+        IdentityEpsilon, 1.0f - IdentityEpsilon);
+    result.tailSlope = (1.0f - result.k) * result.target * result.target /
+        (result.peak * result.peak);
+    return result;
+}
+
+float ApplyShoulder(float x, const ShoulderCoefficients& c) noexcept {
+    const float value = std::max(x, 0.0f);
+    if (value <= 1.0f) return value;
+    if (value <= c.peak) {
+        return value / (1.0f + c.k * (value - 1.0f));
+    }
+    return c.target + c.tailSlope * (value - c.peak);
+}
+
+float InvertShoulder(float y, const ShoulderCoefficients& c) noexcept {
+    if (y <= 1.0f) return y;
+    if (y <= c.target) {
+        // Algebraic inverse of the anchored Reinhard shoulder.
+        return y * (1.0f - c.k) / std::max(1.0f - c.k * y, 1e-6f);
+    }
+    return c.peak + (y - c.target) / std::max(c.tailSlope, 1e-6f);
+}
+
+// PQ/HLG transfer constants (BT.2100).
 constexpr float PQM1 = 2610.0f / 16384.0f;
 constexpr float PQM2 = 2523.0f / 32.0f;
 constexpr float PQC1 = 3424.0f / 4096.0f;
 constexpr float PQC2 = 2413.0f / 128.0f;
 constexpr float PQC3 = 2392.0f / 128.0f;
+constexpr float PQMaxNits = 10000.0f;
 
 float Clamp01(float value) noexcept { return std::clamp(value, 0.0f, 1.0f); }
 
@@ -99,32 +172,59 @@ float HdrColorTransform::EncodeTransfer(float value, HdrTransferFunction transfe
 }
 
 float HdrColorTransform::MapHdrToSdr(float value, const HdrTransformParameters& parameters) noexcept {
+    // SDR-compatible replicate contract: identity below the SDR white point
+    // (the captured SDR game frame reaches the backend bit-exact) and plain
+    // saturation above it. There is no shoulder: identity forces f(1) = 1 and
+    // UNORM8 storage leaves no code space for a highlight target above 1.
     const HdrTransformParameters valid = parameters.IsValid() ? parameters : HdrTransformParameters{};
-    const float normalized = std::max(value, 0.0f) * valid.exposure /
-        (valid.sdrWhiteNits / 80.0f);
-    if (normalized <= 1.0f) return normalized;
-    const float excess = normalized - 1.0f;
-    // SDR-compatible routes must stay inside the SDR display domain. The
-    // previous curve returned values above one and relied on sRGB saturation,
-    // turning HDR headroom into clipped white. Compress excess using the
-    // source display headroom while keeping the SDR white point continuous.
-    const float headroom = std::max(valid.hdrPeakNits / 80.0f - 1.0f, 1.0f);
-    return std::clamp(1.0f - excess /
-        (excess + headroom * std::max(valid.shoulder, 0.001f) + 1.0f), 0.0f, 1.0f);
+    const float referenceWhiteScale = valid.sdrWhiteNits / 80.0f;
+    const float normalized = std::max(value, 0.0f) * valid.exposure / referenceWhiteScale;
+    return std::min(normalized, 1.0f);
 }
 
 float HdrColorTransform::MapSdrToHdr(float value, const HdrTransformParameters& parameters) noexcept {
+    // Paired inverse of the replicate contract. Values saturated to 1.0
+    // restore to the frame's HDR headroom level in the normalized domain
+    // (peak/sdrWhite), then scale back by the white point. The previous
+    // formula multiplied by the white point twice for saturated pixels
+    // (peak/80 * sdrWhite/80 = 20.25 for a 360-nit display), pushing whites
+    // to 1620 nit — the source of the yellow-tinted highlight leak.
     const HdrTransformParameters valid = parameters.IsValid() ? parameters : HdrTransformParameters{};
-    const float mapped = std::max(value, 0.0f);
-    if (mapped <= 1.0f) {
-        return mapped * (valid.sdrWhiteNits / 80.0f) / valid.exposure;
-    }
-    const float excess = mapped - 1.0f;
-    const float denominator = 1.0f - valid.shoulder * excess;
-    const float reconstructed = denominator > 0.0f
-        ? (1.0f + excess / denominator) * (valid.sdrWhiteNits / 80.0f) / valid.exposure
-        : valid.hdrPeakNits / 80.0f;
-    return std::min(reconstructed, valid.hdrPeakNits / 80.0f);
+    const float referenceWhiteScale = valid.sdrWhiteNits / 80.0f;
+    const float mapped = std::clamp(value, 0.0f, 1.0f);
+    const float normalized = mapped >= 1.0f
+        ? std::max(valid.hdrPeakNits, valid.sdrWhiteNits) / valid.sdrWhiteNits
+        : mapped;
+    return normalized * referenceWhiteScale / valid.exposure;
+}
+
+float HdrColorTransform::EncodeBoundedHdr(float value, const HdrTransformParameters& parameters) noexcept {
+    const HdrTransformParameters valid = parameters.IsValid() ? parameters : HdrTransformParameters{};
+    const ShoulderCoefficients curve = BuildShoulder(valid, BoundedRouteHighlightTarget);
+    return ApplyShoulder(std::max(value, 0.0f), curve);
+}
+
+float HdrColorTransform::DecodeBoundedHdr(float value, const HdrTransformParameters& parameters) noexcept {
+    const HdrTransformParameters valid = parameters.IsValid() ? parameters : HdrTransformParameters{};
+    const ShoulderCoefficients curve = BuildShoulder(valid, BoundedRouteHighlightTarget);
+    return InvertShoulder(std::max(value, 0.0f), curve);
+}
+
+HdrColorTransform::ShoulderCurve HdrColorTransform::BuildShoulderCurve(
+    const HdrTransformParameters& parameters,
+    float highlightTarget
+) noexcept {
+    const ShoulderCoefficients coefficients = BuildShoulder(parameters, highlightTarget);
+    return ShoulderCurve{
+        coefficients.peak, coefficients.target, coefficients.k, coefficients.tailSlope };
+}
+
+float HdrColorTransform::ApplyShoulderCurve(float value, const ShoulderCurve& curve) noexcept {
+    return ApplyShoulder(value, { curve.peak, curve.target, curve.k, curve.tailSlope });
+}
+
+float HdrColorTransform::InvertShoulderCurve(float value, const ShoulderCurve& curve) noexcept {
+    return InvertShoulder(value, { curve.peak, curve.target, curve.k, curve.tailSlope });
 }
 
 HdrColor HdrColorTransform::Transform(

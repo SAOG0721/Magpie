@@ -1806,14 +1806,25 @@ void Renderer::_UpdateHdrEffectBoundaryContexts() noexcept {
 		if (effectOption.name == "DLSSNR\\DLSSNR_AI_Filter") {
 			D3D11_TEXTURE2D_DESC sourceDesc{};
 			inputFrame.texture->GetDesc(&sourceDesc);
+			const HdrTransformParameters transform = HdrColorTransform::ForFrame(
+				inputFrame.metadata.color);
+			const HdrColorTransform::ShoulderCurve boundedCurve =
+				HdrColorTransform::BuildShoulderCurve(
+					transform, HdrColorTransform::BoundedRouteHighlightTarget);
 			Logger::Get().Info(fmt::format(
 				"DLSSNR HDR boundary: enabled={} route={} profile={} requiresBounded={} "
-				"normalizationScale={} sourceFormat={} source={}x{}",
+				"normalizationScale={} sourceFormat={} source={}x{} "
+				"sdrWhite={:.1f} peak={:.1f} curvePeak={:.3f} curveTarget={:.3f} "
+				"curveK={:.4f} curveTailSlope={:.4f} colorInferred={}",
 				options.IsHdrCompatibilityEnabled(),
 				context.SelectedRoute() ? context.SelectedRoute()->Id() : "(none)",
 				ToString(context.plan.profile), context.plan.requiresBoundedMapping,
 				context.plan.normalizationScale, static_cast<uint32_t>(sourceDesc.Format),
-				sourceDesc.Width, sourceDesc.Height));
+				sourceDesc.Width, sourceDesc.Height,
+				transform.sdrWhiteNits, transform.hdrPeakNits,
+				boundedCurve.peak, boundedCurve.target, boundedCurve.k,
+				boundedCurve.tailSlope,
+				inputFrame.metadata.color.isInferred));
 		}
 		_effectDrawers[i].SetHdrBoundary(context);
 		if (i < _nativeEffectBackends.size() && _nativeEffectBackends[i]) {
@@ -3091,6 +3102,8 @@ void Renderer::_BackendRender(
 				.output = effectDrawer.GetOutputTexture(),
 				.inputMetadata = ScalingWindow::Get().Options().IsHdrCompatibilityEnabled()
 					? effectDrawer.GetHdrBoundary().inputFrame.metadata : HdrFrameMetadata{},
+				// The backend writes the route-local output; downstream canonical
+				// metadata is rebuilt by CompleteHdrOutput from the same color.
 				.outputMetadata = ScalingWindow::Get().Options().IsHdrCompatibilityEnabled()
 					? effectDrawer.GetHdrBoundary().inputFrame.metadata : HdrFrameMetadata{},
 				.frameId = _capturedFrameId,

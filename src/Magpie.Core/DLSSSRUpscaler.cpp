@@ -151,9 +151,12 @@ bool DLSSSRUpscaler::Initialize(
 			.InTargetHeight = outputDesc.Height,
 			.InPerfQualityValue = NVSDK_NGX_PerfQuality_Value_Balanced
 		},
-		.InFeatureCreateFlags = uint32_t(
+		.InFeatureCreateFlags = int(
 			NVSDK_NGX_DLSS_Feature_Flags_MVLowRes |
-			NVSDK_NGX_DLSS_Feature_Flags_AutoExposure),
+			NVSDK_NGX_DLSS_Feature_Flags_AutoExposure |
+			(_hdrProtocol.hdrColorInput
+				? NVSDK_NGX_DLSS_Feature_Flags_IsHDR
+				: NVSDK_NGX_DLSS_Feature_Flags_None)),
 		.InEnableOutputSubrects = false
 	};
 

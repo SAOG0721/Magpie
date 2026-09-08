@@ -8,12 +8,16 @@ const HdrFormatRoute* SelectDefaultHdrRoute(const HdrFormatRoutes& routes) noexc
     const HdrFormatRoute* firstHdrAdapter = nullptr;
 
     for (const HdrFormatRoute& route : routes) {
-        if (!route.IsValid() || route.IsPresentationTerminal()) {
+        if (!route.IsValid()) {
             continue;
         }
 
         if (route.defaultForHdr) {
             return &route;
+        }
+
+        if (route.IsPresentationTerminal()) {
+            continue;
         }
 
         if (route.IsHdrNative() && !firstHdrNative) {

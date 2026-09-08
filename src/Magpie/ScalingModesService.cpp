@@ -315,7 +315,7 @@ static V065NormalizationStats NormalizeV065ScalingModes(
 					auto it = effect.parameters.find(name);
 					if (it == effect.parameters.end()) continue;
 					const float clamped = std::isfinite(it->second) ?
-						std::clamp(it->second, 0.0f, 1.0f) : 1.0f;
+						std::clamp(it->second, 0.0f, 2.0f) : 1.0f;
 					if (clamped != it->second) {
 						it->second = clamped;
 						++stats.clampedParameters;

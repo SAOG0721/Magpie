@@ -408,3 +408,7 @@ FodyWeavers.xsd
 
 # JetBrains Rider
 *.sln.iml
+
+# local HDR test builds
+.build-cache/
+.build-cache-e-copy/

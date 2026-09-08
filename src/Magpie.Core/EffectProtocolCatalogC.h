@@ -139,14 +139,14 @@ inline HdrFormatRoutes XeSS() {
 inline HdrFormatRoutes XeSSFG() {
 	return { HdrFormatRoute{
 		.effectId = "XeSSFG",
-		.optionId = "HDR10-R10G10B10A2",
-		.inputFormat = DXGI_FORMAT_R10G10B10A2_UNORM,
-		.outputFormat = DXGI_FORMAT_R10G10B10A2_UNORM,
-		.inputTransfer = HdrTransferFunction::PQ,
-		.outputTransfer = HdrTransferFunction::PQ,
-		.inputRange = HdrColorRange::DisplayReferred,
-		.outputRange = HdrColorRange::DisplayReferred,
-		.alphaMode = HdrAlphaMode::ForceOpaque,
+		.optionId = "canonical-FP16-marker",
+		.inputFormat = DXGI_FORMAT_R16G16B16A16_FLOAT,
+		.outputFormat = DXGI_FORMAT_R16G16B16A16_FLOAT,
+		.inputTransfer = HdrTransferFunction::Linear,
+		.outputTransfer = HdrTransferFunction::Linear,
+		.inputRange = HdrColorRange::SceneLinear,
+		.outputRange = HdrColorRange::SceneLinear,
+		.alphaMode = HdrAlphaMode::Preserve,
 		.evidenceLevel = HdrEvidenceLevel::PublicApiContract,
 		.hdrNative = false,
 		.adapterProfile = HdrAdapterProfile::PresentationTerminal,
@@ -169,7 +169,7 @@ inline HdrFormatRoutes DLSSFG() {
 		.evidenceLevel = HdrEvidenceLevel::CommunityExperiment,
 		.hdrNative = true,
 		.adapterProfile = HdrAdapterProfile::PresentationTerminal,
-		.defaultForHdr = false,
+		.defaultForHdr = true,
 		.defaultForSdr = false
 	} };
 }
@@ -188,7 +188,7 @@ inline HdrFormatRoutes FSR3FG() {
 		.evidenceLevel = HdrEvidenceLevel::PublicApiContract,
 		.hdrNative = false,
 		.adapterProfile = HdrAdapterProfile::PresentationTerminal,
-		.defaultForHdr = false,
+		.defaultForHdr = true,
 		.defaultForSdr = false
 	} };
 }

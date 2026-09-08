@@ -104,6 +104,48 @@ Assert-Contains (Join-Path $core 'HdrAdapterDispatcher.cpp') @(
     'case HdrAdapterProfile::PresentationTerminal'
 ) 'HDR adapter profiles'
 
+Assert-Contains (Join-Path $core 'HdrColorTransform.cpp') @(
+    'ShoulderCoefficients BuildShoulder',
+    'value / (1.0f + c.k * (value - 1.0f))',
+    'c.target + c.tailSlope * (value - c.peak)',
+    'y * (1.0f - c.k) / std::max(1.0f - c.k * y, 1e-6f)',
+    'BoundedRouteHighlightTarget = HdrColorTransform::BoundedRouteHighlightTarget',
+    'SDR-compatible replicate contract',
+    'float HdrColorTransform::EncodeBoundedHdr',
+    'float HdrColorTransform::DecodeBoundedHdr'
+) 'anchored monotone invertible shoulder curve family (CPU)'
+
+Assert-Contains (Join-Path $core 'HdrSurfaceAdapter.cpp') @(
+    'float ApplyShoulder(float value, float peak, float target, float k, float tailSlope)',
+    'float InvertShoulder(float value, float peak, float target, float k, float tailSlope)',
+    'value / (1.0 + k * (value - 1.0))',
+    'target + tailSlope * (value - peak)',
+    'value * (1.0 - k) / max(1.0 - k * value, 1e-6)',
+    'Replicate contract for SDR-compatible backends',
+    'max(value.rgb, 0.0) * normalizationScale',
+    'float3 MapRec2020ToPqGamut(float3 value)',
+    'float3 rec2020 = MapRec2020ToPqGamut(Rec709ToRec2020(value.rgb));',
+    'result = Rec2020ToRec709(rec2020);'
+) 'GPU shoulder curve matches CPU contract'
+
+Assert-Contains (Join-Path $core 'FrameSourceBase.cpp') @(
+    'HDR source SDR-white measurement failed'
+) 'SDR white measurement fallback is logged'
+
+Assert-Contains (Join-Path $core 'Renderer.cpp') @(
+    'sdrWhite={:.1f} peak={:.1f} curvePeak={:.3f} curveTarget={:.3f}'
+) 'DLSSNR boundary log carries curve parameters'
+
+Assert-Contains (Join-Path $core 'DLSSSRUpscaler.cpp') @(
+    '_hdrProtocol.hdrColorInput',
+    'NVSDK_NGX_DLSS_Feature_Flags_IsHDR'
+) 'DLSS HDR feature creation flag'
+
+Assert-Contains (Join-Path $core 'EffectProtocolCatalogC.h') @(
+    'optionId = "canonical-FP16-marker"',
+    'adapterProfile = HdrAdapterProfile::PresentationTerminal'
+) 'frame-generation marker preserves canonical FP16'
+
 Assert-Contains (Join-Path $core 'HdrDiagnostics.h') @(
     'struct HdrDiagnostics',
     'hdrOptionEnabled',
@@ -127,8 +169,26 @@ Assert-Contains (Join-Path $core 'HdrCaptureProcessor.h') @(
 
 Assert-Contains (Join-Path $core 'DLSSNRFilter.cpp') @(
     'const float hdrScale = hdrEnabled ? getParameter("experimentalHdrScale", 1.0f) : 1.0f;',
-    'const bool hdrPath = hdrEnabled && getParameter("experimentalHdrPath", 0.0f) >= 0.5f;'
+    'const bool hdrPath = hdrEnabled && getParameter("experimentalHdrPath", 0.0f) >= 0.5f;',
+    'impl->useResolutionScaling = settings.enableInputResolutionScaling;',
+    '.preserveHdrRange = impl.experimentalHdrPath ? 1u : 0u,',
+    'chroma * chromaScale * directionalMultiplier;',
+    'return original + residual;',
+    'float3 output = PreserveHdrRange != 0 ? original + residual :'
 ) 'DLSSNR HDR setting boundary'
+
+Assert-Contains (Join-Path $root 'src\Effects\DLSSNR\DLSSNR_AI_Filter.hlsl') @(
+    '//!LABEL NR Intensity',
+    '//!LABEL Local Tone Strength',
+    '//!LABEL Local Structure Strength',
+    '//!MAX 2'
+) 'DLSSNR detail controls expose the signed-snippet range'
+
+Assert-Contains (Join-Path $core 'DLSSNRFilter.cpp') @(
+    'getClamped("intensity", 1.0f, 0.0f, 2.0f)',
+    'getClamped("localToneStrength", 1.0f, 0.0f, 2.0f)',
+    '"localStructureStrength", 1.0f, 0.0f, 2.0f)'
+) 'DLSSNR settings preserve the signed-snippet strength range'
 
 Assert-Contains (Join-Path $core 'NativeEffectBackendFactory.cpp') @(
     'if (!hdrEnabled) {',

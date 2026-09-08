@@ -40,6 +40,26 @@ public:
     static float EncodeTransfer(float value, HdrTransferFunction transfer) noexcept;
     static float MapHdrToSdr(float value, const HdrTransformParameters& parameters) noexcept;
     static float MapSdrToHdr(float value, const HdrTransformParameters& parameters) noexcept;
+    // Bounded FP16 routes (DLSSNR experimental path) use the anchored
+    // shoulder family: identity below the SDR white, Reinhard shoulder up to
+    // the peak, linear tail beyond; strictly monotone and invertible.
+    static float EncodeBoundedHdr(float value, const HdrTransformParameters& parameters) noexcept;
+    static float DecodeBoundedHdr(float value, const HdrTransformParameters& parameters) noexcept;
+    // Shoulder coefficients derived from the parameters and the route target:
+    // f(x<=1)=x, anchored Reinhard up to peak, linear tail beyond.
+    struct ShoulderCurve {
+        float peak = 1.0f;      // hdrPeakNits / sdrWhiteNits (>= 1)
+        float target = 1.0f;    // f(peak) by design, always > 1
+        float k = 0.0f;         // shoulder strength in (0, 1)
+        float tailSlope = 1.0f; // f'(peak)
+    };
+    static ShoulderCurve BuildShoulderCurve(
+        const HdrTransformParameters& parameters,
+        float highlightTarget
+    ) noexcept;
+    static float ApplyShoulderCurve(float value, const ShoulderCurve& curve) noexcept;
+    static float InvertShoulderCurve(float value, const ShoulderCurve& curve) noexcept;
+    static constexpr float BoundedRouteHighlightTarget = 2.5f;
     static HdrColor Transform(
         const HdrColor& color,
         HdrTransferFunction inputTransfer,

@@ -111,7 +111,7 @@ int style;
 //!LABEL NR Intensity
 //!DEFAULT 1
 //!MIN 0
-//!MAX 1
+//!MAX 2
 //!STEP 0.05
 float intensity;
 
@@ -120,7 +120,7 @@ float intensity;
 //!LABEL Local Tone Strength
 //!DEFAULT 1
 //!MIN 0
-//!MAX 1
+//!MAX 2
 //!STEP 0.05
 float localToneStrength;
 
@@ -129,7 +129,7 @@ float localToneStrength;
 //!LABEL Local Structure Strength
 //!DEFAULT 1
 //!MIN 0
-//!MAX 1
+//!MAX 2
 //!STEP 0.05
 float localStructureStrength;
 
