@@ -122,7 +122,10 @@ Assert-Contains (Join-Path $core 'HdrSurfaceAdapter.cpp') @(
     'target + tailSlope * (value - peak)',
     'value * (1.0 - k) / max(1.0 - k * value, 1e-6)',
     'Replicate contract for SDR-compatible backends',
-    'max(value.rgb, 0.0) * normalizationScale',
+    'float EncodeExtendedSrgb(float value)',
+    'float DecodeExtendedSrgb(float value)',
+    'EncodeExtendedSrgb(normalized.r)',
+    'DecodeExtendedSrgb(value.r)',
     'float3 MapRec2020ToPqGamut(float3 value)',
     'float3 rec2020 = MapRec2020ToPqGamut(Rec709ToRec2020(value.rgb));',
     'result = Rec2020ToRec709(rec2020);'
@@ -168,7 +171,6 @@ Assert-Contains (Join-Path $core 'HdrCaptureProcessor.h') @(
 ) 'HdrCaptureProcessor interface'
 
 Assert-Contains (Join-Path $core 'DLSSNRFilter.cpp') @(
-    'const float hdrScale = hdrEnabled ? getParameter("experimentalHdrScale", 1.0f) : 1.0f;',
     'const bool hdrPath = hdrEnabled && getParameter("experimentalHdrPath", 0.0f) >= 0.5f;',
     'impl->useResolutionScaling = settings.enableInputResolutionScaling;',
     '.preserveHdrRange = impl.experimentalHdrPath ? 1u : 0u,',
@@ -176,6 +178,16 @@ Assert-Contains (Join-Path $core 'DLSSNRFilter.cpp') @(
     'return original + residual;',
     'float3 output = PreserveHdrRange != 0 ? original + residual :'
 ) 'DLSSNR HDR setting boundary'
+
+Assert-Contains (Join-Path $core 'GroupBHdrRoutes.cpp') @(
+    'MakeRoute("DLSSNR", "experimental-fp16"',
+    'HdrAdapterProfile::BoundedHDR',
+    'HdrTransferFunction::SRGB'
+) 'DLSSNR single FP16 extended-sRGB route'
+
+Assert-Contains (Join-Path $root 'src\Effects\DLSSNR\DLSSNR_AI_Filter.hlsl') @(
+    '//!LABEL HDR Processing Path'
+) 'DLSSNR HDR path selector kept'
 
 Assert-Contains (Join-Path $root 'src\Effects\DLSSNR\DLSSNR_AI_Filter.hlsl') @(
     '//!LABEL NR Intensity',

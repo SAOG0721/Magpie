@@ -13,7 +13,7 @@ HdrFormatRoutes RoutesFor(std::string_view name) noexcept {
 	const size_t separator = name.find('\\');
 	const std::string_view group = separator == std::string::npos ? name : name.substr(0, separator);
 	if (group == "CAS") return GetGroupAHdrRoutes(group, 0);
-	if (group == "DLSSNR") return GetGroupBHdrRoutes(group, false, 1.0f);
+	if (group == "DLSSNR") return GetGroupBHdrRoutes(group, false);
 	if (group == "DLSS" || group == "FSR" || group == "FSR2" || group == "FSR3" || group == "FSR4" || group == "NIS") return GetGroupBHdrRoutes(group);
 	return EffectProtocolC::GetGroupCHdrRoutes(group);
 }

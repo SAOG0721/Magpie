@@ -139,10 +139,8 @@ static HdrFormatRoutes GetHdrRoutesForEffect(
 	}
 	if (group == "DLSSNR") {
 		const auto path = effect.parameters.find("experimentalHdrPath");
-		const auto scale = effect.parameters.find("experimentalHdrScale");
 		return GetGroupBHdrRoutes(group,
-			path != effect.parameters.end() && path->second >= 0.5f,
-			scale != effect.parameters.end() ? scale->second : 1.0f);
+			path != effect.parameters.end() && path->second >= 0.5f);
 	}
 	if (group == "DLSS" || group == "FSR" || group == "FSR2" ||
 		group == "FSR3" || group == "FSR4" || group == "NIS") {
@@ -1853,8 +1851,7 @@ void Renderer::_BuildEffectParameterRuntimeInfos() noexcept {
 				(((option.name == "CAS\\CAS" || option.name == "CAS\\CAS_Scaling") &&
 					parameter.name == "hdrFormat") ||
 				 (option.name == "DLSSNR\\DLSSNR_AI_Filter" &&
-					(parameter.name == "experimentalHdrPath" ||
-					 parameter.name == "experimentalHdrScale")));
+					parameter.name == "experimentalHdrPath"));
 			if (!hdrEnabled && isHdrOnlyParameter) {
 				info.applyMode = EffectParameterApplyMode::Unavailable;
 				info.restartReason = EffectParameterRestartReason::None;

@@ -50,22 +50,20 @@ HdrFormatRoute MakeSdr(std::string_view effect, std::string_view option) {
 
 HdrFormatRoutes GetGroupBHdrRoutes(
 	std::string_view effectGroup,
-	bool experimentalDlssnr,
-	float dlssnrScale
+	bool experimentalDlssnr
 ) noexcept {
 	if (effectGroup == "DLSSNR") {
-		if (experimentalDlssnr && (dlssnrScale == 1.0f ||
-			dlssnrScale == 2.0f || dlssnrScale == 4.5f)) {
-			return { MakeRoute("DLSSNR", "experimental-fp16-scale",
+		if (experimentalDlssnr) {
+			return { MakeRoute("DLSSNR", "experimental-fp16",
 				DXGI_FORMAT_R16G16B16A16_FLOAT,
 				DXGI_FORMAT_R16G16B16A16_FLOAT,
 				HdrAdapterProfile::BoundedHDR,
-				HdrTransferFunction::Linear,
-				HdrTransferFunction::Linear,
-				HdrColorRange::SceneLinear,
-				HdrColorRange::SceneLinear,
+				HdrTransferFunction::SRGB,
+				HdrTransferFunction::SRGB,
+				HdrColorRange::Full,
+				HdrColorRange::Full,
 				HdrEvidenceLevel::LocalValidation,
-				false, dlssnrScale) };
+				false) };
 		}
 		return { MakeSdr("DLSSNR", "sdr-r8") };
 	}

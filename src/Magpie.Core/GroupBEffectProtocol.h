@@ -36,13 +36,10 @@ struct AmdOpticalFlowHdrProtocol {
 
 struct DlssnrExperimentProtocol {
 	bool enabled = false;
-	// Values observed in DLSSNR-HDR-Experiments. Keep this a selector, not a
-	// claimed normalization equation.
-	float scale = 1.0f;
-	bool IsVerifiedScale() const noexcept {
-		return std::isfinite(scale) &&
-			(scale == 1.0f || scale == 2.0f || scale == 4.5f);
-	}
+	// The FP16 route encodes the normalized color with the extended sRGB
+	// OETF (matching the model's U8 training contract below the white point
+	// and continuing the same power law for HDR headroom). No scale
+	// selector: the normalization is fully derived from the frame metadata.
 };
 
 } // namespace Magpie

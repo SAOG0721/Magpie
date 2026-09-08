@@ -14,15 +14,6 @@
 int experimentalHdrPath;
 
 //!PARAMETER
-//!GROUP HDR Protocol
-//!LABEL Experimental HDR Scale
-//!DEFAULT 1
-//!MIN 1
-//!MAX 4.5
-//!STEP 0.5
-float experimentalHdrScale;
-
-//!PARAMETER
 //!GROUP Detail Control
 //!LABEL Adjust Input Resolution\n(Reduces DLSSNR Quality)
 //!DEFAULT 0

@@ -28,7 +28,6 @@ DLSSNRSettings ParseDLSSNRSettings(const EffectOption& option, bool hdrEnabled) 
 			static_cast<NvidiaOpticalFlowQuality>(motionQualityValue) :
 			NvidiaOpticalFlowQuality::Balanced;
 
-	const float hdrScale = hdrEnabled ? getParameter("experimentalHdrScale", 1.0f) : 1.0f;
 	const bool hdrPath = hdrEnabled && getParameter("experimentalHdrPath", 0.0f) >= 0.5f;
 	return DLSSNRSettings{
 		.enableInputResolutionScaling =
@@ -55,11 +54,7 @@ DLSSNRSettings ParseDLSSNRSettings(const EffectOption& option, bool hdrEnabled) 
 		.uiCorrection = getParameter("uiCorrection", 0.0f) >= 0.5f,
 		.motionVectorQuality = motionQuality,
 		.experimentalHdr = DlssnrExperimentProtocol{
-			.enabled = hdrPath && std::isfinite(hdrScale) &&
-				(hdrScale == 1.0f || hdrScale == 2.0f || hdrScale == 4.5f),
-			.scale = (std::isfinite(hdrScale) &&
-				(hdrScale == 1.0f || hdrScale == 2.0f || hdrScale == 4.5f)) ?
-				hdrScale : 1.0f
+			.enabled = hdrPath
 		}
 	};
 }
@@ -709,7 +704,6 @@ struct DLSSNRFilter::Impl {
 	uint32_t height = 0;
 	bool convertInputToRgba = false;
 	bool experimentalHdrPath = false;
-	float experimentalHdrScale = 1.0f;
 	bool useResolutionScaling = false;
 	bool coreRegistered = false;
 	bool snippetInitialized = false;
@@ -1906,7 +1900,6 @@ bool DLSSNRFilter::Initialize(
 	input->GetDesc(&inputDesc);
 	output->GetDesc(&outputDesc);
 	const bool experimentalHdrPath = settings.experimentalHdr.enabled &&
-		settings.experimentalHdr.IsVerifiedScale() &&
 		inputDesc.Format == DXGI_FORMAT_R16G16B16A16_FLOAT &&
 		outputDesc.Format == DXGI_FORMAT_R16G16B16A16_FLOAT;
 	if (inputDesc.Width != outputDesc.Width || inputDesc.Height != outputDesc.Height) {
@@ -1927,7 +1920,6 @@ bool DLSSNRFilter::Initialize(
 	impl->sourceWidth = inputDesc.Width;
 	impl->sourceHeight = inputDesc.Height;
 	impl->experimentalHdrPath = experimentalHdrPath;
-	impl->experimentalHdrScale = settings.experimentalHdr.scale;
 	// Resolution scaling, guidance resampling, and residual reconstruction use
 	// format-neutral float shaders and preserve the FP16 HDR range explicitly.
 	impl->useResolutionScaling = settings.enableInputResolutionScaling;
@@ -2147,7 +2139,7 @@ bool DLSSNRFilter::Initialize(
 		"reflectionGlowMultiplier={} preset=fixed-0 "
 		"style={} intensity={} localTone={} localStructure={} skinStructure={} "
 		"motionVectorQuality={} autoMask={} uiCorrection={} depth=zero-contract disabled=false "
-		"experimentalHdrPath={} experimentalHdrScale={}",
+		"experimentalHdrPath={}",
 		ENABLE_CORE_FEATURE18_DIAGNOSTIC ? "core-diagnostic" : "signed-snippet",
 		impl->sourceWidth, impl->sourceHeight, static_cast<uint32_t>(inputDesc.Format),
 		impl->width, impl->height,
@@ -2160,7 +2152,7 @@ bool DLSSNRFilter::Initialize(
 		_settings.localStructureStrength, _settings.skinStructureStrength,
 		static_cast<uint32_t>(_settings.motionVectorQuality),
 		_settings.useAutoMask, _settings.uiCorrection,
-		impl->experimentalHdrPath, impl->experimentalHdrScale));
+		impl->experimentalHdrPath));
 	_impl = std::move(impl);
 	return true;
 }

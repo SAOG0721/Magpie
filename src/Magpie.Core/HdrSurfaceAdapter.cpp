@@ -38,6 +38,19 @@ float EncodeSrgb(float value) {
     value = saturate(value);
     return value <= 0.0031308 ? value * 12.92 : 1.055 * pow(value, 1.0 / 2.4) - 0.055;
 }
+// Extended sRGB: the standard OETF on [0, 1] (matching what the U8 route
+// feeds the model bit-for-bit) and the same power curve continued above 1
+// for HDR headroom. Monotone and exactly invertible on [0, inf).
+float EncodeExtendedSrgb(float value) {
+    value = max(value, 0.0);
+    if (value <= 0.0031308) return value * 12.92;
+    return 1.055 * pow(value, 1.0 / 2.4) - 0.055;
+}
+float DecodeExtendedSrgb(float value) {
+    value = max(value, 0.0);
+    if (value <= 0.04045) return value / 12.92;
+    return pow((value + 0.055) / 1.055, 2.4);
+}
 float DecodeHlg(float value) {
     const float a = 0.17883277;
     const float b = 1.0 - 4.0 * a;
@@ -163,22 +176,26 @@ void Main(uint3 id : SV_DispatchThreadID) {
 	} else if (mode == 2) {
 		// Canonical scRGB may use a display SDR-white scale (for example 4.5
 		// for a 360-nit SDR white). Bounded backends operate in a normalized
-		// domain: normalize against the frame's SDR white point, then apply the
-		// anchored shoulder so the model input stays in its validated band.
+		// domain: normalize against the frame's SDR white point, then encode
+		// with the extended sRGB OETF. The model's training contract is sRGB-
+		// encoded U8 input; feeding it linear values leaves mid-tones squeezed
+		// into the bottom of its range (observed as a washed-out, hazy image).
+		// The extended curve matches the standard OETF on [0,1] exactly and
+		// continues the same power law for HDR headroom.
 		// The consumption domain is [0, inf); clamp out-of-gamut negatives
 		// before they reach the model (inverse mode 3 keeps full range).
 		float3 normalized = max(value.rgb, 0.0) * normalizationScale /
 			max(sdrWhiteNits / 80.0, 1e-4);
 		result = float3(
-			ApplyShoulder(normalized.r, peak, target, shoulderK, tailSlope),
-			ApplyShoulder(normalized.g, peak, target, shoulderK, tailSlope),
-			ApplyShoulder(normalized.b, peak, target, shoulderK, tailSlope));
+			EncodeExtendedSrgb(normalized.r),
+			EncodeExtendedSrgb(normalized.g),
+			EncodeExtendedSrgb(normalized.b));
 	} else if (mode == 3) {
 		// Paired inverse of mode 2; full range on purpose.
 		float3 normalized = float3(
-			InvertShoulder(value.r, peak, target, shoulderK, tailSlope),
-			InvertShoulder(value.g, peak, target, shoulderK, tailSlope),
-			InvertShoulder(value.b, peak, target, shoulderK, tailSlope));
+			DecodeExtendedSrgb(value.r),
+			DecodeExtendedSrgb(value.g),
+			DecodeExtendedSrgb(value.b));
 		result = normalized * (sdrWhiteNits / 80.0) / max(normalizationScale, 1e-4);
 	} else if (mode == 5) {
 		// Canonical scRGB is linear with 1.0 == 80 nit. HDR10 also requires
