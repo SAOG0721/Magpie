@@ -45,6 +45,8 @@ DLSSNRSettings ParseDLSSNRSettings(const EffectOption& option, bool hdrEnabled) 
 			"localStructureStrength", 1.0f, 0.0f, 2.0f),
 		.skinStructureStrength = getClamped(
 			"skinStructureStrength", 0.0f, 0.0f, 2.0f),
+		.layerCount = std::clamp(static_cast<int>(std::lround(
+			getParameter("layerCount", 1.0f))), 1, 10),
 		.useAutoMask = getParameter("useAutoMask", 0.0f) >= 0.5f,
 		.uiCorrection = getParameter("uiCorrection", 0.0f) >= 0.5f,
 		.motionRequest = ParseDlssOpticalFlowRequest(option),
@@ -605,9 +607,11 @@ struct DLSSNRFilter::Impl {
 	uint32_t nextCommandSlot = 0;
 	winrt::com_ptr<ID3D11Texture2D> sharedInput11;
 	winrt::com_ptr<ID3D11Texture2D> sharedOutput11;
+	winrt::com_ptr<ID3D11Texture2D> sharedPing11;
 	winrt::com_ptr<ID3D11ShaderResourceView> inputSrv11;
 	winrt::com_ptr<ID3D11ShaderResourceView> sharedInputSrv11;
 	winrt::com_ptr<ID3D11ShaderResourceView> sharedOutputSrv11;
+	winrt::com_ptr<ID3D11ShaderResourceView> sharedPingSrv11;
 	winrt::com_ptr<ID3D11UnorderedAccessView> sharedInputUav11;
 	winrt::com_ptr<ID3D11ComputeShader> colorConvertShader11;
 	winrt::com_ptr<ID3D11ComputeShader> colorDownsampleVerticalShader11;
@@ -639,6 +643,7 @@ struct DLSSNRFilter::Impl {
 	winrt::com_ptr<ID3D11UnorderedAccessView> compositeOutputUav11;
 	winrt::com_ptr<ID3D12Resource> sharedInput12;
 	winrt::com_ptr<ID3D12Resource> sharedOutput12;
+	winrt::com_ptr<ID3D12Resource> sharedPing12;
 	std::unique_ptr<FrameGuidanceD3D12Interop> guidanceInterop;
 	winrt::com_ptr<ID3D11Fence> fence11;
 	winrt::com_ptr<ID3D12Fence> fence12;
@@ -1429,10 +1434,12 @@ static void SetEvaluateParametersUnsafe(
 	DLSSNRFilter::Impl& impl,
 	const DLSSNRSettings& settings,
 	const FrameGuidanceView& guidance,
-	bool guidanceReset
+	bool reset,
+	ID3D12Resource* color,
+	ID3D12Resource* output
 ) {
-	impl.parameters->Set(PARAM_COLOR, impl.sharedInput12.get());
-	impl.parameters->Set(PARAM_OUTPUT, impl.sharedOutput12.get());
+	impl.parameters->Set(PARAM_COLOR, color);
+	impl.parameters->Set(PARAM_OUTPUT, output);
 	impl.parameters->Set(PARAM_MVEC, impl.guidanceInterop->Motion());
 	impl.parameters->Set(PARAM_DEPTH, impl.guidanceInterop->Depth());
 	const FrameGuidanceRegion full = FrameGuidanceRegion::Full(
@@ -1449,8 +1456,7 @@ static void SetEvaluateParametersUnsafe(
 	impl.parameters->Set(PARAM_INDICATOR_INVERT_X, 0);
 	impl.parameters->Set(PARAM_INDICATOR_INVERT_Y, 0);
 	impl.parameters->Set(PARAM_ENABLED, 1);
-	impl.parameters->Set(
-		PARAM_RESET, impl.resetHistory || guidanceReset ? 1 : 0);
+	impl.parameters->Set(PARAM_RESET, reset ? 1 : 0);
 	impl.parameters->Set(PARAM_STYLE, settings.style);
 	impl.parameters->Set(PARAM_INTENSITY, settings.intensity);
 	impl.parameters->Set(PARAM_LOCAL_TONE, settings.localToneStrength);
@@ -1464,11 +1470,14 @@ static bool SetEvaluateParametersSafely(
 	DLSSNRFilter::Impl& impl,
 	const DLSSNRSettings& settings,
 	const FrameGuidanceView& guidance,
-	bool guidanceReset,
+	bool reset,
+	ID3D12Resource* color,
+	ID3D12Resource* output,
 	DWORD* sehCode
 ) noexcept {
 	return NgxRuntimeGuard::Invoke([&]() {
-		SetEvaluateParametersUnsafe(impl, settings, guidance, guidanceReset);
+		SetEvaluateParametersUnsafe(
+			impl, settings, guidance, reset, color, output);
 		return true;
 	}, false, sehCode);
 }
@@ -1781,6 +1790,7 @@ EffectParameterApplyMode DLSSNRFilter::GetParameterApplyMode(
 		parameterName == "localToneStrength" ||
 		parameterName == "localStructureStrength" ||
 		parameterName == "skinStructureStrength" ||
+		parameterName == "layerCount" ||
 		parameterName == "useAutoMask" || parameterName == "uiCorrection") {
 		return EffectParameterApplyMode::Live;
 	}
@@ -1844,6 +1854,7 @@ bool DLSSNRFilter::ApplyLiveParameters(
 	_settings.localToneStrength = candidate.localToneStrength;
 	_settings.localStructureStrength = candidate.localStructureStrength;
 	_settings.skinStructureStrength = candidate.skinStructureStrength;
+	_settings.layerCount = candidate.layerCount;
 	_settings.useAutoMask = candidate.useAutoMask;
 	_settings.uiCorrection = candidate.uiCorrection;
 	_settings.residualMultiplier = candidate.residualMultiplier;
@@ -1886,6 +1897,7 @@ bool DLSSNRFilter::Initialize(
 		_settings.localToneStrength, 0.0f, 2.0f, 1.0f);
 	_settings.localStructureStrength = ClampFinite(
 		_settings.localStructureStrength, 0.0f, 2.0f, 1.0f);
+	_settings.layerCount = std::clamp(_settings.layerCount, 1, 10);
 	_ngxCore = &ngxCore;
 	_impl.reset();
 	FrameGuidancePerformance::ResetDlssnrGpuTiming();
@@ -1967,7 +1979,17 @@ bool DLSSNRFilter::Initialize(
 	if (!CreateSharedTexture(*impl, sharedDesc, true,
 		impl->sharedInput11, impl->sharedInput12) ||
 		!CreateSharedTexture(*impl, sharedDesc, true,
-			impl->sharedOutput11, impl->sharedOutput12)) {
+			impl->sharedOutput11, impl->sharedOutput12) ||
+		!CreateSharedTexture(*impl, sharedDesc, true,
+			impl->sharedPing11, impl->sharedPing12)) {
+		return false;
+	}
+	// Chained layers ping-pong between the output and ping buffers, so the
+	// ping buffer always needs an SRV for the final residual composite.
+	hr = impl->device11->CreateShaderResourceView(
+		impl->sharedPing11.get(), nullptr, impl->sharedPingSrv11.put());
+	if (FAILED(hr)) {
+		Logger::Get().ComError("Create DLSSNR ping SRV failed", hr);
 		return false;
 	}
 	if (impl->useResolutionScaling) {
@@ -2141,6 +2163,7 @@ bool DLSSNRFilter::Initialize(
 		"residualSaturation={} residualLightness={} shadowStructureMultiplier={} "
 		"reflectionGlowMultiplier={} preset=fixed-0 "
 		"style={} intensity={} localTone={} localStructure={} skinStructure={} "
+		"layerCount={} "
 		"opticalFlowMethod={} opticalFlowQuality={} autoMask={} uiCorrection={} depth=zero-contract disabled=false "
 		"experimentalHdrPath={} experimentalHdrScale={}",
 		ENABLE_CORE_FEATURE18_DIAGNOSTIC ? "core-diagnostic" : "signed-snippet",
@@ -2153,6 +2176,7 @@ bool DLSSNRFilter::Initialize(
 		_settings.style,
 		_settings.intensity, _settings.localToneStrength,
 		_settings.localStructureStrength, _settings.skinStructureStrength,
+		_settings.layerCount,
 		static_cast<uint32_t>(_settings.motionRequest.method),
 		static_cast<uint32_t>(_settings.motionRequest.quality),
 		_settings.useAutoMask, _settings.uiCorrection,
@@ -2191,6 +2215,11 @@ bool DLSSNRFilter::Draw(const NativeEffectDrawContext& context) noexcept {
 	Impl& impl = *_impl;
 	ID3D11Texture2D* input = context.input;
 	ID3D11Texture2D* output = context.output;
+	// Layers alternate destinations starting at sharedOutput, so an even layer
+	// count leaves the final result in the ping buffer.
+	const uint32_t layerCount = static_cast<uint32_t>(
+		std::clamp(_settings.layerCount, 1, 10));
+	const bool finalLayerIsPing = (layerCount % 2) == 0;
 	if (impl.lastEvaluatedFrameId == context.frameId &&
 		impl.lastEvaluatedParameterRevision == impl.evaluateParameterRevision &&
 		impl.lastEvaluatedInputRevision == context.inputRevision) {
@@ -2198,7 +2227,8 @@ bool DLSSNRFilter::Draw(const NativeEffectDrawContext& context) noexcept {
 			const bool composited = CompositeResidual(
 				impl, output,
 				impl.disabled ? impl.sharedInputSrv11.get() :
-					impl.sharedOutputSrv11.get(),
+					(finalLayerIsPing ? impl.sharedPingSrv11.get() :
+						impl.sharedOutputSrv11.get()),
 				_settings);
 			if (composited) {
 				impl.residualParametersDirty = false;
@@ -2296,33 +2326,34 @@ bool DLSSNRFilter::Draw(const NativeEffectDrawContext& context) noexcept {
 	}
 	ID3D12GraphicsCommandList* commandList = commandSlot.commandList.get();
 
-	D3D12_RESOURCE_BARRIER barriers[2]{};
-	barriers[0].Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-	barriers[0].Transition = {
-		impl.sharedInput12.get(), D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES,
-		D3D12_RESOURCE_STATE_COMMON,
-		D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE
+	// NGX requires the color input readable as a shader resource and the output
+	// writable as a UAV. Chained layers alternate both, so each layer boundary
+	// re-transitions the resources; the whole chain returns to COMMON before
+	// D3D11 regains ownership.
+	D3D12_RESOURCE_STATES inputState12 = D3D12_RESOURCE_STATE_COMMON;
+	D3D12_RESOURCE_STATES outputState12 = D3D12_RESOURCE_STATE_COMMON;
+	D3D12_RESOURCE_STATES pingState12 = D3D12_RESOURCE_STATE_COMMON;
+	const auto transitionLayerResource =
+		[&](ID3D12Resource* resource, D3D12_RESOURCE_STATES after) {
+		D3D12_RESOURCE_STATES& before =
+			resource == impl.sharedInput12.get() ? inputState12 :
+			resource == impl.sharedOutput12.get() ? outputState12 : pingState12;
+		if (before == after) return;
+		D3D12_RESOURCE_BARRIER barrier{};
+		barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+		barrier.Transition = {
+			resource, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, before, after
+		};
+		commandList->ResourceBarrier(1, &barrier);
+		before = after;
 	};
-	barriers[1].Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-	barriers[1].Transition = {
-		impl.sharedOutput12.get(), D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES,
-		D3D12_RESOURCE_STATE_COMMON,
-		D3D12_RESOURCE_STATE_UNORDERED_ACCESS
-	};
-	commandList->ResourceBarrier(ARRAYSIZE(barriers), barriers);
 	impl.guidanceInterop->Transition(
 		commandList, D3D12_RESOURCE_STATE_COMMON,
 		D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 	const bool guidanceReset = evaluateGuidance->requiresHistoryReset &&
 		impl.lastGuidanceResetFrameId != context.frameId;
+	const bool historyReset = impl.resetHistory || guidanceReset;
 	DWORD sehCode = 0;
-	if (!SetEvaluateParametersSafely(
-		impl, _settings, *evaluateGuidance, guidanceReset, &sehCode)) {
-		commandList->Close();
-		Logger::Get().Error(fmt::format(
-			"DLSSNR evaluation parameter setup raised SEH {:#x}", sehCode));
-		return fail("ngx-parameters-seh");
-	}
 	if (impl.timestampQueryHeap) {
 		commandList->EndQuery(
 			impl.timestampQueryHeap.get(), D3D12_QUERY_TYPE_TIMESTAMP,
@@ -2332,9 +2363,47 @@ bool DLSSNRFilter::Draw(const NativeEffectDrawContext& context) noexcept {
 	const Impl::EvaluateFeatureFn evaluateFeature = impl.useSignedSnippet ?
 		impl.snippetEvaluateFeature :
 		static_cast<Impl::EvaluateFeatureFn>(&NVSDK_NGX_D3D12_EvaluateFeature);
-	const NVSDK_NGX_Result result = CallEvaluateFeatureSafely(
-		evaluateFeature, commandList, impl.feature,
-		impl.parameters, &sehCode);
+	// Physical chaining: each layer samples the previous layer's output and
+	// only the first layer may reset history.
+	NVSDK_NGX_Result result = NVSDK_NGX_Result_Success;
+	bool evaluateSucceeded = true;
+	ID3D12Resource* layerColor = impl.sharedInput12.get();
+	for (uint32_t layer = 0; layer < layerCount; ++layer) {
+		ID3D12Resource* const layerOutput = (layer % 2) == 0 ?
+			impl.sharedOutput12.get() : impl.sharedPing12.get();
+		// The transition away from the previous layer's UAV write also orders
+		// it before this layer's shader read, so no UAV barrier is required.
+		transitionLayerResource(
+			layerColor, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+		transitionLayerResource(
+			layerOutput, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+		if (!SetEvaluateParametersSafely(
+			impl, _settings, *evaluateGuidance,
+			layer == 0 && historyReset, layerColor, layerOutput, &sehCode)) {
+			commandList->Close();
+			Logger::Get().Error(fmt::format(
+				"DLSSNR evaluation parameter setup raised SEH {:#x}", sehCode));
+			return fail("ngx-parameters-seh");
+		}
+		result = CallEvaluateFeatureSafely(
+			evaluateFeature, commandList, impl.feature,
+			impl.parameters, &sehCode);
+		++impl.evaluateCount;
+		evaluateSucceeded = !sehCode && NGXSucceeded(result);
+		if (evaluateSucceeded) {
+			++impl.evaluateSuccessCount;
+		} else {
+			++impl.evaluateFailureCount;
+			impl.disabled = true;
+			if (sehCode) {
+				Logger::Get().Error(fmt::format(
+					"DLSSNR EvaluateFeature raised SEH {:#x}", sehCode));
+			}
+			break;
+		}
+		if (layer + 1 == layerCount) break;
+		layerColor = layerOutput;
+	}
 	const double evaluateCpuMs = NativeBackendTiming::ElapsedMilliseconds(evaluateStart);
 	if (impl.timestampQueryHeap) {
 		commandList->EndQuery(
@@ -2344,18 +2413,6 @@ bool DLSSNRFilter::Draw(const NativeEffectDrawContext& context) noexcept {
 			impl.timestampQueryHeap.get(), D3D12_QUERY_TYPE_TIMESTAMP,
 			commandSlot.timestampQuery, 2, impl.timestampReadback.get(),
 			uint64_t(commandSlot.timestampQuery) * sizeof(uint64_t));
-	}
-	++impl.evaluateCount;
-	const bool evaluateSucceeded = !sehCode && NGXSucceeded(result);
-	if (evaluateSucceeded) {
-		++impl.evaluateSuccessCount;
-	} else {
-		++impl.evaluateFailureCount;
-		impl.disabled = true;
-		if (sehCode) {
-			Logger::Get().Error(fmt::format(
-				"DLSSNR EvaluateFeature raised SEH {:#x}", sehCode));
-		}
 	}
 	if (!evaluateSucceeded || impl.evaluateCount == 1 ||
 		(NativeBackendTiming::Enabled &&
@@ -2371,13 +2428,15 @@ bool DLSSNRFilter::Draw(const NativeEffectDrawContext& context) noexcept {
 			impl.disabled), !evaluateSucceeded);
 	}
 	const auto submitStart = NativeBackendTiming::Now();
-	for (D3D12_RESOURCE_BARRIER& barrier : barriers) {
-		std::swap(barrier.Transition.StateBefore, barrier.Transition.StateAfter);
-	}
+	transitionLayerResource(
+		impl.sharedInput12.get(), D3D12_RESOURCE_STATE_COMMON);
+	transitionLayerResource(
+		impl.sharedOutput12.get(), D3D12_RESOURCE_STATE_COMMON);
+	transitionLayerResource(
+		impl.sharedPing12.get(), D3D12_RESOURCE_STATE_COMMON);
 	impl.guidanceInterop->Transition(
 		commandList, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
 		D3D12_RESOURCE_STATE_COMMON);
-	commandList->ResourceBarrier(ARRAYSIZE(barriers), barriers);
 	hr = commandList->Close();
 	if (FAILED(hr)) {
 		return fail("command-list-close");
@@ -2400,14 +2459,16 @@ bool DLSSNRFilter::Draw(const NativeEffectDrawContext& context) noexcept {
 		if (!CompositeResidual(
 			impl, output,
 			impl.disabled ? impl.sharedInputSrv11.get() :
-				impl.sharedOutputSrv11.get(),
+				(finalLayerIsPing ? impl.sharedPingSrv11.get() :
+					impl.sharedOutputSrv11.get()),
 			_settings)) {
 			return fail("residual-composite");
 		}
 	} else {
 		impl.context11->CopyResource(
 			output, impl.disabled ? impl.sharedInput11.get() :
-				impl.sharedOutput11.get());
+				(finalLayerIsPing ? impl.sharedPing11.get() :
+					impl.sharedOutput11.get()));
 	}
 	const double submitMs = NativeBackendTiming::ElapsedMilliseconds(submitStart);
 	if constexpr (NativeBackendTiming::Enabled) {

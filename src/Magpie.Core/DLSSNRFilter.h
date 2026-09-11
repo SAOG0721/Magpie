@@ -20,6 +20,8 @@ struct DLSSNRSettings {
 	float localToneStrength = 1.0f;
 	float localStructureStrength = 1.0f;
 	float skinStructureStrength = 0.0f;
+	// Number of chained DLSSNR evaluations per frame. Layer N reads layer N-1.
+	int layerCount = 1;
 	bool useAutoMask = false;
 	bool uiCorrection = false;
 	MotionVectorRequest motionRequest{};
