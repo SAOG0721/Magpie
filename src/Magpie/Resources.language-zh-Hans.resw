@@ -1221,6 +1221,7 @@
 （会降低 DLSSNR 质量）</value></data>
   <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_inputResolutionPercent_Label" xml:space="preserve"><value>输入分辨率（%）</value></data>
   <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_intensity_Label" xml:space="preserve"><value>NR 强度</value></data>
+  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_layerCount_Label" xml:space="preserve"><value>叠加层数</value></data>
   <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_localStructureStrength_Label" xml:space="preserve"><value>局部结构强度</value></data>
   <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_localToneStrength_Label" xml:space="preserve"><value>局部色调强度</value></data>
   <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_reflectionGlowMultiplier_Label" xml:space="preserve"><value>反射／辉光控制</value></data>

@@ -143,6 +143,15 @@ float skinStructureStrength;
 
 //!PARAMETER
 //!GROUP DLSSNR
+//!LABEL Layer Count
+//!DEFAULT 1
+//!MIN 1
+//!MAX 10
+//!STEP 1
+int layerCount;
+
+//!PARAMETER
+//!GROUP DLSSNR
 //!LABEL Automatic Mask
 //!DEFAULT 0
 //!MIN 0
