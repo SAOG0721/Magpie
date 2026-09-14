@@ -429,12 +429,6 @@ ScalingError Renderer::Initialize(HWND hwndAttach, OverlayOptions& overlayOption
 			xessFrameGenerationMultiplier, adapterDesc.VendorId,
 			adapterDesc.DeviceId, static_cast<uint32_t>(_xessMotionRequest.method),
 			static_cast<uint32_t>(_xessMotionRequest.quality)));
-		if (xessFrameGenerationMultiplier > 2 &&
-			adapterDesc.VendorId != 0x8086) {
-			Logger::Get().Error(
-				"XeSS Multi-Frame Generation x3/x4 requires an Intel adapter");
-			return ScalingError::XeSSMfgRequiresIntel;
-		}
 
 		auto xessPresenter = std::make_unique<XeSSFGPresenter>(
 			*xessVariant,

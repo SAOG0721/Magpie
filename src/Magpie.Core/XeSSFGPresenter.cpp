@@ -550,15 +550,6 @@ bool XeSSFGPresenter::_Initialize(HWND hwndAttach) noexcept {
 		"maxSupportedInterpolations={}",
 		_variant == XeSSFGVariant::X2 ? "x2" : "MFG",
 		_requestedMultiplier, properties.maxSupportedInterpolations));
-	if (properties.maxSupportedInterpolations < requestedInterpolations) {
-		Logger::Get().Error(fmt::format(
-			"XeSSFG {}x is unsupported: hardware supports at most {}x",
-			_requestedMultiplier, properties.maxSupportedInterpolations + 1));
-		_initializationError = _requestedMultiplier > 2 ?
-			ScalingError::XeSSMfgMultiplierUnsupported :
-			ScalingError::ScalingFailedGeneral;
-		return false;
-	}
 	const uint32_t interpolatedFrames = requestedInterpolations;
 	impl->multiplier = _requestedMultiplier;
 
