@@ -336,6 +336,12 @@
   <data name="ScalingModes_AddEffect.Text" xml:space="preserve">
     <value>添加效果器</value>
   </data>
+  <data name="ScalingModes_EffectDisable" xml:space="preserve">
+    <value>禁用</value>
+  </data>
+  <data name="ScalingModes_EffectEnable" xml:space="preserve">
+    <value>启用</value>
+  </data>
   <data name="ScalingModes_Delete.[using:Windows.UI.Xaml.Controls]ToolTipService.ToolTip" xml:space="preserve">
     <value>删除</value>
   </data>

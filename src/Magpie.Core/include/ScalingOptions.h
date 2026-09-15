@@ -142,12 +142,26 @@ struct FrameGenerationChainValidation {
 	bool HasFrameGeneration() const noexcept { return count != 0; }
 };
 
+// 配置层的 EffectItem 带 enabled 字段，运行期的 EffectOption 没有。
+// 被禁用的效果不参与渲染，因此也不应参与补帧冲突校验。这里用概念做鸭子类型
+// 判断，让所有调用点（含 UI 的 CanAddEffect 与运行期装配）都自动忽略禁用项，
+// 不会因为漏过滤而误报「一组内存在多个补帧效果」。
+template <typename T>
+concept HasEnabledFlag = requires(T effect) {
+	effect.enabled ? 0 : 1;
+};
+
 template <typename EffectRange>
 FrameGenerationChainValidation ValidateFrameGenerationChain(
 	const EffectRange& effects
 ) noexcept {
 	FrameGenerationChainValidation result;
 	for (const auto& effect : effects) {
+		if constexpr (HasEnabledFlag<decltype(effect)>) {
+			if (!effect.enabled) {
+				continue;
+			}
+		}
 		const FrameGenerationEffectKind kind =
 			ClassifyFrameGenerationEffect(effect.name);
 		if (kind == FrameGenerationEffectKind::None) {

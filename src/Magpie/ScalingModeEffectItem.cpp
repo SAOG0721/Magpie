@@ -93,6 +93,47 @@ hstring ScalingModeEffectItem::IssueDescription() const noexcept {
 		_Data().isRecoveryInvalid ? L"ScalingModes_RecoveryInvalid_Description" : L"ScalingModes_MissingEffect_Description");
 }
 
+bool ScalingModeEffectItem::IsEffectEnabled() const noexcept {
+	if (_IsRemoved()) {
+		return true;
+	}
+
+	return _Data().enabled;
+}
+
+void ScalingModeEffectItem::IsEffectEnabled(bool value) {
+	if (_IsRemoved()) {
+		return;
+	}
+
+	EffectItem& data = _Data();
+	if (data.enabled == value) {
+		return;
+	}
+
+	// 与删除效果一致，不阻止用户禁用全部效果；此时运行期会按空效果组报错
+	data.enabled = value;
+	RaisePropertyChanged(L"IsEffectEnabled");
+	RaisePropertyChanged(L"RowOpacity");
+	RaisePropertyChanged(L"ToggleToolTip");
+	AppSettings::Get().SaveAsync();
+}
+
+double ScalingModeEffectItem::RowOpacity() const noexcept {
+	return IsEffectEnabled() ? 1.0 : 0.45;
+}
+
+hstring ScalingModeEffectItem::ToggleToolTip() const noexcept {
+	ResourceLoader resourceLoader =
+		ResourceLoader::GetForCurrentView(CommonSharedConstants::APP_RESOURCE_MAP_ID);
+	return resourceLoader.GetString(IsEffectEnabled()
+		? L"ScalingModes_EffectDisable" : L"ScalingModes_EffectEnable");
+}
+
+void ScalingModeEffectItem::ToggleEnabled() {
+	IsEffectEnabled(!IsEffectEnabled());
+}
+
 IVector<IInspectable> ScalingModeEffectItem::ScalingTypes() noexcept {
 	using Windows::ApplicationModel::Resources::ResourceLoader;
 	ResourceLoader resourceLoader =

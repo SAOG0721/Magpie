@@ -10,6 +10,9 @@ struct EffectItem {
 	std::pair<float, float> scale = { 1.0f,1.0f };
 	bool isRecoveryInvalid = false;
 	std::string recoveryOriginal;
+	// 临时禁用：效果仍保留在配置与列表中，但不参与渲染。
+	// 放在末尾以免影响任何按位置聚合初始化的写法。
+	bool enabled = true;
 
 	bool HasScale() const noexcept {
 		return scalingType != ScalingType::Normal ||

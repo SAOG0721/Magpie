@@ -380,6 +380,11 @@ ScalingError ScalingService::_StartScaleImpl(HWND hWnd, const Profile& profile, 
 		return ScalingError::ScalingModeEmpty;
 	} else {
 		for (const EffectItem& effect : effects) {
+			// 被禁用的效果不参与渲染，即使文件缺失也不应阻止启动，
+			// 这样用户可以靠禁用来绕过损坏的效果器
+			if (!effect.enabled) {
+				continue;
+			}
 			if (effect.isRecoveryInvalid || !EffectsService::Get().GetEffect(effect.name)) {
 				// 存在无法解析的效果
 				return ScalingError::ScalingModeUnknownEffect;
@@ -409,7 +414,15 @@ ScalingError ScalingService::_StartScaleImpl(HWND hWnd, const Profile& profile, 
 
 	options.effects.reserve(effects.size());
 	for (const EffectItem& effectItem : effects) {
+		// 被禁用的效果保留在配置里，但不进入渲染链
+		if (!effectItem.enabled) {
+			continue;
+		}
 		options.effects.push_back((EffectOption)effectItem);
+	}
+	if (options.effects.empty()) {
+		// 全部效果都被禁用，等价于效果组为空
+		return ScalingError::ScalingModeEmpty;
 	}
 
 	// 尝试启用触控支持
