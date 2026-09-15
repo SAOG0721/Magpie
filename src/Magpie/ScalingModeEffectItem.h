@@ -47,6 +47,19 @@ struct ScalingModeEffectItem : ScalingModeEffectItemT<ScalingModeEffectItem>,
 	bool HasParameters() const noexcept;
 	hstring IssueDescription() const noexcept;
 
+	// 临时禁用：效果保留在列表中，但不进入渲染链
+	bool IsEffectEnabled() const noexcept;
+	void IsEffectEnabled(bool value);
+
+	// 禁用时整行变暗
+	double RowOpacity() const noexcept;
+
+	// 悬停提示：当前启用则提示「禁用」，当前禁用则提示「启用」
+	hstring ToggleToolTip() const noexcept;
+
+	// 按钮点击：切换启用/禁用
+	void ToggleEnabled();
+
 	IVector<IInspectable> ScalingTypes() noexcept;
 
 	int ScalingType() const noexcept;

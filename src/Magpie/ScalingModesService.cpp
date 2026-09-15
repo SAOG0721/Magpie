@@ -152,6 +152,12 @@ static void WriteScalingMode(rapidjson::PrettyWriter<rapidjson::StringBuffer>& w
 				writer.String(effect.recoveryOriginal.data(), static_cast<rapidjson::SizeType>(effect.recoveryOriginal.size()));
 			}
 
+			// 只写非默认值，保持配置文件精简
+			if (!effect.enabled) {
+				writer.Key("enabled");
+				writer.Bool(false);
+			}
+
 			if (effect.HasScale()) {
 				writer.Key("scalingType");
 				writer.Uint((uint32_t)effect.scalingType);
@@ -240,6 +246,8 @@ static bool LoadScalingMode(
 			}
 		}
 		JsonHelper::ReadBool(elemObj, "recoveryInvalid", effect.isRecoveryInvalid);
+		// 缺失该键时保持默认值 true（启用）
+		JsonHelper::ReadBool(elemObj, "enabled", effect.enabled);
 		if (auto raw = elemObj.FindMember("recoveryOriginal"); raw != elemObj.MemberEnd() && raw->value.IsString())
 			effect.recoveryOriginal.assign(raw->value.GetString(), raw->value.GetStringLength());
 		// Frame Rate Filter used to live in the Utility folder. Keep existing

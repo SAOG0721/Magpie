@@ -454,6 +454,7 @@
 											<local:SettingsCard Header="{x:Bind Name}"
 											                    Description="{x:Bind IssueDescription}"
 											                    Loaded="EffectSettingsCard_Loaded"
+											                    Opacity="{x:Bind RowOpacity, Mode=OneWay}"
 											                    Style="{StaticResource DefaultSettingsExpanderItemStyle}">
 												<local:SimpleStackPanel Orientation="Horizontal">
 													<local:SimpleStackPanel.Resources>
@@ -465,6 +466,20 @@
 															<Setter Property="FontSize" Value="15" />
 														</Style>
 													</local:SimpleStackPanel.Resources>
+													<Button Click="{x:Bind ToggleEnabled}"
+													        Margin="0,0,4,0">
+														<ToolTipService.ToolTip>
+															<ToolTip Content="{x:Bind ToggleToolTip, Mode=OneWay}" />
+														</ToolTipService.ToolTip>
+														<Button.Content>
+															<Grid>
+																<FontIcon Glyph="&#xE890;"
+																          Visibility="{x:Bind IsEffectEnabled, Mode=OneWay}" />
+																<FontIcon Glyph="&#xE711;"
+																          Visibility="{x:Bind IsEffectEnabled, Mode=OneWay, Converter={StaticResource NegativeVisibilityConverter}}" />
+															</Grid>
+														</Button.Content>
+													</Button>
 													<Button x:Uid="ScalingModes_Scale"
 													        Margin="0,0,4,0"
 													        Visibility="{x:Bind CanScale}">

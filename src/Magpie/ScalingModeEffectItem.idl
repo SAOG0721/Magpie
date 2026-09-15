@@ -13,6 +13,12 @@ namespace Magpie {
 		Boolean CanScale { get; };
 		Boolean HasParameters { get; };
 
+		Boolean IsEffectEnabled;
+		Double RowOpacity { get; };
+		String ToggleToolTip { get; };
+
+		void ToggleEnabled();
+
 		IVector<IInspectable> ScalingTypes { get; };
 		Int32 ScalingType;
 		Boolean IsShowScaleFactors { get; };
