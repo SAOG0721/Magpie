@@ -10,6 +10,8 @@ struct DirectXHelper {
 		return desc.VendorId == 0x1414 && desc.DeviceId == 0x8c;
 	}
 
+	static bool IsDisplayOnlyAdapter(IDXGIAdapter1* adapter) noexcept;
+
 	static bool CompileComputeShader(
 		std::string_view hlsl,
 		const char* entryPoint,

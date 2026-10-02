@@ -78,7 +78,8 @@ bool DeviceResources::_ObtainAdapterAndDevice(GraphicsCardId graphicsCardId, boo
 			DXGI_ADAPTER_DESC1 desc;
 			hr = adapter->GetDesc1(&desc);
 			if (SUCCEEDED(hr)) {
-				if (desc.VendorId == graphicsCardId.vendorId && desc.DeviceId == graphicsCardId.deviceId) {
+				if (desc.VendorId == graphicsCardId.vendorId && desc.DeviceId == graphicsCardId.deviceId &&
+					!DirectXHelper::IsDisplayOnlyAdapter(adapter.get())) {
 					if (_TryCreateD3DDevice(adapter, isForeground)) {
 						return true;
 					}
@@ -109,7 +110,8 @@ bool DeviceResources::_ObtainAdapterAndDevice(GraphicsCardId graphicsCardId, boo
 					continue;
 				}
 
-				if (desc.VendorId == graphicsCardId.vendorId && desc.DeviceId == graphicsCardId.deviceId) {
+				if (desc.VendorId == graphicsCardId.vendorId && desc.DeviceId == graphicsCardId.deviceId &&
+					!DirectXHelper::IsDisplayOnlyAdapter(adapter.get())) {
 					if (_TryCreateD3DDevice(adapter, isForeground)) {
 						return true;
 					}
@@ -134,7 +136,8 @@ bool DeviceResources::_ObtainAdapterAndDevice(GraphicsCardId graphicsCardId, boo
 
 		DXGI_ADAPTER_DESC1 desc;
 		HRESULT hr = adapter->GetDesc1(&desc);
-		if (FAILED(hr) || DirectXHelper::IsWARP(desc)) {
+		if (FAILED(hr) || DirectXHelper::IsWARP(desc) ||
+			DirectXHelper::IsDisplayOnlyAdapter(adapter.get())) {
 			continue;
 		}
 

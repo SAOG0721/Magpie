@@ -27,7 +27,8 @@ bool AdaptersService::Initialize() noexcept {
 	) {
 		DXGI_ADAPTER_DESC1 desc;
 		hr = curAdapter->GetDesc1(&desc);
-		if (FAILED(hr) || DirectXHelper::IsWARP(desc)) {
+		if (FAILED(hr) || DirectXHelper::IsWARP(desc) ||
+			DirectXHelper::IsDisplayOnlyAdapter(curAdapter.get())) {
 			continue;
 		}
 
@@ -98,7 +99,8 @@ bool AdaptersService::_GatherAdapterInfos(
 	) {
 		DXGI_ADAPTER_DESC1 desc;
 		hr = curAdapter->GetDesc1(&desc);
-		if (FAILED(hr) || DirectXHelper::IsWARP(desc)) {
+		if (FAILED(hr) || DirectXHelper::IsWARP(desc) ||
+			DirectXHelper::IsDisplayOnlyAdapter(curAdapter.get())) {
 			continue;
 		}
 

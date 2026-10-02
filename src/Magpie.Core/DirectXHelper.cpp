@@ -3,8 +3,35 @@
 #include "Logger.h"
 #include "StrHelper.h"
 #include <d3dcompiler.h>
+#include <d3dkmthk.h>
 
 namespace Magpie {
+
+bool DirectXHelper::IsDisplayOnlyAdapter(IDXGIAdapter1* adapter) noexcept {
+	DXGI_ADAPTER_DESC1 desc;
+	if (FAILED(adapter->GetDesc1(&desc))) {
+		return false;
+	}
+
+	D3DKMT_OPENADAPTERFROMLUID open{};
+	open.AdapterLuid = desc.AdapterLuid;
+	if (D3DKMTOpenAdapterFromLuid(&open) < 0) {
+		return false;
+	}
+
+	D3DKMT_ADAPTERTYPE type{};
+	D3DKMT_QUERYADAPTERINFO query{};
+	query.hAdapter = open.hAdapter;
+	query.Type = KMTQAITYPE_ADAPTERTYPE;
+	query.pPrivateDriverData = &type;
+	query.PrivateDriverDataSize = sizeof(type);
+	const NTSTATUS status = D3DKMTQueryAdapterInfo(&query);
+
+	D3DKMT_CLOSEADAPTER close{};
+	close.hAdapter = open.hAdapter;
+	D3DKMTCloseAdapter(&close);
+	return status >= 0 && type.IndirectDisplayDevice && !type.RenderSupported;
+}
 
 bool DirectXHelper::CompileComputeShader(
 	std::string_view hlsl,
