@@ -408,3 +408,6 @@ FodyWeavers.xsd
 
 # JetBrains Rider
 *.sln.iml
+
+# Generated AMD NR capture validation evidence and isolated runtimes.
+/validation/amd-nr/

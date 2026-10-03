@@ -47,6 +47,8 @@ bool IsEffectParameterVisible(std::string_view effect, std::string_view paramete
 template<class GetValue>
 bool IsEffectParameterEnabled(std::string_view effect, std::string_view parameter,
 	bool frontEdgeSyncEnabled, GetValue&& getValue) noexcept {
+	if (effect == "AMDNR\\AMDNR_AI_Filter" && parameter == "skinStructureStrength")
+		return getValue("useAutoMask",1.f) != 0;
 	if (IsFrameRateFilterEffect(effect)) {
 		if (parameter == "frameRateMode") return !frontEdgeSyncEnabled;
 		if (parameter == "targetFrameRate") {

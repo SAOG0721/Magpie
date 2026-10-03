@@ -24,6 +24,9 @@
     <EnableDLSSFrameGeneration>false</EnableDLSSFrameGeneration>
     <!-- Experimental NVIDIA DLSSNR same-resolution AI filter. -->
     <EnableDLSSNR>false</EnableDLSSNR>
+    <!-- Independent AMD lmxxf NR runtime; does not require NGX. -->
+    <EnableAmdLmxxfNR>false</EnableAmdLmxxfNR>
+    <AmdLmxxfNRRuntimeDir></AmdLmxxfNRRuntimeDir>
     <DLSSSdkDir></DLSSSdkDir>
     <!-- Official NVAPI headers for native DLSS FG Reflex; no driver DLL is packaged. -->
     <NvapiSdkDir>$(MSBuildThisFileDirectory)..\..\dependencies\nvapi-sdk</NvapiSdkDir>

@@ -97,7 +97,7 @@
       <SubSystem>Windows</SubSystem>
       <AdditionalDependencies>Gdi32.lib;Dwmapi.lib;Shell32.lib;Ole32.lib;Imagehlp.lib;Comctl32.lib;Shlwapi.lib;Magnification.lib;bcp47mrm.lib;Shcore.lib;Uxtheme.lib;Taskschd.lib;Dcomp.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalDependencies Condition="($(EnableDLSSSR) Or $(EnableDLSSFrameGeneration) Or $(EnableDLSSNR)) And '$(Platform)' == 'x64'">$(DLSSSdkDir)\lib\Windows_x86_64\x64\nvsdk_ngx_s.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalDependencies Condition="($(EnableDLSSFrameGeneration) Or $(EnableDLSSNR)) And '$(Platform)' == 'x64'">D3D12.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies Condition="($(EnableAmdLmxxfNR) Or $(EnableDLSSFrameGeneration) Or $(EnableDLSSNR)) And '$(Platform)' == 'x64'">D3D12.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalDependencies Condition="$(EnableXeSSZeroMV) And '$(Platform)' == 'x64'">$(XeSSSdkDir)\lib\libxess.lib;D3D12.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalDependencies Condition="$(EnableXeSSFrameGeneration) And '$(Platform)' == 'x64'">$(XeSSSdkDir)\lib\libxess_fg.lib;$(XeSSSdkDir)\lib\libxell.lib;D3D12.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <DelayLoadDLLs>d3dcompiler_47.dll;Magnification.dll;Imagehlp.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
@@ -741,7 +741,8 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Magpie.Core\Magpie.Core.vcxproj">
-      <Project>{0e5205ae-dfa9-4cb8-b662-e43cd6512e2a}</Project>
+      <Project>{0e5205ae-dfa9-4cb8-b662-e43cd6512e2a}
+</Project>
     </ProjectReference>
   </ItemGroup>
   <Target Name="CopyDLSSSRRuntime" AfterTargets="Build" Condition="$(EnableDLSSSR) And '$(Platform)' == 'x64'">
@@ -763,6 +764,7 @@
   <Target Name="CopyFSR3ZeroMVRuntime" AfterTargets="Build" Condition="$(EnableFSR3ZeroMV) And '$(Platform)' == 'x64'">
     <Copy SourceFiles="$(FSR3SdkDir)\Kits\FidelityFX\signedbin\amd_fidelityfx_loader_dx12.dll;$(FSR3SdkDir)\Kits\FidelityFX\signedbin\amd_fidelityfx_upscaler_dx12.dll" DestinationFolder="$(OutDir)" />
     <Copy SourceFiles="$(FSR3SdkDir)\3rdpartynotice.md" DestinationFiles="$(OutDir)\AMD-FSR-SDK-THIRD-PARTY.md" />
+    <Copy SourceFiles="$(FSR3SdkDir)\Kits\FidelityFX\docs\license.md" DestinationFiles="$(OutDir)\AMD-FSR-SDK-LICENSE.md" />
   </Target>
   <Target Name="CopyXeSSZeroMVRuntime" AfterTargets="Build" Condition="$(EnableXeSSZeroMV) And '$(Platform)' == 'x64'">
     <Copy SourceFiles="$(XeSSSdkDir)\bin\libxess.dll" DestinationFolder="$(OutDir)" />
@@ -891,5 +893,15 @@
           Condition="'$(Configuration)' == 'Release' And '$(IsPackaged)' != 'true'">
     <Error Condition="!Exists('$(OutDir)resources.pri')"
            Text="Release runtime layout is incomplete: $(OutDir)resources.pri was not generated. Do not deploy Magpie.exe by itself." />
+  </Target>
+  <Target Name="CopyAmdLmxxfNRRuntime" AfterTargets="Build" Condition="$(EnableAmdLmxxfNR) And '$(Platform)' == 'x64'">
+    <Error Condition="!Exists('$(AmdLmxxfNRRuntimeDir)\LmxxfNrRuntime.dll') Or !Exists('$(AmdLmxxfNRRuntimeDir)\LmxxfNrRuntime.pak')" Text="Set AmdLmxxfNRRuntimeDir to the verified AMDNR runtime directory." />
+    <ItemGroup>
+      <AmdNRRuntime Include="$(AmdLmxxfNRRuntimeDir)\LmxxfNrRuntime.dll;$(AmdLmxxfNRRuntimeDir)\LmxxfNrRuntime.pak" />
+    </ItemGroup>
+    <Copy SourceFiles="@(AmdNRRuntime)" DestinationFolder="$(OutDir)AMDNR" SkipUnchangedFiles="true" />
+    <Copy SourceFiles="$(MSBuildThisFileDirectory)..\..\presets\ScalingModes-AMDNR-experimental.json" DestinationFolder="$(OutDir)presets" SkipUnchangedFiles="true" />
+    <Copy SourceFiles="$(MSBuildThisFileDirectory)..\..\docs\experimental\effects\AMDNR.md" DestinationFolder="$(OutDir)docs" SkipUnchangedFiles="true" />
+    <Copy SourceFiles="$(MSBuildThisFileDirectory)..\..\third-party\AMDNR\AMDNR_NOTICE.txt;$(MSBuildThisFileDirectory)..\..\third-party\AMDNR\lmxxf_LICENSE.txt;$(MSBuildThisFileDirectory)..\..\third-party\AMDNR\LICENSE;$(MSBuildThisFileDirectory)..\..\third-party\AMDNR\NOTICE-AMDNR-RDNA3.txt" DestinationFolder="$(OutDir)AMDNR" SkipUnchangedFiles="true" />
   </Target>
 </Project>

@@ -123,6 +123,8 @@
     <ClInclude Include="DLSSSRUpscaler.h" />
     <ClInclude Include="DLSSFrameGenerator.h" />
     <ClInclude Include="GroupBEffectProtocol.h" />
+    <ClInclude Include="AmdLmxxfNRFilter.h" />
+    <ClInclude Include="include\LmxxfNrApi.h" />
     <ClInclude Include="DLSSNRFilter.h" />
     <ClInclude Include="DLSSNRColorShader.h" />
     <ClInclude Include="DLSSNRDetailShader.h" />
@@ -164,6 +166,7 @@
     <ClInclude Include="XeSSUpscaler.h" />
     <ClInclude Include="XeSSZeroMVUpscaler.h" />
     <ClInclude Include="NativeEffectBackend.h" />
+    <ClInclude Include="NativeOutputValidation.h" />
     <ClInclude Include="NativeEffectBackendFactory.h" />
     <ClInclude Include="NgxD3D12Core.h" />
     <ClInclude Include="include\NgxRuntimeGuard.h" />
@@ -237,6 +240,7 @@
     <ClCompile Include="WindowHelper.cpp" />
     <ClCompile Include="DLSSSRUpscaler.cpp" />
     <ClCompile Include="DLSSFrameGenerator.cpp" />
+    <ClCompile Include="AmdLmxxfNRFilter.cpp" />
     <ClCompile Include="DLSSNRFilter.cpp" />
     <ClCompile Include="DLSSNRTemporal.cpp" />
     <ClCompile Include="FrameGuidanceService.cpp" />

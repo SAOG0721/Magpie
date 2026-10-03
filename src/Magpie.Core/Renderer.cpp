@@ -3556,6 +3556,11 @@ void Renderer::_BackendRender(
 				_LogHdrTextureStats(drawContext.input, fmt::format("effect-{}-input", i));
 				_LogHdrTextureStats(drawContext.output, fmt::format("effect-{}-backend-output", i));
 			}
+			if (!nativeDrawSucceeded && (desc.name == "AMDNR\\AMDNR_AI_Filter" ||
+                desc.name == "FSR3\\FSR3_SR" || desc.name == "FSR4\\FSR4_SR")) {
+				_FailColorPipeline(desc.name + "\nNative evaluation failed (no fallback)", ScalingError::EffectResourceFailed);
+				return;
+			}
 			if (!nativeDrawSucceeded && component == HdrComponentKind::RtxVideoHdr) {
 				_FailColorPipeline(_runtimeEffectOptions[i].name, ScalingError::RtxHdrUnavailable);
 				return;

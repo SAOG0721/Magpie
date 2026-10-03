@@ -504,6 +504,7 @@ struct AmdOpticalFlowProvider::Impl {
 	uint64_t fenceValue = 0;
 	uint64_t lastSubmittedValue = 0;
 	uint64_t executeCount = 0;
+	FrameGuidanceFrameId previousProcessedFrameId = 0;
 	bool contextCreated = false;
 	bool historyValid = false;
 	OpticalFlowInitializationError initializationError =
@@ -530,8 +531,8 @@ bool AmdOpticalFlowProvider::BeginFrame(
 	Impl& impl = *_impl;
 	const auto prepareStart = std::chrono::steady_clock::now();
 	if (!frame.color || frame.sourceExtent != impl.extent ||
-		!impl.contextCreated || !impl.PrepareInput(frame.color) ||
-		!WaitForFence(impl.fence12.get(), impl.lastSubmittedValue)) return false;
+		!impl.contextCreated || !WaitForFence(impl.fence12.get(), impl.lastSubmittedValue) ||
+		!impl.PrepareInput(frame.color)) return false;
 
 	const auto prepareEnd = std::chrono::steady_clock::now();
 	const uint64_t inputReady = ++impl.fenceValue;
@@ -583,6 +584,9 @@ bool AmdOpticalFlowProvider::BeginFrame(
 	impl.lastSubmittedValue = outputReady;
 	if (FAILED(impl.queue12->Signal(impl.fence12.get(), outputReady)) || FAILED(
 		impl.context11->Wait(impl.fence11.get(), outputReady))) return false;
+#ifdef MP_ENABLE_NATIVE_BACKEND_TIMING
+	if (!WaitForFence(impl.fence12.get(), outputReady)) return false;
+#endif
 	const auto opticalFlowEnd = std::chrono::steady_clock::now();
 
 	const bool resetFrame = dispatch.reset;
@@ -597,6 +601,16 @@ bool AmdOpticalFlowProvider::BeginFrame(
 		impl.resetReason = FrameGuidanceResetReason::ProviderFailure;
 		return false;
 	}
+#ifdef MP_ENABLE_NATIVE_BACKEND_TIMING
+	const uint64_t denseReady = ++impl.fenceValue;
+	if (FAILED(impl.context11->Signal(impl.fence11.get(), denseReady))) return false;
+	impl.context11->Flush();
+	impl.lastSubmittedValue = denseReady;
+	if (!WaitForFence(impl.fence12.get(), denseReady)) return false;
+	Logger::Get().Info(fmt::format("AMD OF synchronous validation: frame={} previous={} extent={}x{} reset={} synchronized_wall_ms={:.3f}",
+		frame.frameId, impl.previousProcessedFrameId, impl.extent.width, impl.extent.height, dispatch.reset,
+		std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - prepareStart).count()));
+#endif
 	const auto densifyEnd = std::chrono::steady_clock::now();
 	++impl.executeCount;
 	if (impl.executeCount <= 2 || impl.executeCount % 120 == 0) {
@@ -628,6 +642,7 @@ bool AmdOpticalFlowProvider::BeginFrame(
 		.metadata = metadata
 	};
 	impl.historyValid = true;
+	impl.previousProcessedFrameId = frame.frameId;
 	impl.resetReason = FrameGuidanceResetReason::None;
 	return true;
 }

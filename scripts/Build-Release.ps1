@@ -12,7 +12,15 @@ param(
     [switch]$IncludeSymbols,
     [switch]$SkipBuild,
     [switch]$RequireMagpieClosed,
-    [switch]$EnableFrameTrace
+    [switch]$EnableFrameTrace,
+    [switch]$EnableAmdLmxxfNR,
+    [string]$AmdLmxxfNRRuntimeDir,
+    [switch]$EnableFSR3ZeroMV,
+    [string]$FSR3SdkDir,
+    [switch]$EnableAmdOpticalFlow,
+    [switch]$EnableXeSSFrameGeneration,
+    [string]$XeSSSdkDir,
+    [switch]$EnableNativeBackendTiming
 )
 
 $ErrorActionPreference = "Stop"
@@ -236,7 +244,7 @@ if (!$SkipBuild) {
     $disablePdb = if ($IncludeSymbols) { "false" } else { "true" }
     $multiToolTask = if ($MaxCompilerProcesses -gt 1) { "true" } else { "false" }
     $msbuildArgs = @(
-        "Magpie.slnx", "/m:$MaxCpuCount", "/nr:false", "/v:minimal", "/t:Rebuild",
+        "Magpie.slnx", "/m:$MaxCpuCount", "/nr:false", "/v:minimal", "/t:Rebuild", "/restore", "/p:RestorePackagesConfig=true",
         "/p:Configuration=$Configuration", "/p:Platform=$Platform",
         "/p:MajorVersion=$($versionMatch.Groups[1].Value)",
         "/p:MinorVersion=$($versionMatch.Groups[2].Value)",
@@ -249,6 +257,22 @@ if (!$SkipBuild) {
         ('/p:OutDir=' + $buildOutput.Replace('\', '/') + '/'),
         ('/p:MagpieIntermediateRoot=' + $intermediateRoot.Replace('\', '/') + '/')
     )
+    if ($EnableAmdLmxxfNR) {
+        if (!$AmdLmxxfNRRuntimeDir) { throw "Specify -AmdLmxxfNRRuntimeDir for the AMD NR build." }
+        $msbuildArgs += @("/p:EnableAmdLmxxfNR=true", "/p:AmdLmxxfNRRuntimeDir=$([System.IO.Path]::GetFullPath($AmdLmxxfNRRuntimeDir))")
+    }
+    if ($EnableFSR3ZeroMV -or $EnableAmdOpticalFlow) {
+        if (!$FSR3SdkDir) { throw "Specify -FSR3SdkDir for FSR / AMD optical flow." }
+        $msbuildArgs += "/p:FSR3SdkDir=$([System.IO.Path]::GetFullPath($FSR3SdkDir))"
+    }
+    if ($EnableFSR3ZeroMV) { $msbuildArgs += "/p:EnableFSR3ZeroMV=true" }
+    if ($EnableAmdOpticalFlow) { $msbuildArgs += "/p:EnableAmdOpticalFlow=true" }
+    elseif ($EnableFSR3ZeroMV) { $msbuildArgs += "/p:EnableAmdOpticalFlow=false" }
+    if ($EnableXeSSFrameGeneration) {
+        if (!$XeSSSdkDir) { throw "Specify -XeSSSdkDir for XeSS FG." }
+        $msbuildArgs += @("/p:EnableXeSSFrameGeneration=true", "/p:XeSSSdkDir=$([System.IO.Path]::GetFullPath($XeSSSdkDir))")
+    }
+    if ($EnableNativeBackendTiming) { $msbuildArgs += "/p:EnableNativeBackendTiming=true" }
     $traceEnabled = if ($EnableFrameTrace) { "true" } else { "false" }
     $msbuildArgs += "/p:EnableFrameTrace=$traceEnabled"
     if ($IncludeSymbols) {
@@ -395,6 +419,13 @@ if (!$featureOptions.Contains("EnableAmdOpticalFlow") -and
 }
 
 $featureOptions["EnableFrameTrace"] = if ($EnableFrameTrace) { "true" } else { "false" }
+foreach ($entry in @(@('EnableAmdLmxxfNR',[bool]$EnableAmdLmxxfNR),
+    @('EnableFSR3ZeroMV',[bool]$EnableFSR3ZeroMV), @('EnableXeSSFrameGeneration',[bool]$EnableXeSSFrameGeneration),
+    @('EnableNativeBackendTiming',[bool]$EnableNativeBackendTiming))) {
+    if ($entry[1]) { $featureOptions[$entry[0]]='true' }
+}
+if ($EnableAmdOpticalFlow) { $featureOptions['EnableAmdOpticalFlow']='true' }
+elseif ($EnableFSR3ZeroMV) { $featureOptions['EnableAmdOpticalFlow']='false' }
 if ($featureOptions["EnableFrameTrace"] -eq "true") {
     $diagnosticsDir = Join-Path $stagingDir "Diagnostics"
     New-Item -ItemType Directory -Path $diagnosticsDir -Force | Out-Null

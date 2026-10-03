@@ -82,7 +82,7 @@ struct XeSSFGPresenter::Impl {
 	XeSSFGTiming timing;
 	XeSSFGSourceSample sourceSample;
 	XeSSFGTiming::Estimate timingEstimate;
-	double extraWaitMs = 0, xellWaitMs = 0, presentMs = 0;
+	double extraWaitMs = 0, xellWaitMs = 0, presentMs = 0, resourceTagCpuMs = 0;
 	double sourceReceivedAtMs = 0, sourceReceiveIntervalMs = 0, sourceQueueMs = 0;
 	uint64_t sdkFrames = 0, sdkSamples = 0, partialBursts = 0;
 	// Opt-in startup diagnostics; normal runs keep the existing log cadence.
@@ -902,6 +902,7 @@ bool XeSSFGPresenter::EndFrame(bool waitForGpu) noexcept {
 	impl.queue12->ExecuteCommandLists(1, lists);
 
 	if (impl.frameGenerationEnabled) {
+		const auto taggingStart=std::chrono::steady_clock::now();
 		xefg_swapchain_d3d12_resource_data_t motion{};
 		motion.type = XEFG_SWAPCHAIN_RES_MOTION_VECTOR;
 		motion.validity = XEFG_SWAPCHAIN_RV_UNTIL_NEXT_PRESENT;
@@ -963,6 +964,7 @@ bool XeSSFGPresenter::EndFrame(bool waitForGpu) noexcept {
 		} else {
 			impl.resetHistory = false;
 		}
+		impl.resourceTagCpuMs=std::chrono::duration<double,std::milli>(std::chrono::steady_clock::now()-taggingStart).count();
 	}
 
 
@@ -1009,6 +1011,8 @@ bool XeSSFGPresenter::EndFrame(bool waitForGpu) noexcept {
 				"XeSSFG SDK output: requested={}x frames={} submissions={} partialBursts={} lastFrames={} lastFGResult={} motionFrames={} (not display events)",
 				impl.multiplier, impl.sdkFrames, impl.sdkSamples, impl.partialBursts,
 				status.framesPresented, static_cast<int>(status.frameGenResult), impl.sdkMotionSamples));
+			Logger::Get().Info(fmt::format("XeSSFG timing: sourceFrame={} guidanceFrame={} tag_cpu_ms={:.3f} XeLL_cpu_wait_ms={:.3f} proxy_present_cpu_ms={:.3f} (GPU interpolation cost not isolated)",
+				impl.sourceSample.frameId,impl.guidanceFrameId,impl.resourceTagCpuMs,impl.xellWaitMs,impl.presentMs));
 		}
 		if (impl.compatibility.Patched() && (traceStartup || impl.frameId % 120 == 0)) {
 			const auto outputs = XeSSFGCompatibility::Pacing::ReadOutputStats();

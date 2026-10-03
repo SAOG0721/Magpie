@@ -1,0 +1,82 @@
+{
+  "scalingModes": [
+    {
+      "name": "AMD NR (native size)",
+      "effects": [
+        {
+          "name": "AMDNR\\AMDNR_AI_Filter",
+          "scalingType": 0
+        }
+      ]
+    },
+    {
+      "name": "AMD NR + FSR3 2x",
+      "effects": [
+        {
+          "name": "AMDNR\\AMDNR_AI_Filter",
+          "scalingType": 0
+        },
+        {
+          "name": "FSR3\\FSR3_SR",
+          "scale": {
+            "x": 2,
+            "y": 2
+          },
+          "parameters": {
+            "opticalFlowMethod": 0
+          },
+          "scalingType": 0
+        }
+      ]
+    },
+    {
+      "name": "AMD NR + FSR4.1 experimental 2x",
+      "effects": [
+        {
+          "name": "AMDNR\\AMDNR_AI_Filter",
+          "scalingType": 0
+        },
+        {
+          "name": "FSR4\\FSR4_SR",
+          "scale": {
+            "x": 2,
+            "y": 2
+          },
+          "parameters": {
+            "opticalFlowMethod": 0
+          },
+          "scalingType": 0
+        }
+      ]
+    },
+    {
+      "name": "AMD NR + FSR3 2x + XeSS FG 2x experimental",
+      "effects": [
+        {
+          "name": "AMDNR\\AMDNR_AI_Filter",
+          "scalingType": 0
+        },
+        {
+          "name": "FSR3\\FSR3_SR",
+          "scale": {
+            "x": 2,
+            "y": 2
+          },
+          "parameters": {
+            "opticalFlowMethod": 0
+          },
+          "scalingType": 0
+        },
+        {
+          "name": "XeSSFG\\XeSS_FrameGeneration",
+          "scalingType": 0,
+          "parameters": {
+            "multiplier": 2,
+            "opticalFlowMethod": 1,
+            "amdOpticalFlowMode": 1
+          }
+        }
+      ]
+    }
+  ]
+}

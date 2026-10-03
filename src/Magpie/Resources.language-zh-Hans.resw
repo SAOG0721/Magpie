@@ -1806,4 +1806,22 @@
   </data>
   <data name="FrameRefresh_DuplicateDetection_Input.[using:Windows.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>重复帧检测</value></data>
   <data name="ScalingModes_General_MoreOptions.Content" xml:space="preserve"><value>其他选项</value></data>
+
+  <data name="EffectParam_AMDNR_AMDNR_AI_Filter_style_Label" xml:space="preserve"><value>NR 风格特征强度</value></data>
+  <data name="EffectParam_AMDNR_AMDNR_AI_Filter_style_Description" xml:space="preserve"><value>缩放 lmxxf 的模型风格特征；1 为原始值，不对应 NVIDIA 的三种风格预设。</value></data>
+  <data name="EffectParam_AMDNR_AMDNR_AI_Filter_intensity_Label" xml:space="preserve"><value>NR 强度</value></data>
+  <data name="EffectParam_AMDNR_AMDNR_AI_Filter_intensity_Description" xml:space="preserve"><value>AMD 运行时支持 0～1，1 为完整强度。需要更强变化时可增加 Multi Pass。</value></data>
+  <data name="EffectParam_AMDNR_AMDNR_AI_Filter_localToneStrength_Label" xml:space="preserve"><value>局部色调强度</value></data>
+  <data name="EffectParam_AMDNR_AMDNR_AI_Filter_localToneStrength_Description" xml:space="preserve"><value>调节模型的色调输入特征。更改后模型需要重新预热。</value></data>
+  <data name="EffectParam_AMDNR_AMDNR_AI_Filter_localStructureStrength_Label" xml:space="preserve"><value>局部结构强度</value></data>
+  <data name="EffectParam_AMDNR_AMDNR_AI_Filter_localStructureStrength_Description" xml:space="preserve"><value>启用自动遮罩时调节场景结构，关闭时调节整体结构。</value></data>
+  <data name="EffectParam_AMDNR_AMDNR_AI_Filter_skinStructureStrength_Label" xml:space="preserve"><value>皮肤／角色结构强度</value></data>
+  <data name="EffectParam_AMDNR_AMDNR_AI_Filter_skinStructureStrength_Description" xml:space="preserve"><value>调节模型角色结构特征；仅在自动遮罩开启时生效。</value></data>
+  <data name="EffectParam_AMDNR_AMDNR_AI_Filter_useAutoMask_Label" xml:space="preserve"><value>自动角色遮罩</value></data>
+  <data name="EffectParam_AMDNR_AMDNR_AI_Filter_useAutoMask_Description" xml:space="preserve"><value>使用模型内置的角色与场景分离控制，不需要游戏引擎遮罩输入。</value></data>
+  <data name="EffectParam_AMDNR_AMDNR_AI_Filter_multiPass_Label" xml:space="preserve"><value>Multi Pass（网络推理次数）</value></data>
+  <data name="EffectParam_AMDNR_AMDNR_AI_Filter_multiPass_Description" xml:space="preserve"><value>1～3 次完整网络推理。每次追加推理会增加耗时，不是额外的显示分辨率转换。</value></data>
+  <data name="EffectParam_AMDNR_AMDNR_AI_Filter_Group_AMD_NR" xml:space="preserve"><value>AMD NR 调节</value></data>
+  <data name="EffectParam_AMDNR_AMDNR_AI_Filter_useAutoMask_Option_0" xml:space="preserve"><value>关闭</value></data>
+  <data name="EffectParam_AMDNR_AMDNR_AI_Filter_useAutoMask_Option_1" xml:space="preserve"><value>开启</value></data>
 </root>
