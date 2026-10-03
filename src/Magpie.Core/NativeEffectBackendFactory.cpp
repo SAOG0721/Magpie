@@ -4,6 +4,7 @@
 #include "NgxD3D12Core.h"
 #include "NgxRuntimeGuard.h"
 #include "DLSSNRFilter.h"
+#include "AmdLmxxfNRFilter.h"
 #include "DLSSNRMultiPass.h"
 #include "DLSSSRUpscaler.h"
 #include "FSR2ZeroMVUpscaler.h"
@@ -99,6 +100,10 @@ NativeEffectBackendResult CreateNativeEffectBackend(
 					FrameGuidanceDiagnosticSettings{}.gain)),
 				.motionRequest = ParseOpticalFlowRequest(option)
 			});
+	}
+
+	if (effectName == "AMDNR\\AMDNR_AI_Filter") {
+		return CreateBackend<AmdLmxxfNRFilter>(effectName, resources, input, output, option);
 	}
 
 	if (effectName == "DLSSNR\\DLSSNR_AI_Filter") {

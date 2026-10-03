@@ -2,6 +2,7 @@
 #include "FSR3Upscaler.h"
 #include "DeviceResources.h"
 #include "Logger.h"
+#include "NativeOutputValidation.h"
 
 #ifdef MP_ENABLE_FSR3_ZEROMV
 #include <d3d12.h>
@@ -45,6 +46,10 @@ struct FSR3Upscaler::Impl {
 	ffxCreateBackendDX12Desc backendDesc{};
 	ffxCreateContextDescUpscaleVersion apiVersion{};
 	ffxOverrideVersion overrideVersion{};
+	uint64_t dispatchCount = 0;
+	int64_t previousTimestamp100ns = 0;
+	uint64_t selectedProvider = 0;
+	std::string selectedProviderName;
 	uint64_t fenceValue = 0;
 	uint64_t lastSubmittedValue = 0;
 	uint32_t inputWidth = 0;
@@ -439,13 +444,19 @@ bool FSR3Upscaler::Initialize(
 		const char* name = versionNames[i] ? versionNames[i] : "unknown";
 		if (!availableVersions.empty()) availableVersions += ", ";
 		availableVersions += name;
-		if (strstr(name, requestedVersion)) selectedVersionId = versionIds[i];
+		if (strstr(name, requestedVersion)) {
+			selectedVersionId = versionIds[i];
+			impl->selectedProviderName = name;
+		}
 	}
 	if (!selectedVersionId) {
 		Logger::Get().Error(fmt::format("{} provider not found; available: {}", upscalerName, availableVersions));
 		return false;
 	}
 
+	impl->selectedProvider = selectedVersionId;
+	Logger::Get().Info(fmt::format("FSR provider selected: id={} name={} requested={} available={}",
+		selectedVersionId, impl->selectedProviderName, requestedVersion, availableVersions));
 	impl->createDesc.header.type = FFX_API_CREATE_CONTEXT_DESC_TYPE_UPSCALE;
 	impl->createDesc.flags =
 		(impl->hdrProtocol.depthInverted ? FFX_UPSCALE_ENABLE_DEPTH_INVERTED : 0) |
@@ -491,6 +502,7 @@ bool FSR3Upscaler::Draw(const NativeEffectDrawContext& drawContext) noexcept {
 	ID3D11Texture2D* output = drawContext.output;
 	if (!_impl || !_impl->context) return false;
 	Impl& impl = *_impl;
+	const auto dispatchStart = std::chrono::steady_clock::now();
 	const bool guidanceReset = drawContext.frameGuidance.requiresHistoryReset &&
 		impl.lastGuidanceResetFrameId != drawContext.frameId;
 	impl.resetHistory |= guidanceReset || drawContext.inputHistoryReset || !drawContext.isNewCaptureFrame;
@@ -546,7 +558,10 @@ bool FSR3Upscaler::Draw(const NativeEffectDrawContext& drawContext) noexcept {
 	desc.upscaleSize = { impl.outputWidth, impl.outputHeight };
 	desc.enableSharpening = true;
 	desc.sharpness = 0.2f;
-	desc.frameTimeDelta = 16.6667f;
+	const auto timestamp = drawContext.frameGuidance.motion.metadata.timestamp100ns;
+	desc.frameTimeDelta = impl.previousTimestamp100ns && timestamp > impl.previousTimestamp100ns
+		? std::clamp(float(timestamp - impl.previousTimestamp100ns) / 10000.0f, 1.0f, 1000.0f) : 16.6667f;
+	if (drawContext.isNewCaptureFrame && timestamp > 0) impl.previousTimestamp100ns = timestamp;
 	desc.preExposure = impl.hdrProtocol.preExposure;
 	desc.reset = impl.resetHistory;
 	desc.cameraNear = 1.0f;
@@ -577,6 +592,16 @@ bool FSR3Upscaler::Draw(const NativeEffectDrawContext& drawContext) noexcept {
 	if (SUCCEEDED(hr)) hr = impl.context11->Wait(impl.fence11.get(), outputReady);
 	if (FAILED(hr)) return false;
 	impl.context11->CopyResource(output, impl.sharedOutput11.get());
+	if (++impl.dispatchCount <= 3 || impl.dispatchCount % 60 == 0) {
+		if (!WaitForFence(impl, outputReady)) return false;
+		Logger::Get().Info(fmt::format("FSR dispatch completed: provider={} name={} frame={} input={}x{} output={}x{} rc={} synchronized_wall_ms={:.3f} depth=zero jitter=zero motion={}",
+			impl.selectedProvider, impl.selectedProviderName, drawContext.frameId,
+			impl.inputWidth, impl.inputHeight, impl.outputWidth, impl.outputHeight, uint32_t(rc),
+			std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - dispatchStart).count(),
+			impl.enableOpticalFlow ? "estimated" : "zero"));
+	}
+	if (impl.dispatchCount == 2 && !ValidateNativeOutput(impl.device11, impl.context11, input, output,
+		impl.useFsr4 ? "FSR4" : "FSR3")) return false;
 	impl.resetHistory = false;
 	if (guidanceReset) impl.lastGuidanceResetFrameId = drawContext.frameId;
 	return true;

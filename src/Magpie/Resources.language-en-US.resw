@@ -1806,4 +1806,22 @@
   </data>
   <data name="FrameRefresh_DuplicateDetection_Input.[using:Windows.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Duplicate frame detection</value></data>
   <data name="ScalingModes_General_MoreOptions.Content" xml:space="preserve"><value>Other options</value></data>
+
+  <data name="EffectParam_AMDNR_AMDNR_AI_Filter_style_Label" xml:space="preserve"><value>NR Style Feature Strength</value></data>
+  <data name="EffectParam_AMDNR_AMDNR_AI_Filter_style_Description" xml:space="preserve"><value>Scales the lmxxf style feature. 1 preserves the shipped feature; this is not NVIDIA style preset 0/1/2.</value></data>
+  <data name="EffectParam_AMDNR_AMDNR_AI_Filter_intensity_Label" xml:space="preserve"><value>NR Intensity</value></data>
+  <data name="EffectParam_AMDNR_AMDNR_AI_Filter_intensity_Description" xml:space="preserve"><value>The AMD runtime accepts 0 to 1. For additional processing, increase Multi Pass.</value></data>
+  <data name="EffectParam_AMDNR_AMDNR_AI_Filter_localToneStrength_Label" xml:space="preserve"><value>Local Tone Strength</value></data>
+  <data name="EffectParam_AMDNR_AMDNR_AI_Filter_localToneStrength_Description" xml:space="preserve"><value>Changes the model tone feature. Updating feature controls rebuilds and warms the model.</value></data>
+  <data name="EffectParam_AMDNR_AMDNR_AI_Filter_localStructureStrength_Label" xml:space="preserve"><value>Local Structure Strength</value></data>
+  <data name="EffectParam_AMDNR_AMDNR_AI_Filter_localStructureStrength_Description" xml:space="preserve"><value>With the character mask enabled this controls scene structure; otherwise it controls overall structure.</value></data>
+  <data name="EffectParam_AMDNR_AMDNR_AI_Filter_skinStructureStrength_Label" xml:space="preserve"><value>Skin / Character Structure Strength</value></data>
+  <data name="EffectParam_AMDNR_AMDNR_AI_Filter_skinStructureStrength_Description" xml:space="preserve"><value>Controls character structure; available only with the automatic character mask enabled.</value></data>
+  <data name="EffectParam_AMDNR_AMDNR_AI_Filter_useAutoMask_Label" xml:space="preserve"><value>Automatic Character Mask</value></data>
+  <data name="EffectParam_AMDNR_AMDNR_AI_Filter_useAutoMask_Description" xml:space="preserve"><value>Uses the model character and scene split, without an engine-provided mask.</value></data>
+  <data name="EffectParam_AMDNR_AMDNR_AI_Filter_multiPass_Label" xml:space="preserve"><value>Multi Pass (Network Evaluations)</value></data>
+  <data name="EffectParam_AMDNR_AMDNR_AI_Filter_multiPass_Description" xml:space="preserve"><value>Runs the network 1 to 3 times. Each additional evaluation costs processing time, without resizing the image.</value></data>
+  <data name="EffectParam_AMDNR_AMDNR_AI_Filter_Group_AMD_NR" xml:space="preserve"><value>AMD NR Controls</value></data>
+  <data name="EffectParam_AMDNR_AMDNR_AI_Filter_useAutoMask_Option_0" xml:space="preserve"><value>Off</value></data>
+  <data name="EffectParam_AMDNR_AMDNR_AI_Filter_useAutoMask_Option_1" xml:space="preserve"><value>On</value></data>
 </root>

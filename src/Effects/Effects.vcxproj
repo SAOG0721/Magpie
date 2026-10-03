@@ -539,6 +539,7 @@
     <CopyFileToFolders Include="FSR2\FSR2_SR.hlsl"><FileType>Document</FileType></CopyFileToFolders>
   </ItemGroup>
   <ItemGroup>
+    <CopyFileToFolders Include="AMDNR\AMDNR_AI_Filter.hlsl"><FileType>Document</FileType></CopyFileToFolders>
     <CopyFileToFolders Include="FSR3\FSR3_SR.hlsl"><FileType>Document</FileType></CopyFileToFolders>
   </ItemGroup>
   <ItemGroup>

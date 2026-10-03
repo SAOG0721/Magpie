@@ -1,0 +1,14 @@
+AMDNR - lmxxf RDNA 3 backend
+=============================
+
+The RDNA 3 (gfx11) modules in this package - HIP/gfx1100, HIP/gfx1101, HIP/gfx1102 and HIP/gfx1151 - are
+AMDNR's RDNA 3 backend for lmxxf's network, made by 3zwr1:
+  https://github.com/3zwr1/AMD-NR---OptiScaler      Discord: https://discord.gg/AMDNR
+
+lmxxf's kernels use RDNA 4 FP8 matrix instructions that RDNA 3 does not have; this backend carries that
+work on RDNA 3's F16 matrix units, verified against the RDNA 4 result. Every one of these modules embeds the
+line "AMDNR - lmxxf RDNA 3 backend by 3zwr1", and AMDNR's runtime refuses an RDNA 3 module without it.
+If you redistribute this file or these modules, keep this notice and the credit.
+
+lmxxf's network, weights and kernels remain lmxxf's work (MIT licence):
+  https://github.com/lmxxf/dlss5-on-amd-9070xt-porting
