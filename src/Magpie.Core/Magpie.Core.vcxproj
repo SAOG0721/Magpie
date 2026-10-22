@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <Import Project="..\..\packages\Microsoft.Windows.CppWinRT.3.0.260520.1\build\native\Microsoft.Windows.CppWinRT.props" Condition="Exists('..\..\packages\Microsoft.Windows.CppWinRT.3.0.260520.1\build\native\Microsoft.Windows.CppWinRT.props')" />
   <PropertyGroup Label="Globals">
@@ -147,6 +147,7 @@
     <ClInclude Include="include\DlssgSm86Runtime.h" />
     <ClInclude Include="NgxFeatureDiscovery.h" />
     <ClInclude Include="include\DlssgSm86Policy.h" />
+    <ClInclude Include="include\DLSSFGParameters.h" />
     <ClInclude Include="NvidiaVfxRuntime.h" />
     <ClInclude Include="NvidiaVfxImageBackend.h" />
     <ClInclude Include="include\NvidiaVfxTrueHdrParameters.h" />

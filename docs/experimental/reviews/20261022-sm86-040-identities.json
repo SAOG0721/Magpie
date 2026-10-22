@@ -1,0 +1,73 @@
+{
+  "upstreamTag": "0.4.0",
+  "revision": "6f047bdc885e861575e8b049413ca31dc171a924",
+  "archiveUrl": "https://github.com/sdli1995/dlssg_for_sm86/releases/download/0.4.0/dlssg-release-0.4.0-x64.zip",
+  "archiveBytes": 80551324,
+  "archiveSha256": "5865360c3295038f0ff979d303bb7eb9437eec09fbc08686967d3b5d41d9c019",
+  "files": [
+    {
+      "path": "forward.ini",
+      "bytes": 485,
+      "sha256": "282d23df4c96a72f706dd7b2c926df9534c993f414b92be7aed8965c44171c8a",
+      "fileVersion": null,
+      "signatureStatus": "UnknownError",
+      "signer": null
+    },
+    {
+      "path": "LICENSE.md",
+      "bytes": 1065,
+      "sha256": "7537220f50c6430d953eda8bff01f0817014e604cb3607f3b62c786d070d8570",
+      "fileVersion": null,
+      "signatureStatus": "UnknownError",
+      "signer": null
+    },
+    {
+      "path": "native.ini",
+      "bytes": 486,
+      "sha256": "d390834bea14c1c0f72331e90707f935918a0f136cff223b592b66ddc2e4b344",
+      "fileVersion": null,
+      "signatureStatus": "UnknownError",
+      "signer": null
+    },
+    {
+      "path": "THIRD_PARTY_NOTICES.txt",
+      "bytes": 8139,
+      "sha256": "c8f2449237f0c556ab7b494ae131e534b39614b5d0f1e56e39d95353426ff2f7",
+      "fileVersion": null,
+      "signatureStatus": "UnknownError",
+      "signer": null
+    },
+    {
+      "path": "version.dll",
+      "bytes": 853280,
+      "sha256": "7b3f90435be4f94348bf8d128c84871c7f904c704f7690601a263277c327a7b2",
+      "fileVersion": null,
+      "signatureStatus": "UnknownError",
+      "signer": "CN=DLSSG for SM86 (self-signed)"
+    },
+    {
+      "path": "dlssg_sm86/backend/sm86_backend.dll",
+      "bytes": 2109728,
+      "sha256": "30ffc6e09a347ccde87ecc6fa54fd7818f5ed8a9353f5c31c2a90835c7f0ca9b",
+      "fileVersion": null,
+      "signatureStatus": "UnknownError",
+      "signer": "CN=DLSSG for SM86 (self-signed)"
+    },
+    {
+      "path": "dlssg_sm86/kernels/fg_kernels.dll",
+      "bytes": 18318624,
+      "sha256": "1394c2d5d9cc8938ba3e52b043048d20d6d4c13a019c161b11a3dfd16343ec24",
+      "fileVersion": null,
+      "signatureStatus": "UnknownError",
+      "signer": "CN=DLSSG for SM86 (self-signed)"
+    },
+    {
+      "path": "dlssg_sm86/runtime/nvngx_dlssg.dll",
+      "bytes": 7506544,
+      "sha256": "cadee1aa6db3907babdc3285da2aebc4553d92b89c38ba3eae8abd8bba1bea72",
+      "fileVersion": "310,9,16,0",
+      "signatureStatus": "Valid",
+      "signer": "CN=NVIDIA Corporation, OU=1005bk6, O=NVIDIA Corporation, L=Santa Clara, S=California, C=US"
+    }
+  ]
+}

@@ -1,4 +1,4 @@
-param(
+﻿param(
     [string]$PackageName = "Magpie-Experimental-x64",
     [string]$ReleaseDirectory,
     [string]$Configuration = "Release",
@@ -407,7 +407,9 @@ $featureOptions["EnableFrameTrace"] = if ($EnableFrameTrace) { "true" } else { "
 if ($featureOptions["EnableDLSSFrameGeneration"] -eq 'true') {
     # Includes -SkipBuild: old native/mixed output must not become a new package.
     & (Join-Path $PSScriptRoot 'Test-DlssgSm86Package.ps1') -PackageDirectory $stagingDir
-    $featureOptions['DLSSFrameGenerationProvider'] = 'dlssg_for_sm86/0.3.5/9621db573e07ed54f50c15bbb585ed9a7bdfac28'
+    . (Join-Path $PSScriptRoot 'DlssgSm86Package.ps1')
+    $fgContract = Get-DlssgSm86Contract
+    $featureOptions['DLSSFrameGenerationProvider'] = "dlssg_for_sm86/$($fgContract.Version)/$($fgContract.Revision)"
 }
 if ($featureOptions["EnableNvidiaVfx"] -eq 'true') {
     # Also protects -SkipBuild: a former full-Core output cannot silently be

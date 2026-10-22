@@ -2327,4 +2327,9 @@
   <data name="EffectParam_XeSSFG_XeSS_FrameGeneration_nvidiaOpticalFlowQuality_Description" xml:space="preserve">
     <value>选择 NVOF 后有效；较高档位使用更多计算进行运动估计。修改后需重新启动缩放。</value>
   </data>
+  <data name="EffectParam_DLSSFG_DLSS_FrameGeneration_renderPreset_Label" xml:space="preserve"><value>模型预设</value></data>
+  <data name="EffectParam_DLSSFG_DLSS_FrameGeneration_renderPreset_Option_0" xml:space="preserve"><value>自动（默认）</value></data>
+  <data name="EffectParam_DLSSFG_DLSS_FrameGeneration_renderPreset_Option_1" xml:space="preserve"><value>A</value></data>
+  <data name="EffectParam_DLSSFG_DLSS_FrameGeneration_renderPreset_Option_2" xml:space="preserve"><value>B</value></data>
+  <data name="EffectParam_DLSSFG_DLSS_FrameGeneration_renderPreset_Option_3" xml:space="preserve"><value>C</value></data>
 </root>

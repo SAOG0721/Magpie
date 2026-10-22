@@ -1,7 +1,7 @@
 """Pinned upstream loader integration probe, not a Magpie/NGX/GPU acceptance test.
 
-Windows x64, Python 3 + pefile. Each DLL load runs in a fresh bounded subprocess;
-private copies/config/bundles/logs are retained in --output for inspection. No
+Windows x64, Python 3. Each DLL load runs in a fresh bounded subprocess;
+private copies/config/package trees/logs are retained in --output for inspection. No
 product directories, default caches or running Magpie processes are changed.
 """
 import argparse
@@ -21,11 +21,7 @@ def contract():
               "src/Shared/DlssgSm86Package.h").read_text(encoding="utf-8")
     table = re.search(r"File Files\[\]\{(.*?)\n\};", header, re.S).group(1)
     records = {name: (int(size), digest) for name, size, digest in
-               re.findall(r'\{ L"([\w.-]+)", (\d+), "([a-f0-9]{64})" \}', table)}
-    for key in ("Runtime", "Backend"):
-        name, size, digest = re.search(
-            rf'File {key}\{{ L"([\w.-]+)", (\d+),\s*"([a-f0-9]{{64}})"', header).groups()
-        records[name] = int(size), digest
+               re.findall(r'\{ L"([\w./-]+)", (\d+), "([a-f0-9]{64})" \}', table)}
     return records
 
 
@@ -70,7 +66,10 @@ def child(directory, request):
     records = contract()
     proxy_path = directory / "version.dll"
     verify(proxy_path, records["version.dll"])
-    held_files = [lock(proxy_path), lock(directory / "dlssg_sm86.ini")]
+    held_files = [lock(directory / name) for name in records]
+    held_files.append(lock(directory / "dlssg_sm86.ini"))
+    for name, expected in records.items():
+        verify(directory / name, expected)
     proxy = k.LoadLibraryExW(str(proxy_path), None, 0x100 | 0x800)
     if not proxy or not k.GetProcAddress(proxy, b"DlssgProxy_Name"):
         raise RuntimeError(f"Proxy load failed: {c.get_last_error()}")
@@ -87,13 +86,13 @@ def child(directory, request):
         actual = mapped(runtime)
         if actual.parent == target.parent or actual.name.lower() != "nvngx_dlssg.dll":
             raise RuntimeError("Request did not redirect to the bundle")
-        if not actual.is_relative_to(directory / "bundle"):
+        if not actual.is_relative_to(directory / "dlssg_sm86"):
             raise RuntimeError(f"Bundle escaped the private test cache (INI encoding/path): {actual}")
         present_after = bool(k.GetFileAttributesExW(str(target), 0, attributes))
         missing_error = c.get_last_error()
         if present_after != existed or (not existed and missing_error != 2):
             raise RuntimeError("Request path presence changed after redirection")
-        verify(actual, records["nvngx_dlssg.dll"])
+        verify(actual, records["dlssg_sm86/runtime/nvngx_dlssg.dll"])
         modules = (w.HMODULE * 1024)()
         needed = w.DWORD()
         if not k.K32EnumProcessModules(k.GetCurrentProcess(), modules, c.sizeof(modules), c.byref(needed)):
@@ -105,9 +104,11 @@ def child(directory, request):
             path = mapped(module)
             if not path.name.lower().startswith(("nvngx_dlssg", "sm86_backend")):
                 continue
-            if path.name not in records or path.parent != actual.parent or path.name in pair:
+            expected_name = ("dlssg_sm86/runtime/nvngx_dlssg.dll" if path.name == "nvngx_dlssg.dll"
+                             else "dlssg_sm86/backend/sm86_backend.dll")
+            if path != directory / expected_name or path.name in pair:
                 raise RuntimeError(f"Unexpected pair mapping: {path}")
-            verify(path, records[path.name])
+            verify(path, records[expected_name])
             held_files.append(lock(path))
             pinned = w.HMODULE()
             if not k.GetModuleHandleExW(1 | 4, module, c.byref(pinned)) or pinned.value != module:
@@ -123,7 +124,7 @@ def child(directory, request):
 
 def events(directory):
     result = []
-    for path in (directory / "logs").glob("*.jsonl"):
+    for path in (directory / "dlssg_sm86/logs").glob("*.jsonl"):
         for line in path.read_text(encoding="utf-8").splitlines():
             try:
                 result.append(json.loads(line))
@@ -138,24 +139,13 @@ def main():
     parser.add_argument("--output", type=Path, required=True,
                         help="New directory; must not exist. Evidence is not deleted.")
     parser.add_argument("--route", choices=("native", "forward"), required=True,
-                        help="Match actual test GPU: native SM75/86, forward SM89/120")
+                        help="Match actual test GPU: native SM75/86, newer PTX SM89/120")
     args = parser.parse_args()
     if sys.platform != "win32" or c.sizeof(c.c_void_p) != 8:
         raise RuntimeError("Requires Windows x64 Python")
     records = contract()
-    for name in ("version.dll", "native.ini", "forward.ini", "THIRD_PARTY_NOTICES.txt"):
-        verify(args.runtime_directory / name, records[name])
-    import pefile
-    proxy = pefile.PE(str(args.runtime_directory / "version.dll"))
-    resource = next(t for t in proxy.DIRECTORY_ENTRY_RESOURCE.entries if t.id == 10)
-    embedded = {}
-    for ident, name in ((30001, "nvngx_dlssg.dll"), (30002, "sm86_backend.dll")):
-        entry = next(x for x in resource.directory.entries if x.id == ident).directory.entries[0].data.struct
-        data = proxy.get_data(entry.OffsetToData, entry.Size)
-        if (len(data), hashlib.sha256(data).hexdigest()) != records[name]:
-            raise RuntimeError(f"Wrong embedded payload: {name}")
-        embedded[name] = data
-    proxy.close()
+    for name, record in records.items():
+        verify(args.runtime_directory / name, record)
     args.output = args.output.resolve()
     args.output.mkdir(parents=True, exist_ok=False)
     summary = []
@@ -164,14 +154,15 @@ def main():
                                     ("request-present", True, True)):
         directory = args.output / ("中文 space " + name)
         (directory / "features").mkdir(parents=True)
-        shutil.copyfile(args.runtime_directory / "version.dll", directory / "version.dll")
-        ini = (args.runtime_directory / (args.route + ".ini")).read_text(encoding="utf-8")
-        ini = ini.replace("CacheDirectory=", "CacheDirectory=" + str(directory / "bundle"))
-        # Win32 profile APIs accept UTF-16 BOM for a non-ASCII override path.
-        # The product's pinned INIs are ASCII and keep CacheDirectory empty.
-        (directory / "dlssg_sm86.ini").write_text(ini, encoding="utf-16")
+        for relative in records:
+            target = directory / relative
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(args.runtime_directory / relative, target)
+        ini = (args.runtime_directory / (args.route + ".ini")).read_bytes()
+        (directory / "dlssg_sm86.ini").write_bytes(ini)
         if present:
-            (directory / "features/nvngx_dlssg.dll").write_bytes(embedded["nvngx_dlssg.dll"])
+            shutil.copyfile(args.runtime_directory / "dlssg_sm86/runtime/nvngx_dlssg.dll",
+                            directory / "features/nvngx_dlssg.dll")
         # A second fresh process observes the same immutable warm bundle.
         for temperature in (("cold", "warm") if name == "request-missing" else ("cold",)):
             process = subprocess.run([sys.executable, str(Path(__file__).resolve()), "child",
@@ -184,12 +175,12 @@ def main():
             (args.output / "summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
             if process.returncode:
                 raise RuntimeError(f"{name}/{temperature}: child failed; see {directory}")
-            if not request and ((directory / "bundle").exists() or events(directory)):
+            if not request and events(directory):
                 raise RuntimeError("Proxy-only case unexpectedly activated the bundle")
             # Pair identity is proven above. Upstream active/kernel/NGX acceptance
             # must still be inspected separately; do not infer it from mapping.
     print(json.dumps({"passed": len(summary), "output": str(args.output),
-                      "scope": "upstream loader, redirected pair identities, file locks and cold/warm caches only; no NGX calls"}))
+                      "scope": "upstream loader, redirected pair identities, file locks and repeated immutable package loads only; no NGX calls"}))
 
 
 if __name__ == "__main__":

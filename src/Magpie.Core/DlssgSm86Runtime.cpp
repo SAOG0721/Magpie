@@ -22,6 +22,8 @@ HMODULE proxy = nullptr;
 HMODULE runtime = nullptr;
 HMODULE backend = nullptr;
 std::filesystem::path featureDirectory;
+std::filesystem::path packageDirectory;
+std::vector<HANDLE> packageFiles; // Immutable tree retained until process exit.
 LUID physicalAdapter{};
 // Intentionally retained until process exit. Unloading the proxy is not safe.
 HANDLE proxyFile = INVALID_HANDLE_VALUE;
@@ -54,7 +56,7 @@ bool SamePath(const std::filesystem::path& a, const std::filesystem::path& b) {
 // returned runtime's bundle, with exactly one FG runtime and one backend mapped.
 bool VerifyPairImpl() {
 	const auto actualRuntime = ModulePath(runtime);
-	if (actualRuntime.empty() || !SamePath(actualRuntime.parent_path(), featureDirectory))
+	if (actualRuntime.empty() || !SamePath(actualRuntime, packageDirectory / DlssgSm86Package::Runtime.name))
 		return Fail("redirected runtime mapping changed");
 	std::array<HMODULE, 1024> modules{};
 	DWORD needed = 0;
@@ -70,7 +72,7 @@ bool VerifyPairImpl() {
 		const bool isBackend = _wcsnicmp(name.c_str(), L"sm86_backend", 12) == 0;
 		if (!isRuntime && !isBackend) continue;
 		const auto& expected = isRuntime ? DlssgSm86Package::Runtime : DlssgSm86Package::Backend;
-		if (!SamePath(path.parent_path(), featureDirectory) || _wcsicmp(name.c_str(), expected.name) != 0 ||
+		if (!SamePath(path, packageDirectory / expected.name) ||
 			(isRuntime && (modules[i] != runtime || foundRuntime)) ||
 			(isBackend && (foundBackend || (backend && backend != modules[i]))))
 			return Fail("unexpected or duplicate FG runtime/backend mapping");
@@ -190,19 +192,29 @@ bool PrepareImpl(IDXGIAdapter* adapter) {
 		Logger::Get().ComError("DLSSFG cache directory unavailable", localResult);
 		return Fail("local application cache directory unavailable");
 	}
-	const bool forward = route == DlssgSm86Policy::Route::ForwardJit;
-	// Include proxy + configuration identities. An update never edits loaded
+	const bool forward = route == DlssgSm86Policy::Route::NewerPtx;
+	// Include the complete release archive + managed configuration identities. An update never edits loaded
 	// code/configuration, and a read-only installation remains supported.
 	const auto& ini = DlssgSm86Package::Files[forward ? 2 : 1];
 	const auto& binary = DlssgSm86Package::Files[0];
 	const auto cache = std::filesystem::path(local.get()) / L"Magpie/DlssgSm86" /
-		binary.sha256 / ini.sha256;
+		DlssgSm86Package::ArchiveSHA256 / ini.sha256;
 	std::filesystem::create_directories(cache);
 	const auto source = root / DlssgSm86Package::Directory;
-	if (!CacheFile(source / binary.name, cache / binary.name, binary) ||
-		!CacheFile(source / ini.name, cache / L"dlssg_sm86.ini", ini)) {
-		return Fail("cache copy/integrity check failed; cached proxy was not loaded");
+	packageDirectory = cache;
+	for (const auto& file : DlssgSm86Package::Files) {
+		const auto destination = cache / file.name;
+		std::filesystem::create_directories(destination.parent_path());
+		if (!CacheFile(source / file.name, destination, file))
+			return Fail("complete package cache copy/integrity check failed");
+		HANDLE held = PinnedFile::Open(destination);
+		if (held == INVALID_HANDLE_VALUE) return Fail("cannot lock complete cached package");
+		packageFiles.push_back(held);
+		if (!PinnedFile::Verify(held, file.size, file.sha256))
+			return Fail("cached package changed before it could be locked");
 	}
+	if (!CacheFile(source / ini.name, cache / L"dlssg_sm86.ini", ini))
+		return Fail("managed configuration cache copy failed");
 	proxyFile = PinnedFile::Open(cache / binary.name);
 	configFile = PinnedFile::Open(cache / L"dlssg_sm86.ini");
 	if (!PinnedFile::Verify(proxyFile, binary.size, binary.sha256) ||
@@ -214,7 +226,7 @@ bool PrepareImpl(IDXGIAdapter* adapter) {
 	const auto triggerDirectory = cache / (L"request-" + std::to_wstring(GetCurrentProcessId()) +
 		L"-" + std::to_wstring(GetTickCount64()));
 	if (!CreateDirectoryW(triggerDirectory.c_str(), nullptr)) return Fail("cannot create private FG load-request directory");
-	const auto trigger = triggerDirectory / DlssgSm86Package::Runtime.name;
+	const auto trigger = triggerDirectory / std::filesystem::path(DlssgSm86Package::Runtime.name).filename();
 	WIN32_FILE_ATTRIBUTE_DATA attributes{};
 	if (GetFileAttributesExW(trigger.c_str(), GetFileExInfoStandard, &attributes) || GetLastError() != ERROR_FILE_NOT_FOUND)
 		return Fail("private FG load-request path is occupied or inaccessible");
@@ -234,10 +246,10 @@ bool PrepareImpl(IDXGIAdapter* adapter) {
 		"(kernel execution not yet verified; inspect loader/backend logs)",
 		DlssgSm86Package::Version, DlssgSm86Package::Revision, binary.sha256,
 		desc.VendorId, desc.DeviceId, static_cast<uint32_t>(desc.AdapterLuid.HighPart), desc.AdapterLuid.LowPart,
-		major, minor, driver, forward ? "forward-PTX" : "native-family",
+		major, minor, driver, forward ? "newer-GPU-PTX-no-arch-bridge" : "native-family",
 		StrHelper::UTF16ToUTF8(cache.wstring())));
 	// The pinned proxy is lazy: mapping version.dll alone does not activate its
-	// embedded FG runtime. This standard Windows request triggers Bundled mode.
+	// adjacent FG runtime. This standard Windows request triggers Bundled mode.
 	runtime = LoadLibraryExW(trigger.c_str(), nullptr,
 		LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR | LOAD_LIBRARY_SEARCH_SYSTEM32);
 	if (!runtime) {
@@ -246,7 +258,7 @@ bool PrepareImpl(IDXGIAdapter* adapter) {
 	}
 	const auto actualRuntime = ModulePath(runtime);
 	if (actualRuntime.empty() || SamePath(actualRuntime.parent_path(), triggerDirectory) ||
-		_wcsicmp(actualRuntime.filename().c_str(), DlssgSm86Package::Runtime.name) != 0)
+		!SamePath(actualRuntime, cache / DlssgSm86Package::Runtime.name))
 		return Fail("FG load did not redirect to a named bundled runtime");
 	if (GetFileAttributesExW(trigger.c_str(), GetFileExInfoStandard, &attributes) || GetLastError() != ERROR_FILE_NOT_FOUND)
 		return Fail("private FG request path changed during load; refusing ambiguous fallback");

@@ -4,13 +4,13 @@
 
 namespace Magpie::DlssgSm86Policy {
 
-enum class Route { Unsupported, NativeFamily, ForwardJit };
+enum class Route { Unsupported, NativeFamily, NewerPtx };
 
 // Compute capability is obtained from the CUDA device matching the DXGI LUID,
 // never from an adapter display name. Future architectures require validation.
 constexpr Route SelectRoute(int major, int minor) noexcept {
 	if ((major == 7 && minor == 5) || (major == 8 && minor == 6)) return Route::NativeFamily;
-	if ((major == 8 && minor == 9) || (major == 12 && minor == 0)) return Route::ForwardJit;
+	if ((major == 8 && minor == 9) || (major == 12 && minor == 0)) return Route::NewerPtx;
 	return Route::Unsupported;
 }
 
