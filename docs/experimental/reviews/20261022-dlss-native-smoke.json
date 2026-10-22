@@ -1,0 +1,323 @@
+{
+  "candidateCommit": "247158ef7e89e6c7720c6ebc296c89cc89ead673",
+  "gpu": "NVIDIA GeForce RTX 5070 Ti",
+  "cases": [
+    {
+      "case": [
+        "sr",
+        "0",
+        "2"
+      ],
+      "evidenceDirectory": "sr-0-2",
+      "exitCode": 0,
+      "gpuReadbacks": 6,
+      "newCaptureDraws": 6,
+      "duplicateOutputUnchanged": 0,
+      "runtimePresetObservations": [
+        "[2026-10-22 18:54:44] [tid:51908][NgxDltss::FillCreationParams::<lambda_d31d19bbceb87a1ef50839b36c9d0cdf>::operator ():2876] Info: (Balanced) App hint Preset Unspecified or Overridden, using title default Preset K"
+      ],
+      "resultSha256": "be6f5e92378bfbcba146a228c4c853aa0047921de91c3d740872b6f10b438387"
+    },
+    {
+      "case": [
+        "sr",
+        "10",
+        "2"
+      ],
+      "evidenceDirectory": "sr-10-2",
+      "exitCode": 0,
+      "gpuReadbacks": 6,
+      "newCaptureDraws": 6,
+      "duplicateOutputUnchanged": 0,
+      "runtimePresetObservations": [
+        "[2026-10-22 18:54:46] [tid:64832][NgxDltss::FillCreationParams::<lambda_d31d19bbceb87a1ef50839b36c9d0cdf>::operator ():2886] Info: (Balanced) Using App hint Preset J"
+      ],
+      "resultSha256": "ffee2d205f5d8a4a61de5d97483eb646b263c2e616d4a6e8657f1657d3d039ed"
+    },
+    {
+      "case": [
+        "sr",
+        "11",
+        "2"
+      ],
+      "evidenceDirectory": "sr-11-2-attempt1",
+      "exitCode": 0,
+      "gpuReadbacks": 6,
+      "newCaptureDraws": 6,
+      "duplicateOutputUnchanged": 0,
+      "runtimePresetObservations": [
+        "[2026-10-22 18:54:47] [tid:8][NgxDltss::FillCreationParams::<lambda_d31d19bbceb87a1ef50839b36c9d0cdf>::operator ():2886] Info: (Balanced) Using App hint Preset K"
+      ],
+      "resultSha256": "8d33e1b3cea741f76a59c20c6fbc8003ba7fbd4888806e3fe2df256dd8bdd907"
+    },
+    {
+      "case": [
+        "sr",
+        "12",
+        "2"
+      ],
+      "evidenceDirectory": "sr-12-2",
+      "exitCode": 0,
+      "gpuReadbacks": 6,
+      "newCaptureDraws": 6,
+      "duplicateOutputUnchanged": 0,
+      "runtimePresetObservations": [
+        "[2026-10-22 18:54:48] [tid:58176][NgxDltss::FillCreationParams::<lambda_d31d19bbceb87a1ef50839b36c9d0cdf>::operator ():2886] Info: (Balanced) Using App hint Preset L"
+      ],
+      "resultSha256": "e8ffc7ad1271809e1543e938f22b8d287b5b43a8068ff25a316fd1dacad1bbe5"
+    },
+    {
+      "case": [
+        "sr",
+        "13",
+        "2"
+      ],
+      "evidenceDirectory": "sr-13-2",
+      "exitCode": 0,
+      "gpuReadbacks": 6,
+      "newCaptureDraws": 6,
+      "duplicateOutputUnchanged": 0,
+      "runtimePresetObservations": [
+        "[2026-10-22 18:54:49] [tid:59512][NgxDltss::FillCreationParams::<lambda_d31d19bbceb87a1ef50839b36c9d0cdf>::operator ():2886] Info: (Balanced) Using App hint Preset M"
+      ],
+      "resultSha256": "3320499361d9c66ee30e6f7844eacd93af566ea671e1b21e153228cf23061bb7"
+    },
+    {
+      "case": [
+        "fg",
+        "0",
+        "2"
+      ],
+      "evidenceDirectory": "fg-0-2-attempt4",
+      "exitCode": 0,
+      "gpuReadbacks": 5,
+      "newCaptureDraws": 6,
+      "duplicateOutputUnchanged": 0,
+      "runtimePresetObservations": [
+        "[2026-10-22 18:53:26] [NGXOverrideStatusCallback:2189] Feature [FrameGeneration] Override Reported: ModelPreset, Value: 3, Requested: Yes, Applied: Yes, Is Latest: No"
+      ],
+      "resultSha256": "3b0a5b6cf2f9ec48a6c8c720fbbe2996146d4a912f45ef195d670dc31b5ff4c7"
+    },
+    {
+      "case": [
+        "fg",
+        "1",
+        "2"
+      ],
+      "evidenceDirectory": "fg-1-2",
+      "exitCode": 0,
+      "gpuReadbacks": 5,
+      "newCaptureDraws": 6,
+      "duplicateOutputUnchanged": 0,
+      "runtimePresetObservations": [
+        "[2026-10-22 18:54:51] [NGXOverrideStatusCallback:2189] Feature [FrameGeneration] Override Reported: ModelPreset, Value: 3, Requested: Yes, Applied: Yes, Is Latest: No"
+      ],
+      "resultSha256": "99bbf247f427ad73ea10aec6155dada45480af291b5c2a1e04f099ad2c684c6c"
+    },
+    {
+      "case": [
+        "fg",
+        "2",
+        "2"
+      ],
+      "evidenceDirectory": "fg-2-2",
+      "exitCode": 0,
+      "gpuReadbacks": 5,
+      "newCaptureDraws": 6,
+      "duplicateOutputUnchanged": 0,
+      "runtimePresetObservations": [
+        "[2026-10-22 18:54:52] [NGXOverrideStatusCallback:2189] Feature [FrameGeneration] Override Reported: ModelPreset, Value: 3, Requested: Yes, Applied: Yes, Is Latest: No"
+      ],
+      "resultSha256": "53c41805b300e0455b5d3c1c8069187b393e86ca622ddacfed14811f2f8fca8c"
+    },
+    {
+      "case": [
+        "fg",
+        "3",
+        "2"
+      ],
+      "evidenceDirectory": "fg-3-2",
+      "exitCode": 0,
+      "gpuReadbacks": 5,
+      "newCaptureDraws": 6,
+      "duplicateOutputUnchanged": 0,
+      "runtimePresetObservations": [
+        "[2026-10-22 18:54:54] [NGXOverrideStatusCallback:2189] Feature [FrameGeneration] Override Reported: ModelPreset, Value: 3, Requested: Yes, Applied: Yes, Is Latest: No"
+      ],
+      "resultSha256": "9a36b77e2521f31aa71ba81fd3d045b29666d6a5ebdf48c0f92115a1aaaa0f9c"
+    },
+    {
+      "case": [
+        "fg",
+        "3",
+        "3"
+      ],
+      "evidenceDirectory": "fg-3-3",
+      "exitCode": 0,
+      "gpuReadbacks": 10,
+      "newCaptureDraws": 6,
+      "duplicateOutputUnchanged": 0,
+      "runtimePresetObservations": [
+        "[2026-10-22 18:55:54] [NGXOverrideStatusCallback:2189] Feature [FrameGeneration] Override Reported: ModelPreset, Value: 3, Requested: Yes, Applied: Yes, Is Latest: No"
+      ],
+      "resultSha256": "80dd7b050a73ff9f9ca3c538189a6360f66a6edcaec4e18ef063e78177a95dc0"
+    },
+    {
+      "case": [
+        "fg",
+        "3",
+        "4"
+      ],
+      "evidenceDirectory": "fg-3-4",
+      "exitCode": 0,
+      "gpuReadbacks": 15,
+      "newCaptureDraws": 6,
+      "duplicateOutputUnchanged": 0,
+      "runtimePresetObservations": [
+        "[2026-10-22 18:55:56] [NGXOverrideStatusCallback:2189] Feature [FrameGeneration] Override Reported: ModelPreset, Value: 3, Requested: Yes, Applied: Yes, Is Latest: No"
+      ],
+      "resultSha256": "597e641bf7f8afcf1bd48846050966cf9c9c3c9540485f65583d371ca1e660ac"
+    },
+    {
+      "case": [
+        "nr",
+        "0",
+        "1"
+      ],
+      "evidenceDirectory": "nr-0-1",
+      "exitCode": 0,
+      "gpuReadbacks": 8,
+      "newCaptureDraws": 6,
+      "duplicateOutputUnchanged": 2,
+      "runtimePresetObservations": [],
+      "resultSha256": "478661cdf3b39cdb55b4c9f7b8a465dc42b90aa12ec925bff2969eddb9e4eed0"
+    },
+    {
+      "case": [
+        "nr",
+        "1",
+        "1"
+      ],
+      "evidenceDirectory": "nr-1-1",
+      "exitCode": 0,
+      "gpuReadbacks": 8,
+      "newCaptureDraws": 6,
+      "duplicateOutputUnchanged": 2,
+      "runtimePresetObservations": [],
+      "resultSha256": "d07c6a05de2d6aa882c4518212458289915150f0907a431d1b02fef89e433f42"
+    }
+  ],
+  "files": [
+    {
+      "path": "runtime/nvngx_dlss.dll",
+      "bytes": 58977904,
+      "sha256": "be6e434a94ca32499515eb62ca0e6c274526055d568d0426e4c652dcdfb6ee6e"
+    },
+    {
+      "path": "runtime/nvngx_dlssnr.dll",
+      "bytes": 165840496,
+      "sha256": "984bee0f775c277d5829b8fd6775d53a7b0f75396c852b3aaf06a18375f81014"
+    },
+    {
+      "path": "runtime/runtimes/dlssg_sm86/version.dll",
+      "bytes": 853280,
+      "sha256": "7b3f90435be4f94348bf8d128c84871c7f904c704f7690601a263277c327a7b2"
+    },
+    {
+      "path": "runtime/runtimes/dlssg_sm86/dlssg_sm86/runtime/nvngx_dlssg.dll",
+      "bytes": 7506544,
+      "sha256": "cadee1aa6db3907babdc3285da2aebc4553d92b89c38ba3eae8abd8bba1bea72"
+    },
+    {
+      "path": "objects/DLSSSRUpscaler.obj",
+      "bytes": 6361294,
+      "sha256": "0ee9f1b23f1fd2be1884b2c6282b0bb6b6408555110b80fdbf4c588887972dbe"
+    },
+    {
+      "path": "objects/DLSSFrameGenerator.obj",
+      "bytes": 6750563,
+      "sha256": "89d952ed401e02a7fa60f65c4d1b0da716e8ce4ffef9ec2a37e5e27577f70d95"
+    },
+    {
+      "path": "objects/DLSSNRFilter.obj",
+      "bytes": 7966788,
+      "sha256": "053e9300a4b6273d566cb267c8d2a9b27d21a34b3f69890d34f6a4b4aa2adb22"
+    },
+    {
+      "path": "objects/DLSSNRTemporal.obj",
+      "bytes": 6084169,
+      "sha256": "07deabad53b0cb73c40bb919a582c96d461917b9f4bcccc5492abcf996d382eb"
+    }
+  ],
+  "driverProfileObservation": {
+    "available": true,
+    "effect": "read-only: this session never writes a setting and never saves the profile database. A limit here is applied by the driver's own consumers - the plugin for 0x104D6667, the runtime per Evaluate for 0x104C9A99 - so no INI key of this mod can lift it",
+    "event": "drs_dlssg",
+    "keys": {
+      "0x10308298": {
+        "absent_reason": "NVAPI_SETTING_NOT_FOUND: nothing has ever written this key into this profile",
+        "consumer": "nvidia_app",
+        "name": "Override DLSSG mode",
+        "status": -160,
+        "value": null
+      },
+      "0x104c9a99": {
+        "absent_reason": "NVAPI_SETTING_NOT_FOUND: nothing has ever written this key into this profile",
+        "consumer": "runtime",
+        "name": "MULTI_FRAME_COUNT_LIMIT (private, read by the runtime)",
+        "status": -160,
+        "value": null
+      },
+      "0x104d6667": {
+        "absent_reason": "NVAPI_SETTING_NOT_FOUND: nothing has ever written this key into this profile",
+        "consumer": "plugin",
+        "name": "Override DLSSG multi-frame count",
+        "status": -160,
+        "value": null
+      },
+      "0x10562d0f": {
+        "absent_reason": "NVAPI_SETTING_NOT_FOUND: nothing has ever written this key into this profile",
+        "consumer": "plugin",
+        "name": "Override maximum DLSSG dynamic multi frame count",
+        "status": -160,
+        "value": null
+      },
+      "0x10cf4125": {
+        "absent_reason": "NVAPI_SETTING_NOT_FOUND: nothing has ever written this key into this profile",
+        "consumer": "nvidia_app",
+        "name": "Override DLSSG Target Frame Rate",
+        "status": -160,
+        "value": null
+      },
+      "0x10e41df1": {
+        "consumer": "nvidia_app",
+        "location": "current_profile",
+        "name": "Override DLSS-FG preset",
+        "predefined": false,
+        "value": 3
+      },
+      "0x10e41e03": {
+        "consumer": "nvidia_app",
+        "location": "current_profile",
+        "name": "Enable DLSS-FG override",
+        "predefined": false,
+        "value": 1
+      }
+    },
+    "keys_present": 2,
+    "plugin_limit": null,
+    "profile": "Base Profile",
+    "profile_settings": 23,
+    "profile_source": "current_global",
+    "reason": "the driver's per-game profile, read once through a read-only DRS session",
+    "runtime_limit": null,
+    "unit": "generated frames, not the multiplier: the NVIDIA App writes 3 for 4x"
+  },
+  "driverVersion": "617.42",
+  "cudaDriverApi": 13040,
+  "runtimeVersions": {
+    "nvngx_dlss.dll": "310.7.0.0",
+    "nvngx_dlssnr.dll": "310.8.0.0",
+    "nvngx_dlssg.dll": "310.9.16.0"
+  }
+}
