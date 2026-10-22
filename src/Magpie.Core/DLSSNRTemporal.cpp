@@ -13,6 +13,7 @@ struct DLSSNRTemporal::Impl {
 	ID3D11DeviceContext4* dc = nullptr;
 	FrameGuidanceExtent extent{};
 	int mode = 0;
+	float timeMs = DLSSNR_ANTI_FLICKER_TIME_DEFAULT_MS;
 	bool hdr = false;
 	float chromaStrength = 0;
 	bool enforceZero = false;
@@ -41,6 +42,14 @@ void DLSSNRTemporal::Reset() noexcept {
 	if (_impl) _impl->state.valid = false;
 }
 
+void DLSSNRTemporal::SetTimeConstant(float timeMs) noexcept {
+	if (!_impl) return;
+	timeMs = NormalizeDLSSNRAntiFlickerTimeMs(timeMs);
+	if (_impl->timeMs == timeMs) return;
+	_impl->timeMs = timeMs;
+	Logger::Get().Info(fmt::format("DLSSNR anti-flicker time constant: {}ms (next capture)", timeMs));
+}
+
 void DLSSNRTemporal::ConfigureDetail(float strength, bool enforceZero) noexcept {
 	if (!_impl) return;
 	strength = !_impl->hdr && std::isfinite(strength) ? std::clamp(strength,0.f,1.f) : 0.f;
@@ -51,12 +60,13 @@ void DLSSNRTemporal::ConfigureDetail(float strength, bool enforceZero) noexcept 
 
 bool DLSSNRTemporal::Initialize(DeviceResources& resources, ID3D11Texture2D* input,
 	ID3D11Texture2D* base, ID3D11Texture2D* raw, ID3D11Texture2D* output,
-	int mode, bool hdr) noexcept {
+	int mode, bool hdr, float timeMs) noexcept {
 	_impl.reset();
 	if (!mode) return true;
 	auto impl = std::make_unique<Impl>();
 	impl->device = resources.GetD3DDevice(); impl->dc = resources.GetD3DDC();
 	impl->mode = mode; impl->hdr = hdr;
+	impl->timeMs = NormalizeDLSSNRAntiFlickerTimeMs(timeMs);
 	D3D11_TEXTURE2D_DESC desc{};
 	output->GetDesc(&desc);
 	impl->extent = {desc.Width, desc.Height};
@@ -117,8 +127,8 @@ bool DLSSNRTemporal::Initialize(DeviceResources& resources, ID3D11Texture2D* inp
 		}
 	}
 	_impl = std::move(impl);
-	Logger::Get().Info(fmt::format("DLSSNR anti-flicker: route={} history={}x{} tau=80ms lowObservations={}x{}",
-		mode, _impl->extent.width, _impl->extent.height, mode == 4 ? desc.Width : 0, mode == 4 ? desc.Height : 0));
+	Logger::Get().Info(fmt::format("DLSSNR anti-flicker: route={} history={}x{} tau={}ms lowObservations={}x{}",
+		mode, _impl->extent.width, _impl->extent.height, _impl->timeMs, mode == 4 ? desc.Width : 0, mode == 4 ? desc.Height : 0));
 	return true;
 }
 
@@ -143,7 +153,7 @@ bool DLSSNRTemporal::Draw(const NativeEffectDrawContext& context) noexcept {
 	const bool metadataValid = meta.valid && meta.frameId == context.frameId &&
 		meta.sourceExtent == impl.extent && meta.validRegion.IsInside(impl.extent);
 	const float weight = impl.state.Weight(context.frameId, context.inputHistoryRevision,
-		meta.resourceGeneration, meta.timestamp100ns, reset || !metadataValid);
+		meta.resourceGeneration, meta.timestamp100ns, reset || !metadataValid, impl.timeMs);
 	if (motion) {
 		const auto sync = meta.sync;
 		if (sync.fence && sync.value && FAILED(impl.dc->Wait(sync.fence, sync.value))) return false;

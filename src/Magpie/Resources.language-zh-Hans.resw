@@ -2327,4 +2327,37 @@
   <data name="EffectParam_XeSSFG_XeSS_FrameGeneration_nvidiaOpticalFlowQuality_Description" xml:space="preserve">
     <value>选择 NVOF 后有效；较高档位使用更多计算进行运动估计。修改后需重新启动缩放。</value>
   </data>
+  <data name="EffectParam_DLSS_DLSS_SR_renderPreset_Label" xml:space="preserve">
+    <value>模型预设</value>
+  </data>
+  <data name="EffectParam_DLSS_DLSS_SR_renderPreset_Description" xml:space="preserve">
+    <value>默认 K。A–D 为旧预设，新版可能忽略或回退；E/F 已弃用。修改后重新启动缩放。</value>
+  </data>
+  <data name="EffectParam_DLSS_DLSS_SR_renderPreset_Option_0" xml:space="preserve">
+    <value>自动</value>
+  </data>
+  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_antiFlickerTimeMs_Label" xml:space="preserve">
+    <value>抗闪烁响应时间（ms）</value>
+  </data>
+  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_antiFlickerTimeMs_Description" xml:space="preserve">
+    <value>数值越大越稳定、响应越慢；数值越小跟随变化越快。下一有效捕获帧生效。</value>
+  </data>
+  <data name="EffectParam_DLSS_DLSS_SR_renderPreset_Option_1" xml:space="preserve">
+    <value>A（旧预设）</value>
+  </data>
+  <data name="EffectParam_DLSS_DLSS_SR_renderPreset_Option_2" xml:space="preserve">
+    <value>B（旧预设）</value>
+  </data>
+  <data name="EffectParam_DLSS_DLSS_SR_renderPreset_Option_3" xml:space="preserve">
+    <value>C（旧预设）</value>
+  </data>
+  <data name="EffectParam_DLSS_DLSS_SR_renderPreset_Option_4" xml:space="preserve">
+    <value>D（旧预设）</value>
+  </data>
+  <data name="EffectParam_DLSS_DLSS_SR_renderPreset_Option_5" xml:space="preserve">
+    <value>E（已弃用）</value>
+  </data>
+  <data name="EffectParam_DLSS_DLSS_SR_renderPreset_Option_6" xml:space="preserve">
+    <value>F（已弃用）</value>
+  </data>
 </root>

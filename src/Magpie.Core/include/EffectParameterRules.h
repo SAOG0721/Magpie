@@ -41,6 +41,7 @@ bool IsEffectParameterVisible(std::string_view effect, std::string_view paramete
 		if (parameter == "nvidiaOpticalFlowQuality") return method == 2.0f;
 	}
 	if (effect == "DLSSNR\\DLSSNR_AI_Filter") {
+		if (parameter == "antiFlickerTimeMs") return DLSSNRAntiFlickerMode(getValue) != 0;
 		if (parameter == "residualShowAdvanced")
 			return getValue("enableInputResolutionScaling", 0.f) != 0;
 		if (parameter == "inputResolutionPercent" || IsDLSSNRResidualParameter(parameter)) {

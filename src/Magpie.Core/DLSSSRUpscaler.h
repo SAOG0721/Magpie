@@ -1,6 +1,7 @@
 #pragma once
 #include "NativeEffectBackend.h"
 #include "GroupBEffectProtocol.h"
+#include "DLSSSRParameters.h"
 
 namespace Magpie {
 
@@ -9,6 +10,7 @@ class NgxFeatureDiscovery;
 
 struct DLSSSRSettings {
 	MotionVectorRequest motionRequest{};
+	int renderPreset = DLSS_SR_DEFAULT_PRESET;
 };
 
 // DLSS SR adapter for captured colour frames, with shared optical flow

@@ -59,7 +59,8 @@ public:
 			_failure.operation = "Initialize DLSSNR anti-flicker resources";
 			_temporal = std::make_unique<DLSSNRTemporal>();
 			if (!_temporal->Initialize(resources, input, input,
-				_rawOutput.get(), output, antiFlicker, hdr)) return false;
+				_rawOutput.get(), output, antiFlicker, hdr,
+				NormalizeDLSSNRAntiFlickerTimeMs(Value("antiFlickerTimeMs", DLSSNR_ANTI_FLICKER_TIME_DEFAULT_MS)))) return false;
 		}
 		ConfigureDetail();
 		_failure = {};
@@ -118,6 +119,7 @@ public:
 	EffectParameterApplyMode GetParameterApplyMode(std::string_view name) const noexcept override {
 		if (!_failure.operation.empty() || !_filter || !_filter->IsHealthy()) return EffectParameterApplyMode::Unavailable;
 		if (name == "multiPass" || name == "antiFlicker") return EffectParameterApplyMode::RestartRequired;
+		if (name == "antiFlickerTimeMs") return EffectParameterApplyMode::Live;
 		if (DLSSNRParameterPass(name) > _count) return EffectParameterApplyMode::Live;
 		return _filter->GetParameterApplyMode(DLSSNRBaseParameter(name));
 	}
@@ -130,14 +132,17 @@ public:
 		std::span<const std::string> names) noexcept override {
 		if (!_filter || Count(option) != _count) return false;
 		bool activeEdit = false;
+		std::vector<std::string> filterNames;
 		for (const auto& name : names) {
 			if (GetParameterApplyMode(name) != EffectParameterApplyMode::Live) return false;
-			activeEdit |= DLSSNRParameterPass(name) <= _count &&
-				name != "residualShowAdvanced";
+			activeEdit |= DLSSNRParameterChangesCurrentOutput(name, _count);
+			if (name != "antiFlickerTimeMs") filterNames.push_back(name);
 		}
-		if (!_filter->ApplyLiveParameters(option, names)) return false;
+		if (!filterNames.empty() && !_filter->ApplyLiveParameters(option, filterNames)) return false;
 		_option = option;
 		if (_temporal && activeEdit) _temporal->Reset();
+		if (_temporal) _temporal->SetTimeConstant(
+			Value("antiFlickerTimeMs", DLSSNR_ANTI_FLICKER_TIME_DEFAULT_MS));
 		ConfigureDetail();
 		return true;
 	}

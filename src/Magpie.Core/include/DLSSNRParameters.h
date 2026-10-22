@@ -8,6 +8,18 @@
 
 namespace Magpie {
 
+inline constexpr float DLSSNR_ANTI_FLICKER_TIME_DEFAULT_MS = 80.f;
+
+inline float NormalizeDLSSNRAntiFlickerTimeMs(float value) noexcept {
+	if (!std::isfinite(value)) return DLSSNR_ANTI_FLICKER_TIME_DEFAULT_MS;
+	return std::round(std::clamp(value, 5.f, 200.f) / 5.f) * 5.f;
+}
+
+template<class GetValue>
+float DLSSNRAntiFlickerTimeMs(GetValue&& getValue) noexcept {
+	return NormalizeDLSSNRAntiFlickerTimeMs(getValue("antiFlickerTimeMs", DLSSNR_ANTI_FLICKER_TIME_DEFAULT_MS));
+}
+
 inline constexpr std::array<std::string_view, 7> DLSSNR_PASS_PARAMETERS{
 	"style", "intensity", "localToneStrength", "localStructureStrength",
 	"skinStructureStrength", "useAutoMask", "uiCorrection"
@@ -21,6 +33,13 @@ inline int DLSSNRParameterPass(std::string_view name) noexcept {
 
 inline std::string_view DLSSNRBaseParameter(std::string_view name) noexcept {
 	return DLSSNRParameterPass(name) == 1 ? name : name.substr(6);
+}
+
+// A time-constant edit affects the next capture, not the already accumulated
+// output. Do not dirty the current frame or reset downstream temporal history.
+inline bool DLSSNRParameterChangesCurrentOutput(std::string_view name, int activePasses) noexcept {
+	return name != "antiFlickerTimeMs" && name != "residualShowAdvanced" &&
+		DLSSNRParameterPass(name) <= activePasses;
 }
 
 template<class GetValue>
