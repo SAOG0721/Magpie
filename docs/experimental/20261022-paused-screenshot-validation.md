@@ -11,7 +11,7 @@
 - 原生输入与固定输出的 `frameId / captureSequence / resourceGeneration` 三元组完全一致时，交接完成即可保存，不需要再提交一帧。
 - 后端已经领先时，只接受该候选随后实际成功呈现的真实输出；候选若已被跳过，重新取得当前保留输入。不把不同帧或生成帧硬配成原始输入对照。
 - InputOnly 在输入交接后直接保存，不要求已有输出或新呈现。OutputOnly 保留已呈现输出直接复制到 staging 的路径。
-- NT 共享输入资源以 keyed mutex 转交。生产复制函数主动 Flush，暂停后不依赖下一次发布提交 GPU 工作；输入所有权在后台限时等待，取得后回到前端 context 复制 staging，再以 fence 等待完成。
+- NT 共享输入资源以 keyed mutex 转交。生产复制函数主动 Flush，暂停后不依赖下一次发布提交 GPU 工作；后端在复制及 ReleaseSync 后发出 fence/event。后台只限时等待 Win32 event；回到前端 dispatcher 后才 OpenSharedResource、AcquireSync(1, 0)、复制 staging 和 ReleaseSync，再以 fence 等待读取完成。
 - 停止、资源重建及捕获中断明确取消未完成请求；已进入读取的不可变快照遵循会话停止检查。等待超时仍是兜底。请求开始、输入交接、身份/捕获错误和落盘结果均有请求 ID 日志。
 - 保持同编号 input/output、独占新文件、部分失败、原生输入尺寸与 SDR/HDR 色彩导出。对照开关不参与截图选择。
 
@@ -19,9 +19,9 @@
 
 命令：`tests/Run-ScreenshotContentTests.ps1`。
 
-新增 `ScreenshotHandoffTests.cpp` 实际执行生产 `SceneScreenshotFrame::CopyInput`，在两个独立 D3D11 WARP 设备间传递 37×19 输入，覆盖 BGRA8 和 FP16。生产者复制后不再渲染、发布或额外 Flush；后台取得 keyed ownership，消费者复制后经过 D3D11 fence，逐行验证原始像素。它覆盖暂停后独立 GPU 交接与尺寸保持，不只是源码字符串断言。
+新增 `ScreenshotHandoffTests.cpp` 实际执行生产 `SceneScreenshotFrame::CopyInput`，在两个独立 D3D11 WARP 设备间传递 37×19 输入，覆盖 BGRA8 和 FP16。生产者复制后不再渲染、发布或额外 Flush；前端设备明确使用 D3D11_CREATE_DEVICE_SINGLETHREADED；后台仅等待生产函数创建的完成事件，同时前端提交 128 次独立 context 复制，然后在前端取得 keyed ownership。消费者复制后经过 D3D11 fence，逐行验证原始像素。它覆盖暂停后独立 GPU 交接与尺寸保持，不只是源码字符串断言。
 
-同一测试执行生产候选选择函数：无后续 Present 的已固定配对、InputOnly 没有输出、后端领先、生成帧拒绝、真实帧到达、候选被跳过后重试、sequence/generation 不一致。
+同一测试执行生产候选选择函数：无后续 Present 的已固定配对、InputOnly 没有输出、后端领先、生成帧拒绝、真实帧到达、候选被跳过后重试、sequence/generation 不一致。另覆盖 Pending 已被 Reading 领取后的取消，以及 256 次 Pending→Reading 与 Pending→Finished 并发竞争，确保只有一个状态转移胜出。
 
 既有验证继续覆盖：截图内容配置恢复、文件编号/溢出、并发成对保存、部分失败、不覆盖已有文件、临时文件清理、真实 WIC PNG 编码/解码、HDR 导出。脚本对 RendererScreenshot、Renderer、ScalingRuntime、ScreenshotHelper、TextureHelper 五个生产编译单元执行 MSVC 语法检查。
 
@@ -32,3 +32,10 @@
 WARP 验证不等于 NVIDIA 硬件、PotPlayer 或真实窗口操作验收。尚未部署、重启正在使用的 Magpie/PotPlayer 或更改用户配置。无 FG 的用户现场失败原因仍未证实；新增入口/交接/取消日志用于区分请求未到达、捕获重启、资源变化和 GPU 读取失败。
 
 P01 的现场版本/捕获方式复现、P07 原生验收矩阵仍待执行：播放、暂停超过 10 秒、拖动后暂停；普通缩放/VSR/DLSSNR/各可用 FG；按钮和快捷键 × 三种内容；连续截图、工具栏与光标变化、停启、分辨率变化、重复帧过滤。检查暂停无需恢复播放即可落盘，配对三元身份一致，截图不新增时序 Evaluate 或生成帧计数。正常软件/VFX FG 序列以真实帧结尾；请求发生在生成帧期间仍需等该序列的真实帧实际提交，不能以自动测试替代这一原生接受条件。
+
+
+## 审查补充：线程归属与取消竞争
+
+初版把前端共享资源的 AcquireSync 放到后台，忽略了前端设备可能使用 SINGLETHREADED。现已改为后台仅等待后端 fence 的 Win32 event，前端 DXGI/context 操作与正常资源释放均留在 dispatcher。输入和 staging 的超时结果也在回到 dispatcher 后处理，避免在后台错误返回时释放前端资源。
+
+捕获中断及后端快照失败使用原子的 Pending→Finished 取消；如果前端已进入 Reading，取消不会改变状态、报告伪失败或提前解除 Busy。读取协程自己的失败仍能结束 Reading。此修正来自源码审查，不代表用户现场曾触发该竞争。
