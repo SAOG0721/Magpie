@@ -1,0 +1,113 @@
+{
+  "date": "2026-10-22",
+  "targetIntegrationCommit": "0c12e3fe1edb7b0b57d557cdcaf2d6716b83aad7",
+  "probeObjectSourceCommit": "247158ef7e89e6c7720c6ebc296c89cc89ead673",
+  "nrProductionFilesUnchangedBetweenCommits": [
+    "src/Magpie.Core/DLSSNRFilter.cpp",
+    "src/Magpie.Core/DLSSNRMultiPass.h",
+    "src/Magpie.Core/DLSSNRTemporal.cpp",
+    "src/Magpie.Core/include/DLSSNRParameters.h",
+    "src/Magpie.Core/include/DLSSNRTemporalState.h"
+  ],
+  "gpu": "NVIDIA GeForce RTX 5070 Ti",
+  "driverVersion": "617.42",
+  "communityRuntimeFileVersion": "310.9.16.0",
+  "authenticodeStatus": "NotSigned",
+  "signer": null,
+  "sourceFiles": [
+    {
+      "sourcePath": "C:\\Users\\81443\\Documents\\Magpie enhance\\dependencies\\dlssnr-runtime\\nvngx_dlssnr.dll",
+      "bytes": 276162560,
+      "sha256": "a8a237a967469c455a84654932b513ab656fbaa1e0c44504b1e1bf0890f902b8"
+    },
+    {
+      "sourcePath": "C:\\Users\\81443\\Documents\\Magpie enhance\\dependencies\\dlssnr-runtime\\DLSSNR-DLL-Options.zip",
+      "bytes": 379128973,
+      "sha256": "1f900df1063e3ffca632220e7f1830ab0b22ea56aac629ad9e858c3a13115ec1"
+    }
+  ],
+  "stagedRuntimeSha256": "a8a237a967469c455a84654932b513ab656fbaa1e0c44504b1e1bf0890f902b8",
+  "reusedHelperSha256": "f88d277ad18d9728f5194e0a4ec99a439fa2b86fba283d59e3eef818a771d129",
+  "caseResults": [
+    {
+      "mode": "SDR",
+      "processExitCode": 0,
+      "passes": 1,
+      "antiFlickerMode": 1,
+      "timeConstantsMs": [
+        5,
+        80,
+        200
+      ],
+      "acceptedSyntheticCaptures": 6,
+      "fenceCompletedReadbacks": 8,
+      "timeOnlyDuplicateChecks": 2,
+      "nativeEvaluateCounter": "unobserved",
+      "deviceHealth": "D3D11 and D3D12 GetDeviceRemovedReason returned S_OK; production Drain succeeded",
+      "outputReadbacks": [
+        "gpuCompleted=true outputHash=343e73036005aeb0 rgbRange=0,255",
+        "gpuCompleted=true outputHash=5a1fe9fd5d194201 rgbRange=0,255",
+        "gpuCompleted=true outputHash=5a1fe9fd5d194201 rgbRange=0,255",
+        "gpuCompleted=true outputHash=482c76be353f4e45 rgbRange=0,255",
+        "gpuCompleted=true outputHash=bfd3148ae98a3801 rgbRange=0,255",
+        "gpuCompleted=true outputHash=bfd3148ae98a3801 rgbRange=0,255",
+        "gpuCompleted=true outputHash=f8bdd7da4254ab54 rgbRange=0,255",
+        "gpuCompleted=true outputHash=ceaba77cbdfa99cc rgbRange=0,255"
+      ],
+      "featureAndTimeLog": [
+        "2026-10-22 21:24:00.332|info|DLSSNRFilter.cpp:1455|InitializeSignedSnippetSession|Loaded DLSSNR: C:\\Users\\81443\\Documents\\Magpie enhance\\worktrees\\1022-sm86-fg\\.sm86-audit\\community-nr-310916-default\\runtime\\nvngx_dlssnr.dll / FileVersion: 310.9.16.0",
+        "2026-10-22 21:24:00.612|info|DLSSNRFilter.cpp:87|LogDlssnrStatus|DLSSNR STATUS: Feature=18 created=true path=signed-snippet sourceSize=512x288 sourceFormat=28 colorDownsample=lanczos2-aa residualControls=before-upsample residualUpsample=catmull-rom-4+4 inputSize=512x288 inputResolutionScaling=false inputResolutionPercent=100 residualMultiplier=1 residualSaturation=1 residualLightness=1 shadowStructureMultiplier=1 reflectionGlowMultiplier=1 preset=fixed-0 style=0 intensity=1 localTone=1 localStructure=1 skinStructure=0 opticalFlowMethod=0 opticalFlowQuality=0 autoMask=false uiCorrection=false depth=zero-contract disabled=false experimentalHdrPath=false experimentalHdrScale=1",
+        "2026-10-22 21:24:00.947|info|DLSSNRTemporal.cpp:130|Initialize|DLSSNR anti-flicker: route=1 history=512x288 tau=5ms lowObservations=0x0",
+        "2026-10-22 21:24:00.959|info|DLSSNRTemporal.cpp:50|SetTimeConstant|DLSSNR anti-flicker time constant: 80ms (next capture)",
+        "2026-10-22 21:24:00.969|info|DLSSNRTemporal.cpp:50|SetTimeConstant|DLSSNR anti-flicker time constant: 200ms (next capture)"
+      ],
+      "resultPath": "C:\\Users\\81443\\Documents\\Magpie enhance\\worktrees\\1022-sm86-fg\\.sm86-audit\\community-nr-310916-default\\nr-0-1\\result.json",
+      "resultSha256": "ab4520c9cb51a49b95c72435208788909d7e081af2f01e5729a3913b7313398d",
+      "productLogSha256": "4ed2f87411bced340e913a3fce8b5fb828b8ac882567649780c0ee6afd693ff1"
+    },
+    {
+      "mode": "FP16",
+      "processExitCode": 0,
+      "passes": 1,
+      "antiFlickerMode": 1,
+      "timeConstantsMs": [
+        5,
+        80,
+        200
+      ],
+      "acceptedSyntheticCaptures": 6,
+      "fenceCompletedReadbacks": 8,
+      "timeOnlyDuplicateChecks": 2,
+      "nativeEvaluateCounter": "unobserved",
+      "deviceHealth": "D3D11 and D3D12 GetDeviceRemovedReason returned S_OK; production Drain succeeded",
+      "outputReadbacks": [
+        "gpuCompleted=true outputHash=2699421e96238700 rgbRange=0,1",
+        "gpuCompleted=true outputHash=eafbd4db57d35423 rgbRange=0,1",
+        "gpuCompleted=true outputHash=eafbd4db57d35423 rgbRange=0,1",
+        "gpuCompleted=true outputHash=3bd0c7f6a06aec44 rgbRange=0,1.01172",
+        "gpuCompleted=true outputHash=bdd83b90c073de49 rgbRange=0,1.02148",
+        "gpuCompleted=true outputHash=bdd83b90c073de49 rgbRange=0,1.02148",
+        "gpuCompleted=true outputHash=c3ff853085c66318 rgbRange=0,1.0332",
+        "gpuCompleted=true outputHash=7dc3f4d3a958a448 rgbRange=0,1.04492"
+      ],
+      "featureAndTimeLog": [
+        "2026-10-22 21:24:02.367|info|DLSSNRFilter.cpp:1455|InitializeSignedSnippetSession|Loaded DLSSNR: C:\\Users\\81443\\Documents\\Magpie enhance\\worktrees\\1022-sm86-fg\\.sm86-audit\\community-nr-310916-default\\runtime\\nvngx_dlssnr.dll / FileVersion: 310.9.16.0",
+        "2026-10-22 21:24:02.615|info|DLSSNRFilter.cpp:87|LogDlssnrStatus|DLSSNR STATUS: Feature=18 created=true path=signed-snippet sourceSize=512x288 sourceFormat=10 colorDownsample=lanczos2-aa residualControls=before-upsample residualUpsample=catmull-rom-4+4 inputSize=512x288 inputResolutionScaling=false inputResolutionPercent=100 residualMultiplier=1 residualSaturation=1 residualLightness=1 shadowStructureMultiplier=1 reflectionGlowMultiplier=1 preset=fixed-0 style=0 intensity=1 localTone=1 localStructure=1 skinStructure=0 opticalFlowMethod=0 opticalFlowQuality=0 autoMask=false uiCorrection=false depth=zero-contract disabled=false experimentalHdrPath=true experimentalHdrScale=1",
+        "2026-10-22 21:24:02.963|info|DLSSNRTemporal.cpp:130|Initialize|DLSSNR anti-flicker: route=1 history=512x288 tau=5ms lowObservations=0x0",
+        "2026-10-22 21:24:02.976|info|DLSSNRTemporal.cpp:50|SetTimeConstant|DLSSNR anti-flicker time constant: 80ms (next capture)",
+        "2026-10-22 21:24:02.986|info|DLSSNRTemporal.cpp:50|SetTimeConstant|DLSSNR anti-flicker time constant: 200ms (next capture)"
+      ],
+      "resultPath": "C:\\Users\\81443\\Documents\\Magpie enhance\\worktrees\\1022-sm86-fg\\.sm86-audit\\community-nr-310916-default\\nr-1-1\\result.json",
+      "resultSha256": "a482c5403758f297ef39e5714d49b518771b65703bda063702ebdefa690a1f9d",
+      "productLogSha256": "0b169554ca7778f0efac9e7bd1579887e0d0b9d82757bbbc545bb81947c4a5c6"
+    }
+  ],
+  "boundaries": [
+    "No RTX20/30/40 real hardware coverage",
+    "No image-quality or performance acceptance",
+    "No internal Evaluate counter instrumentation",
+    "Single Pass and anti-flicker mode1 only; no new 2/3Pass or modes2/3/4 GPU checks",
+    "No deployment or live Magpie/PotPlayer acceptance",
+    "Early generic NGX signed discovery errors precede successful existing direct snippet path; signed-snippet log label is not a signature claim"
+  ]
+}
