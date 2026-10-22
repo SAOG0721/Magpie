@@ -1,5 +1,6 @@
 #pragma once
 #include "FrameGuidanceTypes.h"
+#include "DLSSFGParameters.h"
 
 namespace Magpie {
 
@@ -9,6 +10,7 @@ class ReflexController;
 
 struct DLSSFrameGenerationSettings {
 	uint32_t multiplier = 2;
+	DLSSFGRenderPreset renderPreset = DLSSFGRenderPreset::Auto;
 	MotionVectorRequest motionRequest{};
 };
 

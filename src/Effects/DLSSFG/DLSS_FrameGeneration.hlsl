@@ -6,6 +6,15 @@
 //!SORT_NAME DLSS FG_Experimental
 
 //!PARAMETER
+//!LABEL Render Preset
+//!DEFAULT 0
+//!OPTION 0 Auto (Default)
+//!OPTION 1 A
+//!OPTION 2 B
+//!OPTION 3 C
+int renderPreset;
+
+//!PARAMETER
 //!LABEL Frame Multiplier
 //!DEFAULT 2
 //!MIN 2

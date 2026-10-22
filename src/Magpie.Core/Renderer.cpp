@@ -2216,6 +2216,7 @@ ID3D11Texture2D* Renderer::_BuildEffects() noexcept {
 				.multiplier = std::clamp(
 					(uint32_t)std::lround(getParameter("multiplier", 2.0f)),
 					2u, 4u),
+				.renderPreset = ParseDLSSFGRenderPreset(getParameter("renderPreset", 0.0f)),
 				.motionRequest = ParseDlssOpticalFlowRequest(effects[i])
 			};
 		}

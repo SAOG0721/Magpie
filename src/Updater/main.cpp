@@ -1,4 +1,4 @@
-// Copyright (c) Xu
+﻿// Copyright (c) Xu
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -170,13 +170,10 @@ int APIENTRY wWinMain(
 		for (const wchar_t* file : oldFiles->files) obsolete.emplace_back(file);
 		if (std::filesystem::exists(std::filesystem::path(CommonSharedConstants::UPDATE_DIR) /
 			Magpie::DlssgSm86Package::Directory)) {
-			// Experimental 0.6.x native FG is absent from the upstream version
-			// tables. Include it explicitly, with the same rollback protection.
-			obsolete.emplace_back(L"nvngx_dlssg.dll");
-			const auto& proxy = Magpie::DlssgSm86Package::Files[0];
-			if (Magpie::PinnedFile::Verify(L"version.dll", proxy.size, proxy.sha256)) {
-				obsolete.emplace_back(L"version.dll");
-				obsolete.emplace_back(L"dlssg_sm86.ini");
+			// Exact old ownership only; UpdateTransaction retains rollback copies.
+			for (const auto& file : Magpie::DlssgSm86Package::LegacyFiles) {
+				if (Magpie::PinnedFile::Verify(file.name, file.size, file.sha256))
+					obsolete.emplace_back(file.name);
 			}
 		}
 		if (!transaction.Prepare(CommonSharedConstants::UPDATE_DIR, L".", obsolete)) {

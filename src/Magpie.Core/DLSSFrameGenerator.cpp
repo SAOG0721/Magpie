@@ -3,6 +3,7 @@
 #include "DLSSFrameGenerator.h"
 #include "DlssgSm86Runtime.h"
 #include "DlssgSm86Policy.h"
+#include "DlssgSm86Package.h"
 #include "DeviceResources.h"
 #include "FrameGuidanceD3D12Interop.h"
 #include "Logger.h"
@@ -590,6 +591,23 @@ bool DLSSFrameGenerator::Initialize(
 		return false;
 	}
 
+	// Matching runtime/backend/kernel identities have already been verified by
+	// Prepare/VerifyLoadedPair. Presets belong to this Feature, never to the proxy.
+	if (!SubmitDLSSFGRenderPreset(_requestedSettings.renderPreset,
+		[&](const char* key, bool value) {
+			return SetParameterUISafely(impl->parameters, key, value ? 1u : 0u, &sehCode);
+		})) {
+		Logger::Get().Error(fmt::format("DLSSFG preset submission failed (seh={:#x}); request retained", sehCode));
+		return false;
+	}
+	Logger::Get().Info(fmt::format(
+		"DLSSFG stage=PresetRequest requested={} submitted={} runtime={} INI=Auto "
+		"driverOverride=possible effectivePreset=unknown; parameter readback is not model confirmation",
+		DLSSFGRenderPresetName(_requestedSettings.renderPreset),
+		_requestedSettings.renderPreset != DLSSFGRenderPreset::Auto, DlssgSm86Package::RuntimeVersion));
+	if (_requestedSettings.renderPreset == DLSSFGRenderPreset::B)
+		Logger::Get().Info("DLSSFG requested B: HUDLess/UI/UIAlpha never provided; UI recomposition input requirements are unmet");
+
 	NVSDK_NGX_DLSSG_Create_Params createParams{};
 	createParams.Width = impl->width;
 	createParams.Height = impl->height;
@@ -857,6 +875,11 @@ bool DLSSFrameGenerator::Draw(
 			return false;
 		}
 		++impl.diagnosticEvaluateSuccess[frameIndex];
+		if (impl.sessionEvaluations == 0) {
+			Logger::Get().Info(fmt::format(
+				"DLSSFG stage=FirstEvaluateSucceeded requested={} effectivePreset=unknown result={:#x}; GPU completion pending",
+				DLSSFGRenderPresetName(impl.settings.renderPreset), static_cast<uint32_t>(result)));
+		}
 		++impl.sessionEvaluations;
 		{
 			D3D12_RESOURCE_BARRIER diagnosticBarrier{};

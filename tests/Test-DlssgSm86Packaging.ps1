@@ -41,16 +41,20 @@ try {
         Remove-Item -LiteralPath $file
     }
     # An invalid dependency must not touch an existing package.
-    foreach ($record in $contract.Files) { Copy-Item -LiteralPath (Join-Path $RuntimeDirectory $record.Name) -Destination $dependency }
+    foreach ($record in $contract.Files) {
+        $target = Join-Path $dependency $record.Name
+        New-Item -ItemType Directory -Path (Split-Path $target) -Force | Out-Null
+        Copy-Item -LiteralPath (Join-Path $RuntimeDirectory $record.Name) -Destination $target
+    }
     [IO.File]::WriteAllText((Join-Path $dependency 'native.ini'), 'damaged')
     Expect-Rejection { & (Join-Path $scripts 'Copy-DlssgSm86Runtime.ps1') -RuntimeDirectory $dependency -OutputDirectory $package }
     $null = Assert-DlssgSm86Files $runtime
     $checks++
-    # Remove only the former FG output; preserve unrelated NVIDIA runtimes.
-    [IO.File]::WriteAllText((Join-Path $package 'nvngx_dlssg.dll'), 'legacy')
+    # Unknown root DLLs must survive and force package rejection.
+    [IO.File]::WriteAllText((Join-Path $package 'nvngx_dlssg.dll'), 'not an owned legacy binary')
     [IO.File]::WriteAllText((Join-Path $package 'nvngx_dlss.dll'), 'SR untouched')
-    Restore-Package
-    if ((Test-Path -LiteralPath (Join-Path $package 'nvngx_dlssg.dll')) -or
+    Expect-Rejection { Restore-Package }
+    if ([IO.File]::ReadAllText((Join-Path $package 'nvngx_dlssg.dll')) -ne 'not an owned legacy binary' -or
         [IO.File]::ReadAllText((Join-Path $package 'nvngx_dlss.dll')) -ne 'SR untouched') { throw 'Incorrect copy cleanup.' }
     $checks++
     Write-Output "DLSSG packaging: $checks checks passed; no binary was loaded or executed."

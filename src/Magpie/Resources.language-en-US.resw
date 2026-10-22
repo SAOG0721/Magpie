@@ -2360,4 +2360,9 @@
   <data name="EffectParam_DLSS_DLSS_SR_renderPreset_Option_6" xml:space="preserve">
     <value>F (Deprecated)</value>
   </data>
+  <data name="EffectParam_DLSSFG_DLSS_FrameGeneration_renderPreset_Label" xml:space="preserve"><value>Render Preset</value></data>
+  <data name="EffectParam_DLSSFG_DLSS_FrameGeneration_renderPreset_Option_0" xml:space="preserve"><value>Auto (Default)</value></data>
+  <data name="EffectParam_DLSSFG_DLSS_FrameGeneration_renderPreset_Option_1" xml:space="preserve"><value>A</value></data>
+  <data name="EffectParam_DLSSFG_DLSS_FrameGeneration_renderPreset_Option_2" xml:space="preserve"><value>B</value></data>
+  <data name="EffectParam_DLSSFG_DLSS_FrameGeneration_renderPreset_Option_3" xml:space="preserve"><value>C</value></data>
 </root>
