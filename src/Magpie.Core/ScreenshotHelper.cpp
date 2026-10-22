@@ -2,7 +2,6 @@
 #include "ScreenshotHelper.h"
 #include "ScreenshotNaming.h"
 #include "Logger.h"
-#include "StrHelper.h"
 
 namespace Magpie {
 
@@ -11,26 +10,41 @@ std::mutex& ScreenshotHelper::SaveMutex() noexcept {
 	return mutex;
 }
 
-uint32_t ScreenshotHelper::FindUnusedScreenshotNum(const std::filesystem::path& directory) noexcept {
+std::wstring ScreenshotHelper::CaptureTimestamp() {
+	SYSTEMTIME time{};
+	GetLocalTime(&time);
+	return fmt::format(L"{:04}{:02}{:02}_{:02}{:02}{:02}_{:03}", time.wYear, time.wMonth, time.wDay,
+		time.wHour, time.wMinute, time.wSecond, time.wMilliseconds);
+}
+
+std::wstring ScreenshotHelper::FindUnusedScreenshotStem(const std::filesystem::path& directory,
+	std::wstring_view timestamp) {
 	WIN32_FIND_DATA data{};
-	const std::wstring pattern = StrHelper::Concat(directory.native(), L"\\Magpie_*");
+	const std::wstring pattern = directory.native() + L"\\Magpie_" + std::wstring(timestamp) + L"*";
 	wil::unique_hfind find(FindFirstFileEx(pattern.c_str(), FindExInfoBasic,
 		&data, FindExSearchNameMatch, nullptr, FIND_FIRST_EX_LARGE_FETCH));
 	if (!find) {
-		if (GetLastError() == ERROR_FILE_NOT_FOUND) return 1;
+		if (GetLastError() == ERROR_FILE_NOT_FOUND) return ScreenshotStem(timestamp, 0);
 		Logger::Get().Win32Error("Enumerate screenshot directory failed");
-		return 0;
+		return {};
 	}
-	std::vector<uint32_t> numbers;
+	std::vector<uint32_t> collisions;
 	do {
-		// A directory with a screenshot-shaped name still occupies that path.
-		if (const uint32_t number = ParseScreenshotNumber(data.cFileName)) numbers.push_back(number);
+		if (const auto collision = ParseScreenshotCollision(data.cFileName, timestamp)) collisions.push_back(*collision);
 	} while (FindNextFile(find.get(), &data));
 	if (GetLastError() != ERROR_NO_MORE_FILES) {
-		Logger::Get().Win32Error("FindNextFile failed while finding screenshot number");
-		return 0;
+		Logger::Get().Win32Error("FindNextFile failed while finding screenshot timestamp");
+		return {};
 	}
-	return NextScreenshotNumber(std::move(numbers));
+	std::sort(collisions.begin(), collisions.end());
+	uint32_t next = 0;
+	for (uint32_t collision : collisions) {
+		if (collision < next) continue;
+		if (collision > next) break;
+		if (next == std::numeric_limits<uint32_t>::max()) return {};
+		++next;
+	}
+	return ScreenshotStem(timestamp, next);
 }
 
 }

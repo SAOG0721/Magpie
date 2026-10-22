@@ -62,6 +62,7 @@ void Renderer::TakeDisplayedScreenshot() noexcept {
 	}
 	auto request = std::make_shared<SceneScreenshotRequest>();
 	request->id = ++_nextScreenshotRequestId;
+	request->timestamp = ScreenshotHelper::CaptureTimestamp();
 	request->runId = ScalingWindow::RunId();
 	request->captureSequence = _activeCaptureSequence.load(std::memory_order_acquire);
 	request->resourceGeneration = _activeResourceGeneration.load(std::memory_order_acquire);
@@ -335,8 +336,8 @@ winrt::fire_and_forget Renderer::_SaveSceneScreenshot(
 					request->runId, StrHelper::UTF16ToUTF8(request->directory.native())), GetLastError());
 			co_return;
 		}
-		const uint32_t number = ScreenshotHelper::FindUnusedScreenshotNum(request->directory);
-		if (!number) {
+		const auto stem = ScreenshotHelper::FindUnusedScreenshotStem(request->directory, request->timestamp);
+		if (stem.empty()) {
 			if (request->report) request->report(request->target, ScalingError::ScreenshotDirectoryFailed,
 				fmt::format("Screenshot request={} run={} / {} / Enumerate screenshot directory", request->id,
 					request->runId, StrHelper::UTF16ToUTF8(request->directory.native())), 0);
@@ -348,8 +349,7 @@ winrt::fire_and_forget Renderer::_SaveSceneScreenshot(
 		ScalingError lastError = ScalingError::ScreenshotEncodeFailed;
 		uint32_t lastCode = 0;
 		for (auto& image : images) {
-			const auto name = images.size() == 2 ? fmt::format(L"Magpie_{:03}_{}.png", number, image.side)
-				: fmt::format(L"Magpie_{:03}.png", number);
+			const auto name = fmt::format(L"{}_{}.png", stem, image.side);
 			const auto path = request->directory / name;
 			TextureSaveError error;
 			const bool hdr = image.color.transfer == HdrTransferFunction::Linear || image.color.transfer == HdrTransferFunction::PQ;

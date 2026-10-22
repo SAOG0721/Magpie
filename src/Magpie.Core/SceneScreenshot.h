@@ -13,6 +13,7 @@ enum class SceneScreenshotState { Pending, Reading, Finished };
 struct SceneScreenshotFrame;
 struct SceneScreenshotRequest {
 	uint64_t id = 0;
+	std::wstring timestamp;
 	uint32_t runId = 0;
 	uint64_t captureSequence = 0;
 	uint64_t resourceGeneration = 0;

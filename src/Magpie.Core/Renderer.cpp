@@ -4719,6 +4719,8 @@ winrt::IAsyncOperation<bool> Renderer::_TakeScreenshotImpl(
 	uint32_t passIdx,
 	uint32_t outputIdx
 ) noexcept {
+	const auto timestamp = ScreenshotHelper::CaptureTimestamp();
+	std::wstring exportSide = L"output";
 	const bool displayed = effectIdx == std::numeric_limits<uint32_t>::max();
 	// Snapshot session data before the first suspension. No ScalingWindow
 	// state is read during encoding or notification on a background thread.
@@ -4765,6 +4767,7 @@ winrt::IAsyncOperation<bool> Renderer::_TakeScreenshotImpl(
 		exportHdr = exportColor.transfer == HdrTransferFunction::Linear || exportColor.transfer == HdrTransferFunction::PQ;
 		imgFormat = L"png";
 	} else if (passIdx == std::numeric_limits<uint32_t>::max()) {
+		exportSide = fmt::format(L"effect_{:02}_output", effectIdx + 1);
 		sourceTex = _effectDrawers[effectIdx].GetOutputTexture();
 		setOutputColor();
 		imgFormat = L"png";
@@ -4778,6 +4781,7 @@ winrt::IAsyncOperation<bool> Renderer::_TakeScreenshotImpl(
 		const uint32_t targetOutput =
 			outputIdx == std::numeric_limits<uint32_t>::max() ? outputs[0] : outputs[outputIdx];
 
+		exportSide = fmt::format(L"effect_{:02}_pass_{:02}_texture_{:02}", effectIdx + 1, passIdx + 1, targetOutput);
 		// OUTPUT has a canonical scene counterpart; intermediate DDS surfaces
 		// retain the backend's raw format and values instead.
 		sourceTex = targetOutput == 1 ? _effectDrawers[effectIdx].GetOutputTexture()
@@ -4912,12 +4916,12 @@ winrt::IAsyncOperation<bool> Renderer::_TakeScreenshotImpl(
 		fail(ScalingError::ScreenshotDirectoryFailed, "CreateDir", GetLastError());
 		co_return false;
 	}
-	const uint32_t screenshotNum = ScreenshotHelper::FindUnusedScreenshotNum(screenshotsDir);
-	if (!screenshotNum) {
+	const auto stem = ScreenshotHelper::FindUnusedScreenshotStem(screenshotsDir, timestamp);
+	if (stem.empty()) {
 		fail(ScalingError::ScreenshotDirectoryFailed, "Enumerate screenshot directory");
 		co_return false;
 	}
-	const std::wstring fileName = fmt::format(L"Magpie_{:03}.{}", screenshotNum, imgFormat);
+	const std::wstring fileName = fmt::format(L"{}_{}.{}", stem, exportSide, imgFormat);
 	const auto fullPath = screenshotsDir / fileName;
 	TextureSaveError saveError;
 	if (!TextureHelper::SaveTextureExclusive(fullPath.c_str(), desc.Width, desc.Height,
