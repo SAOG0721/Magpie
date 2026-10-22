@@ -1,0 +1,23 @@
+2026-10-22 19:07:30.991|info|ParameterFlyoutTrace.h:22|TraceParameterFlyout|ParameterFlyoutTrace seq=1 qpc=253651005468 pid=55508 tid=46532 event=WM_SIZE object=0x2b12f6 a=0 b=44696516
+2026-10-22 19:07:30.991|info|ParameterFlyoutTrace.h:22|TraceParameterFlyout|ParameterFlyoutTrace seq=2 qpc=253651005602 pid=55508 tid=46532 event=host.foreground object=0xb12b4 a=31904 b=0
+2026-10-22 19:07:30.991|info|ParameterFlyoutTrace.h:22|TraceParameterFlyout|ParameterFlyoutTrace seq=3 qpc=253651005631 pid=55508 tid=46532 event=host.client object=0x2b12f6 a=964 b=682
+2026-10-22 19:07:30.991|info|ParameterFlyoutTrace.h:22|TraceParameterFlyout|ParameterFlyoutTrace seq=4 qpc=253651009309 pid=55508 tid=46532 event=resize.enqueue object=0x207ca8cd270 a=0 b=0
+2026-10-22 19:07:30.992|info|ParameterFlyoutTrace.h:22|TraceParameterFlyout|ParameterFlyoutTrace seq=5 qpc=253651017581 pid=55508 tid=46532 event=resize.execute object=0x207ca8cd270 a=0 b=0
+2026-10-22 19:07:31.081|info|ParameterFlyoutTrace.h:22|TraceParameterFlyout|ParameterFlyoutTrace seq=6 qpc=253651907017 pid=55508 tid=46532 event=WM_ACTIVATE object=0x2b12f6 a=1 b=0
+2026-10-22 19:07:31.081|info|ParameterFlyoutTrace.h:22|TraceParameterFlyout|ParameterFlyoutTrace seq=7 qpc=253651907433 pid=55508 tid=46532 event=host.foreground object=0xb12b4 a=31904 b=0
+2026-10-22 19:07:31.081|info|ParameterFlyoutTrace.h:22|TraceParameterFlyout|ParameterFlyoutTrace seq=8 qpc=253651907446 pid=55508 tid=46532 event=host.client object=0x2b12f6 a=964 b=682
+2026-10-22 19:07:31.085|info|ParameterFlyoutTrace.h:22|TraceParameterFlyout|ParameterFlyoutTrace seq=9 qpc=253651945186 pid=55508 tid=46532 event=probe.foreground object=0x2b12f6 a=55508 b=0
+2026-10-22 19:07:32.637|info|ParameterFlyoutTrace.h:22|TraceParameterFlyout|ParameterFlyoutTrace seq=10 qpc=253667473869 pid=55508 tid=46532 event=anchor.Loaded object=0x207ca8a5528 a=0 b=0
+2026-10-22 19:07:33.132|info|ParameterFlyoutTrace.h:22|TraceParameterFlyout|ParameterFlyoutTrace seq=11 qpc=253672417522 pid=55508 tid=46532 event=probe.mode object=0x20818a0d480 a=1 b=0
+2026-10-22 19:07:33.132|info|ParameterFlyoutTrace.h:22|TraceParameterFlyout|ParameterFlyoutTrace seq=12 qpc=253672421889 pid=55508 tid=46532 event=parent.Opening object=0x20818a0d1e8 a=0 b=0
+2026-10-22 19:07:33.132|info|ParameterFlyoutTrace.h:22|TraceParameterFlyout|ParameterFlyoutTrace seq=13 qpc=253672421963 pid=55508 tid=46532 event=parent.context object=0x20818a0d480 a=2232486090368 b=2233793584000
+2026-10-22 19:07:33.139|info|ParameterFlyoutTrace.h:22|TraceParameterFlyout|ParameterFlyoutTrace seq=14 qpc=253672488920 pid=55508 tid=46532 event=child.SelectionChanged object=0x207caa06978 a=1 b=2233795020016
+2026-10-22 19:07:33.143|info|ParameterFlyoutTrace.h:22|TraceParameterFlyout|ParameterFlyoutTrace seq=15 qpc=253672528391 pid=55508 tid=46532 event=child.SelectionChanged object=0x207caa0b178 a=1 b=2233795021776
+2026-10-22 19:07:33.148|info|ParameterFlyoutTrace.h:22|TraceParameterFlyout|ParameterFlyoutTrace seq=16 qpc=253672581602 pid=55508 tid=46532 event=parent.Opened object=0x20818a0d1e8 a=0 b=0
+2026-10-22 19:07:33.538|info|ParameterFlyoutTrace.h:22|TraceParameterFlyout|ParameterFlyoutTrace seq=17 qpc=253676476684 pid=55508 tid=46532 event=probe.host.xy object=0x2b12f6 a=52 b=52
+2026-10-22 19:07:33.538|info|ParameterFlyoutTrace.h:22|TraceParameterFlyout|ParameterFlyoutTrace seq=18 qpc=253676476723 pid=55508 tid=46532 event=probe.host.size object=0x2b12f6 a=980 b=690
+2026-10-22 19:07:33.540|info|ParameterFlyoutTrace.h:22|TraceParameterFlyout|ParameterFlyoutTrace seq=19 qpc=253676500825 pid=55508 tid=46532 event=child.DropDownOpened object=0x207caa0b178 a=1 b=0
+2026-10-22 19:07:33.540|info|ParameterFlyoutTrace.h:22|TraceParameterFlyout|ParameterFlyoutTrace seq=20 qpc=253676501136 pid=55508 tid=46532 event=probe.quality.Opened.focus object=0x401422 a=2822902 b=725684
+2026-10-22 19:07:33.848|info|ParameterFlyoutTrace.h:22|TraceParameterFlyout|ParameterFlyoutTrace seq=21 qpc=253679580474 pid=55508 tid=46532 event=probe.mouse.target object=0x6b0b7e a=31904 b=0
+2026-10-22 19:07:33.848|info|ParameterFlyoutTrace.h:22|TraceParameterFlyout|ParameterFlyoutTrace seq=22 qpc=253679580532 pid=55508 tid=46532 event=probe.mouse.xy object=0x6b0b7e a=840 b=244
+2026-10-22 19:07:33.848|error|ParameterFlyoutAppProbe.h:143|RunParameterFlyoutAppProbe|ParameterFlyoutAppProbe FAIL: Mouse target not owned by probe; no input sent
