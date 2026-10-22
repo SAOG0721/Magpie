@@ -1,6 +1,6 @@
 # Magpie 实验分支文档索引
 
-- [0.6.11 Beta1：DLSS 参数、SM86、VFX 浮窗与暂停截图](todos/20261022-dlss-runtime-presets-antiflicker-TODO.md)：四个独立分支已整合，0.6.11-beta1 候选构建及包校验通过；VFX 按用户意见暂定通过。[分支与验证记录](reviews/20261022-v0.6.11-beta1-implementation.md)。
+- [0.6.11 Beta1：DLSS 参数、SM86、VFX 浮窗与暂停截图](todos/20261022-dlss-runtime-presets-antiflicker-TODO.md)：四个独立分支已整合，0.6.11-beta1 已完成构建、包校验及本机部署启动；VFX 按用户意见暂定通过。[分支与验证记录](reviews/20261022-v0.6.11-beta1-implementation.md)。
 
 
 ## 0.6.10 待审核分发 / Distribution under review
