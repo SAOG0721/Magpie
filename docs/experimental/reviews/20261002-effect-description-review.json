@@ -5427,12 +5427,31 @@
       "level": "advanced",
       "source": {
         "path": "src/Effects/DLSS/DLSS_SR.hlsl",
-        "sha256": "df519f689b15e500d471d948e7a2bdddb7fa1bd48539c0259002d7d76ed65365",
+        "sha256": "3c09bf33a165e8dadbc949368697d711cda9ac679a6d56c7ca05e9874b774a09",
         "output": {
           "mode": "group-output-size"
         },
         "passCount": 1,
         "parameters": [
+          {
+            "name": "renderPreset",
+            "type": "int",
+            "label": "Model Preset",
+            "default": "11",
+            "options": [
+              "0 Auto",
+              "1 A (Legacy)",
+              "2 B (Legacy)",
+              "3 C (Legacy)",
+              "4 D (Legacy)",
+              "5 E (Deprecated)",
+              "6 F (Deprecated)",
+              "10 J",
+              "11 K",
+              "12 L",
+              "13 M"
+            ]
+          },
           {
             "name": "opticalFlowMethod",
             "type": "int",
@@ -5497,25 +5516,26 @@
         "copyScope": "User-focused bilingual purpose, content and starting steps; shared guidance moved to categories, parameter help and usage docs. Source review only; no build, deployment, UI or GPU acceptance.",
         "runtimeEvidenceSha256": {
           "src/Magpie.Core/HdrEffectBoundary.cpp": "75f166cd9c3c9cddf931b499f445f76c353d51000d1df36894f819a01809a8eb",
-          "src/Magpie.Core/NativeEffectBackendFactory.cpp": "fae3c55516bbdb38e524a9bd220a87274a80445da2679474d62a46c084e3ea45",
+          "src/Magpie.Core/NativeEffectBackendFactory.cpp": "9e36abc63a3dac84357d2e020f25342257d83b51669b97e9053d73f15adfebc4",
           "src/Magpie.Core/GroupBHdrRoutes.cpp": "970281df968a0f92276e60c09afd76e0171bb87d57db8fe2bdecc58d595656b3",
-          "src/Magpie.Core/DLSSSRUpscaler.cpp": "9ca404092c82c891176ddf9d6785643f94137016bc123095493db8a7d03d8fc9"
+          "src/Magpie.Core/DLSSSRUpscaler.cpp": "6b6045efdaaba6acfa78a530edc76ce165c032f54e2340344af7f2817203e341"
         },
-        "evidenceBaseline": "cbe2c2cb + UWP fullscreen, HDR overlay, DLSSNR guidance and effect-description integration; copy contracts rechecked"
+        "evidenceBaseline": "cbe2c2cb + UWP fullscreen, HDR overlay, DLSSNR guidance and effect-description integration; copy contracts rechecked",
+        "settingsRevision": "2026-10-22 SR K / FG Auto-A-B-C / NR 5-200ms; native acceptance tracked separately"
       },
       "zh-Hans": {
         "name": "DLSS SR",
         "subcategory": "时序重建",
         "summary": "DLSS 时序超分，结合连续帧重建放大细节。",
-        "details": "结合当前画面与帧历史重建细节，适合游戏和连续视频的放大。在效果组中设置放大尺寸，可通过光流选项加入从捕获画面估计的运动信息。需要受支持的 NVIDIA RTX 渲染 GPU 与配套 DLSS 运行库。",
-        "search": "DLSS\\DLSS_SR DLSS SR 放大与超分 时序重建 DLSS\\DLSS_SR DLSS\\DLSS_ZeroMV DLSS\\DLSS_ZeroMV_Jitter DLSS\\DLSS_OpticalFlow Optical Flow Method OF Quality OF Quality DLSS 时序超分，结合连续帧重建放大细节。 结合当前画面与帧历史重建细节，适合游戏和连续视频的放大。在效果组中设置放大尺寸，可通过光流选项加入从捕获画面估计的运动信息。需要受支持的 NVIDIA RTX 渲染 GPU 与配套 DLSS 运行库。"
+        "details": "结合当前画面与帧历史重建细节，适合游戏和连续视频的放大。在效果组中设置放大尺寸，可通过光流选项加入从捕获画面估计的运动信息。需要受支持的 NVIDIA RTX 渲染 GPU 与配套 DLSS 运行库。 模型预设默认 K，可按效果实例选择；修改后重新启动缩放。",
+        "search": "DLSS\\DLSS_SR DLSS SR 放大与超分 时序重建 DLSS\\DLSS_SR DLSS\\DLSS_ZeroMV DLSS\\DLSS_ZeroMV_Jitter DLSS\\DLSS_OpticalFlow Optical Flow Method OF Quality OF Quality DLSS 时序超分，结合连续帧重建放大细节。 结合当前画面与帧历史重建细节，适合游戏和连续视频的放大。在效果组中设置放大尺寸，可通过光流选项加入从捕获画面估计的运动信息。需要受支持的 NVIDIA RTX 渲染 GPU 与配套 DLSS 运行库。 模型预设默认 K，可按效果实例选择；修改后重新启动缩放。"
       },
       "en-US": {
         "name": "DLSS SR",
         "subcategory": "Temporal reconstruction",
         "summary": "DLSS temporal upscaling reconstructs detail from consecutive frames.",
-        "details": "Reconstructs detail from the current image and frame history for upscaling games and continuous video. Set an enlarged output size in the effect group; optical-flow options add motion estimated from captured images. Requires a supported NVIDIA RTX rendering GPU and matching DLSS runtime.",
-        "search": "DLSS\\DLSS_SR DLSS SR Upscaling and super resolution Temporal reconstruction DLSS\\DLSS_SR DLSS\\DLSS_ZeroMV DLSS\\DLSS_ZeroMV_Jitter DLSS\\DLSS_OpticalFlow Optical Flow Method OF Quality OF Quality DLSS temporal upscaling reconstructs detail from consecutive frames. Reconstructs detail from the current image and frame history for upscaling games and continuous video. Set an enlarged output size in the effect group; optical-flow options add motion estimated from captured images. Requires a supported NVIDIA RTX rendering GPU and matching DLSS runtime."
+        "details": "Reconstructs detail from the current image and frame history for upscaling games and continuous video. Set an enlarged output size in the effect group; optical-flow options add motion estimated from captured images. Requires a supported NVIDIA RTX rendering GPU and matching DLSS runtime. Model Preset defaults to K and is saved per effect. Restart scaling after changing it.",
+        "search": "DLSS\\DLSS_SR DLSS SR Upscaling and super resolution Temporal reconstruction DLSS\\DLSS_SR DLSS\\DLSS_ZeroMV DLSS\\DLSS_ZeroMV_Jitter DLSS\\DLSS_OpticalFlow Optical Flow Method OF Quality OF Quality DLSS temporal upscaling reconstructs detail from consecutive frames. Reconstructs detail from the current image and frame history for upscaling games and continuous video. Set an enlarged output size in the effect group; optical-flow options add motion estimated from captured images. Requires a supported NVIDIA RTX rendering GPU and matching DLSS runtime. Model Preset defaults to K and is saved per effect. Restart scaling after changing it."
       }
     },
     {
@@ -5529,13 +5549,25 @@
       "level": "advanced",
       "source": {
         "path": "src/Effects/DLSSFG/DLSS_FrameGeneration.hlsl",
-        "sha256": "1cf9e13944026354119f0d97fc528c1e55536fce9288f575ccef6ad7eddd140b",
+        "sha256": "1023e26af51dcdef07136de9882535ce2170e4d0e6c66cc9cb2ebae24aaac5ed",
         "output": {
           "WIDTH": "INPUT_WIDTH",
           "HEIGHT": "INPUT_HEIGHT"
         },
         "passCount": 1,
         "parameters": [
+          {
+            "name": "renderPreset",
+            "type": "int",
+            "label": "Render Preset",
+            "default": "0",
+            "options": [
+              "0 Auto (Default)",
+              "1 A",
+              "2 B",
+              "3 C"
+            ]
+          },
           {
             "name": "multiplier",
             "type": "int",
@@ -5607,17 +5639,17 @@
           "hardware-performance",
           "native-sdk-runtime"
         ],
-        "settingsRevision": "2026-10-12 FG common filtering and idle redraw; source only, uncompiled",
+        "settingsRevision": "2026-10-22 SR K / FG Auto-A-B-C / NR 5-200ms; native acceptance tracked separately",
         "copyReviewedOn": "2026-10-13",
         "copyDisposition": "revised",
         "copyScope": "User-focused bilingual purpose, content and starting steps; shared guidance moved to categories, parameter help and usage docs. Source review only; no build, deployment, UI or GPU acceptance.",
         "runtimeEvidenceSha256": {
           "src/Magpie.Core/HdrEffectBoundary.cpp": "75f166cd9c3c9cddf931b499f445f76c353d51000d1df36894f819a01809a8eb",
-          "src/Magpie.Core/NativeEffectBackendFactory.cpp": "fae3c55516bbdb38e524a9bd220a87274a80445da2679474d62a46c084e3ea45",
+          "src/Magpie.Core/NativeEffectBackendFactory.cpp": "9e36abc63a3dac84357d2e020f25342257d83b51669b97e9053d73f15adfebc4",
           "src/Magpie.Core/GroupBHdrRoutes.cpp": "970281df968a0f92276e60c09afd76e0171bb87d57db8fe2bdecc58d595656b3",
-          "src/Magpie.Core/Renderer.cpp": "b03b12ffcbc19f9f84b8cba6e765e2618de77a558105b46299de2f7792fa3eb2",
+          "src/Magpie.Core/Renderer.cpp": "90366e17aeae0752f25cc11f60dcaba24b1e325d27fbaf38bff327d49afa9f4f",
           "src/Magpie.Core/include/FramePacingOptions.h": "a2706ceaa17b802bfe5e31f489c8af288b5dd9af5765ec9e5b608e9e01764808",
-          "src/Magpie.Core/DLSSFrameGenerator.cpp": "ed96b59d063b9d8ff8bb25788160f9dc2aaa60a752d409d46c3ce59cdd144d79",
+          "src/Magpie.Core/DLSSFrameGenerator.cpp": "1bad8a6a844a65eda3d7501a5f9efafbe6e1f962bf5820b36829c24dfa03e0a4",
           "src/Magpie.Core/EffectProtocolCatalogC.h": "a2b63ba974d319fd9212377dd1978d2ca9dc19e1f17f666d457b85fb68de171c"
         },
         "evidenceBaseline": "cbe2c2cb + UWP fullscreen, HDR overlay, DLSSNR guidance and effect-description integration; copy contracts rechecked"
@@ -5626,15 +5658,15 @@
         "name": "DLSS FrameGeneration",
         "subcategory": "补帧",
         "summary": "在连续画面之间补帧，可选 2×～4× 倍率。",
-        "details": "生成中间帧，让游戏与视频的运动呈现更连贯，保持画面尺寸。先选 2×，并在“帧率与刷新”中设置基础帧率。需要支持相应倍率的 NVIDIA 渲染 GPU、驱动与随附兼容运行库；切换渲染显卡后需重启喜鹊。",
-        "search": "DLSSFG\\DLSS_FrameGeneration DLSS FrameGeneration 在连续画面之间补帧，可选 2×～4× 倍率。 生成中间帧，让游戏与视频的运动呈现更连贯，保持画面尺寸。先选 2×，并在“帧率与刷新”中设置基础帧率。需要支持相应倍率的 NVIDIA 渲染 GPU、驱动与随附兼容运行库；切换渲染显卡后需重启喜鹊。"
+        "details": "生成中间帧，让游戏与视频的运动呈现更连贯，保持画面尺寸。先选 2×，并在“帧率与刷新”中设置基础帧率。需要支持相应倍率的 NVIDIA 渲染 GPU、驱动与随附兼容运行库；切换渲染显卡后需重启喜鹊。 模型预设可选自动、A、B、C，默认自动；修改后重新启动缩放。",
+        "search": "DLSSFG\\DLSS_FrameGeneration DLSS FrameGeneration 在连续画面之间补帧，可选 2×～4× 倍率。 生成中间帧，让游戏与视频的运动呈现更连贯，保持画面尺寸。先选 2×，并在“帧率与刷新”中设置基础帧率。需要支持相应倍率的 NVIDIA 渲染 GPU、驱动与随附兼容运行库；切换渲染显卡后需重启喜鹊。 模型预设可选自动、A、B、C，默认自动；修改后重新启动缩放。"
       },
       "en-US": {
         "name": "DLSS FrameGeneration",
         "subcategory": "Frame generation",
         "summary": "Generates intermediate frames at selectable 2x–4x multipliers.",
-        "details": "Adds intermediate frames for smoother motion in games and video while keeping the image size. Start at 2x and set the base frame rate in Frame rate and refresh. Requires an NVIDIA rendering GPU supporting the chosen multiplier, a suitable driver, and the bundled compatibility runtime. Restart Magpie after changing the rendering GPU.",
-        "search": "DLSSFG\\DLSS_FrameGeneration DLSS FrameGeneration Generates intermediate frames at selectable 2x–4x multipliers. Adds intermediate frames for smoother motion in games and video while keeping the image size. Start at 2x and set the base frame rate in Frame rate and refresh. Requires an NVIDIA rendering GPU supporting the chosen multiplier, a suitable driver, and the bundled compatibility runtime. Restart Magpie after changing the rendering GPU."
+        "details": "Adds intermediate frames for smoother motion in games and video while keeping the image size. Start at 2x and set the base frame rate in Frame rate and refresh. Requires an NVIDIA rendering GPU supporting the chosen multiplier, a suitable driver, and the bundled compatibility runtime. Restart Magpie after changing the rendering GPU. Model Preset offers Auto, A, B and C, with Auto as the default. Restart scaling after changing it.",
+        "search": "DLSSFG\\DLSS_FrameGeneration DLSS FrameGeneration Generates intermediate frames at selectable 2x–4x multipliers. Adds intermediate frames for smoother motion in games and video while keeping the image size. Start at 2x and set the base frame rate in Frame rate and refresh. Requires an NVIDIA rendering GPU supporting the chosen multiplier, a suitable driver, and the bundled compatibility runtime. Restart Magpie after changing the rendering GPU. Model Preset offers Auto, A, B and C, with Auto as the default. Restart scaling after changing it."
       }
     },
     {
@@ -5648,7 +5680,7 @@
       "level": "advanced",
       "source": {
         "path": "src/Effects/DLSSNR/DLSSNR_AI_Filter.hlsl",
-        "sha256": "07544b134fb01b23fc98c9a316c5705bd6fd0ab807c7aafdc3954f5c951c3279",
+        "sha256": "fe5ddab2bd419ee5352bf61495d66c3ba394b068add1a3f3e4a24d576c4fc257",
         "output": {
           "WIDTH": "INPUT_WIDTH",
           "HEIGHT": "INPUT_HEIGHT"
@@ -5967,6 +5999,17 @@
             ]
           },
           {
+            "name": "antiFlickerTimeMs",
+            "type": "float",
+            "group": "DLSSNR · Pass 1",
+            "label": "Anti-flicker Response Time (ms)",
+            "default": "80",
+            "min": "5",
+            "max": "200",
+            "step": "5",
+            "options": []
+          },
+          {
             "name": "pass2_style",
             "type": "int",
             "group": "DLSSNR · Pass 2",
@@ -6154,27 +6197,28 @@
         "copyScope": "User-focused bilingual purpose, content and starting steps; shared guidance moved to categories, parameter help and usage docs. Source review only; no build, deployment, UI or GPU acceptance.",
         "runtimeEvidenceSha256": {
           "src/Magpie.Core/HdrEffectBoundary.cpp": "75f166cd9c3c9cddf931b499f445f76c353d51000d1df36894f819a01809a8eb",
-          "src/Magpie.Core/NativeEffectBackendFactory.cpp": "fae3c55516bbdb38e524a9bd220a87274a80445da2679474d62a46c084e3ea45",
+          "src/Magpie.Core/NativeEffectBackendFactory.cpp": "9e36abc63a3dac84357d2e020f25342257d83b51669b97e9053d73f15adfebc4",
           "src/Magpie.Core/GroupBHdrRoutes.cpp": "970281df968a0f92276e60c09afd76e0171bb87d57db8fe2bdecc58d595656b3",
-          "src/Magpie.Core/DLSSNRMultiPass.h": "462382044879e9091d82614527b6acffdd160e6a8368b8c0da47776fa41f7aef",
+          "src/Magpie.Core/DLSSNRMultiPass.h": "9121bb9d5fdfe5161b59cc237d8dbcac2f63d2a940d8a9a2eb47e2833c9ad684",
           "src/Magpie.Core/DLSSNRFilter.cpp": "5eb7ba6c55ae2f3c26b9527ccc73130764a0ca71c10dd8b2d8113c7158fbc999",
-          "src/Magpie.Core/include/DLSSNRParameters.h": "4636406833e5bdcdf57d46de28b6743350b1d4eb5642625b7e60e89d041b3b88"
+          "src/Magpie.Core/include/DLSSNRParameters.h": "e0db6c26d2063924e42167615c9548cf5902dff4661197b7df0fb2115f81b564"
         },
-        "evidenceBaseline": "cbe2c2cb + UWP fullscreen, HDR overlay, DLSSNR guidance and effect-description integration; copy contracts rechecked"
+        "evidenceBaseline": "cbe2c2cb + UWP fullscreen, HDR overlay, DLSSNR guidance and effect-description integration; copy contracts rechecked",
+        "settingsRevision": "2026-10-22 SR K / FG Auto-A-B-C / NR 5-200ms; native acceptance tracked separately"
       },
       "zh-Hans": {
         "name": "DLSSNR AI Filter",
         "subcategory": "AI 画面重塑",
         "summary": "用 AI 重塑纹理与细节，保持画面尺寸。",
-        "details": "改变游戏与图像的纹理和细节风格，适合尝试不同画面质感。先用单次处理调节风格与强度，也可选择 1～3 次连续处理。SDR 下开启“调整输入分辨率”可进一步控制整体变化。需要能够初始化该实验功能的 NVIDIA 渲染 GPU 与配套运行库。",
-        "search": "DLSSNR\\DLSSNR_AI_Filter DLSSNR AI Filter 风格显示 AI 画面重塑 DLSSNR\\DLSSNR_AI_Filter Adjust Input Resolution Input Resolution (%) Overall Strength Chroma Strength Overall Lightness Strength Shadow / Structure Strength Highlight / Glow Strength Advanced Adjustments Optical Flow Method Optical Flow Quality Optical Flow Quality Hue Protection Shadow Protection Highlight Protection Overcorrection Suppression Low-frequency Range Strength High-frequency Range Strength Diagnostic View NR Style NR Intensity Local Tone Strength Local Structure Strength Skin Structure Strength Automatic Mask NR UI Correction Multi Pass Anti-flicker NR Style NR Intensity Local Tone Strength Local Structure Strength Skin Structure Strength Automatic Mask NR UI Correction NR Style NR Intensity Local Tone Strength Local Structure Strength Skin Structure Strength Automatic Mask NR UI Correction 用 AI 重塑纹理与细节，保持画面尺寸。 改变游戏与图像的纹理和细节风格，适合尝试不同画面质感。先用单次处理调节风格与强度，也可选择 1～3 次连续处理。SDR 下开启“调整输入分辨率”可进一步控制整体变化。需要能够初始化该实验功能的 NVIDIA 渲染 GPU 与配套运行库。"
+        "details": "改变游戏与图像的纹理和细节风格，适合尝试不同画面质感。先用单次处理调节风格与强度，也可选择 1～3 次连续处理。SDR 下开启“调整输入分辨率”可进一步控制整体变化。需要能够初始化该实验功能的 NVIDIA 渲染 GPU 与配套运行库。 抗闪烁响应时间可在 5–200 ms 调整，默认 80 ms；较大值更稳定、响应更慢。",
+        "search": "DLSSNR\\DLSSNR_AI_Filter DLSSNR AI Filter 风格显示 AI 画面重塑 DLSSNR\\DLSSNR_AI_Filter Adjust Input Resolution Input Resolution (%) Overall Strength Chroma Strength Overall Lightness Strength Shadow / Structure Strength Highlight / Glow Strength Advanced Adjustments Optical Flow Method Optical Flow Quality Optical Flow Quality Hue Protection Shadow Protection Highlight Protection Overcorrection Suppression Low-frequency Range Strength High-frequency Range Strength Diagnostic View NR Style NR Intensity Local Tone Strength Local Structure Strength Skin Structure Strength Automatic Mask NR UI Correction Multi Pass Anti-flicker NR Style NR Intensity Local Tone Strength Local Structure Strength Skin Structure Strength Automatic Mask NR UI Correction NR Style NR Intensity Local Tone Strength Local Structure Strength Skin Structure Strength Automatic Mask NR UI Correction 用 AI 重塑纹理与细节，保持画面尺寸。 改变游戏与图像的纹理和细节风格，适合尝试不同画面质感。先用单次处理调节风格与强度，也可选择 1～3 次连续处理。SDR 下开启“调整输入分辨率”可进一步控制整体变化。需要能够初始化该实验功能的 NVIDIA 渲染 GPU 与配套运行库。 抗闪烁响应时间可在 5–200 ms 调整，默认 80 ms；较大值更稳定、响应更慢。"
       },
       "en-US": {
         "name": "DLSSNR AI Filter",
         "subcategory": "AI image enhancement",
         "summary": "Reshapes textures and detail with AI at the original image size.",
-        "details": "Changes texture and detail style in games and images for exploring different looks. Start with one pass and adjust style and intensity, or select 1–3 consecutive passes. In SDR, Adjust Input Resolution enables further control over the overall change. Requires an NVIDIA rendering GPU and matching runtime that can initialize this experimental feature.",
-        "search": "DLSSNR\\DLSSNR_AI_Filter DLSSNR AI Filter Display styles AI image enhancement DLSSNR\\DLSSNR_AI_Filter Adjust Input Resolution Input Resolution (%) Overall Strength Chroma Strength Overall Lightness Strength Shadow / Structure Strength Highlight / Glow Strength Advanced Adjustments Optical Flow Method Optical Flow Quality Optical Flow Quality Hue Protection Shadow Protection Highlight Protection Overcorrection Suppression Low-frequency Range Strength High-frequency Range Strength Diagnostic View NR Style NR Intensity Local Tone Strength Local Structure Strength Skin Structure Strength Automatic Mask NR UI Correction Multi Pass Anti-flicker NR Style NR Intensity Local Tone Strength Local Structure Strength Skin Structure Strength Automatic Mask NR UI Correction NR Style NR Intensity Local Tone Strength Local Structure Strength Skin Structure Strength Automatic Mask NR UI Correction Reshapes textures and detail with AI at the original image size. Changes texture and detail style in games and images for exploring different looks. Start with one pass and adjust style and intensity, or select 1–3 consecutive passes. In SDR, Adjust Input Resolution enables further control over the overall change. Requires an NVIDIA rendering GPU and matching runtime that can initialize this experimental feature."
+        "details": "Changes texture and detail style in games and images for exploring different looks. Start with one pass and adjust style and intensity, or select 1–3 consecutive passes. In SDR, Adjust Input Resolution enables further control over the overall change. Requires an NVIDIA rendering GPU and matching runtime that can initialize this experimental feature. Anti-flicker Response Time ranges from 5 to 200 ms, defaulting to 80 ms. Higher values retain history longer and respond more slowly.",
+        "search": "DLSSNR\\DLSSNR_AI_Filter DLSSNR AI Filter Display styles AI image enhancement DLSSNR\\DLSSNR_AI_Filter Adjust Input Resolution Input Resolution (%) Overall Strength Chroma Strength Overall Lightness Strength Shadow / Structure Strength Highlight / Glow Strength Advanced Adjustments Optical Flow Method Optical Flow Quality Optical Flow Quality Hue Protection Shadow Protection Highlight Protection Overcorrection Suppression Low-frequency Range Strength High-frequency Range Strength Diagnostic View NR Style NR Intensity Local Tone Strength Local Structure Strength Skin Structure Strength Automatic Mask NR UI Correction Multi Pass Anti-flicker NR Style NR Intensity Local Tone Strength Local Structure Strength Skin Structure Strength Automatic Mask NR UI Correction NR Style NR Intensity Local Tone Strength Local Structure Strength Skin Structure Strength Automatic Mask NR UI Correction Reshapes textures and detail with AI at the original image size. Changes texture and detail style in games and images for exploring different looks. Start with one pass and adjust style and intensity, or select 1–3 consecutive passes. In SDR, Adjust Input Resolution enables further control over the overall change. Requires an NVIDIA rendering GPU and matching runtime that can initialize this experimental feature. Anti-flicker Response Time ranges from 5 to 200 ms, defaulting to 80 ms. Higher values retain history longer and respond more slowly."
       }
     },
     {
@@ -6242,7 +6286,7 @@
         "copyScope": "User-focused bilingual purpose, content and starting steps; shared guidance moved to categories, parameter help and usage docs. Source review only; no build, deployment, UI or GPU acceptance.",
         "runtimeEvidenceSha256": {
           "src/Magpie.Core/HdrEffectBoundary.cpp": "75f166cd9c3c9cddf931b499f445f76c353d51000d1df36894f819a01809a8eb",
-          "src/Magpie.Core/Renderer.cpp": "b03b12ffcbc19f9f84b8cba6e765e2618de77a558105b46299de2f7792fa3eb2",
+          "src/Magpie.Core/Renderer.cpp": "90366e17aeae0752f25cc11f60dcaba24b1e325d27fbaf38bff327d49afa9f4f",
           "src/Magpie.Core/include/FramePacingOptions.h": "a2706ceaa17b802bfe5e31f489c8af288b5dd9af5765ec9e5b608e9e01764808"
         },
         "evidenceBaseline": "cbe2c2cb + UWP fullscreen, HDR overlay, DLSSNR guidance and effect-description integration; copy contracts rechecked"
@@ -6472,7 +6516,7 @@
         "copyScope": "User-focused bilingual purpose, content and starting steps; shared guidance moved to categories, parameter help and usage docs. Source review only; no build, deployment, UI or GPU acceptance.",
         "runtimeEvidenceSha256": {
           "src/Magpie.Core/HdrEffectBoundary.cpp": "75f166cd9c3c9cddf931b499f445f76c353d51000d1df36894f819a01809a8eb",
-          "src/Magpie.Core/NativeEffectBackendFactory.cpp": "fae3c55516bbdb38e524a9bd220a87274a80445da2679474d62a46c084e3ea45",
+          "src/Magpie.Core/NativeEffectBackendFactory.cpp": "9e36abc63a3dac84357d2e020f25342257d83b51669b97e9053d73f15adfebc4",
           "src/Magpie.Core/GroupBHdrRoutes.cpp": "970281df968a0f92276e60c09afd76e0171bb87d57db8fe2bdecc58d595656b3",
           "src/Magpie.Core/FSR2Upscaler.cpp": "6ae1fe1eee6458da98dc6b1f332269dbc07801a13f3cb126053da10d32f44e01"
         },
@@ -6574,7 +6618,7 @@
         "copyScope": "User-focused bilingual purpose, content and starting steps; shared guidance moved to categories, parameter help and usage docs. Source review only; no build, deployment, UI or GPU acceptance.",
         "runtimeEvidenceSha256": {
           "src/Magpie.Core/HdrEffectBoundary.cpp": "75f166cd9c3c9cddf931b499f445f76c353d51000d1df36894f819a01809a8eb",
-          "src/Magpie.Core/NativeEffectBackendFactory.cpp": "fae3c55516bbdb38e524a9bd220a87274a80445da2679474d62a46c084e3ea45",
+          "src/Magpie.Core/NativeEffectBackendFactory.cpp": "9e36abc63a3dac84357d2e020f25342257d83b51669b97e9053d73f15adfebc4",
           "src/Magpie.Core/GroupBHdrRoutes.cpp": "970281df968a0f92276e60c09afd76e0171bb87d57db8fe2bdecc58d595656b3",
           "src/Magpie.Core/FSR3Upscaler.cpp": "94f6e2aaa7919a21bd82596c217c58c3e023fe93808183b7205f7561fc7edd63"
         },
@@ -6676,7 +6720,7 @@
         "copyScope": "User-focused bilingual purpose, content and starting steps; shared guidance moved to categories, parameter help and usage docs. Source review only; no build, deployment, UI or GPU acceptance.",
         "runtimeEvidenceSha256": {
           "src/Magpie.Core/HdrEffectBoundary.cpp": "75f166cd9c3c9cddf931b499f445f76c353d51000d1df36894f819a01809a8eb",
-          "src/Magpie.Core/NativeEffectBackendFactory.cpp": "fae3c55516bbdb38e524a9bd220a87274a80445da2679474d62a46c084e3ea45",
+          "src/Magpie.Core/NativeEffectBackendFactory.cpp": "9e36abc63a3dac84357d2e020f25342257d83b51669b97e9053d73f15adfebc4",
           "src/Magpie.Core/GroupBHdrRoutes.cpp": "970281df968a0f92276e60c09afd76e0171bb87d57db8fe2bdecc58d595656b3",
           "src/Magpie.Core/FSR3Upscaler.cpp": "94f6e2aaa7919a21bd82596c217c58c3e023fe93808183b7205f7561fc7edd63"
         },
@@ -11125,7 +11169,7 @@
         "runtimeEvidenceSha256": {
           "src/Magpie.Core/HdrEffectBoundary.cpp": "75f166cd9c3c9cddf931b499f445f76c353d51000d1df36894f819a01809a8eb",
           "src/Magpie.Core/EffectProtocolCatalogC.h": "a2b63ba974d319fd9212377dd1978d2ca9dc19e1f17f666d457b85fb68de171c",
-          "src/Magpie.Core/Renderer.cpp": "b03b12ffcbc19f9f84b8cba6e765e2618de77a558105b46299de2f7792fa3eb2",
+          "src/Magpie.Core/Renderer.cpp": "90366e17aeae0752f25cc11f60dcaba24b1e325d27fbaf38bff327d49afa9f4f",
           "src/Effects/xBR/xBR_LV2_Common.hlsli": "af2cde9c6c91d04383bb39f0984f251a4d943aa027531abf376aa491d078b174"
         }
       },
@@ -11232,7 +11276,7 @@
         "runtimeEvidenceSha256": {
           "src/Magpie.Core/HdrEffectBoundary.cpp": "75f166cd9c3c9cddf931b499f445f76c353d51000d1df36894f819a01809a8eb",
           "src/Magpie.Core/EffectProtocolCatalogC.h": "a2b63ba974d319fd9212377dd1978d2ca9dc19e1f17f666d457b85fb68de171c",
-          "src/Magpie.Core/Renderer.cpp": "b03b12ffcbc19f9f84b8cba6e765e2618de77a558105b46299de2f7792fa3eb2",
+          "src/Magpie.Core/Renderer.cpp": "90366e17aeae0752f25cc11f60dcaba24b1e325d27fbaf38bff327d49afa9f4f",
           "src/Effects/xBR/xBR_LV2_Common.hlsli": "af2cde9c6c91d04383bb39f0984f251a4d943aa027531abf376aa491d078b174"
         }
       },
@@ -11339,7 +11383,7 @@
         "runtimeEvidenceSha256": {
           "src/Magpie.Core/HdrEffectBoundary.cpp": "75f166cd9c3c9cddf931b499f445f76c353d51000d1df36894f819a01809a8eb",
           "src/Magpie.Core/EffectProtocolCatalogC.h": "a2b63ba974d319fd9212377dd1978d2ca9dc19e1f17f666d457b85fb68de171c",
-          "src/Magpie.Core/Renderer.cpp": "b03b12ffcbc19f9f84b8cba6e765e2618de77a558105b46299de2f7792fa3eb2",
+          "src/Magpie.Core/Renderer.cpp": "90366e17aeae0752f25cc11f60dcaba24b1e325d27fbaf38bff327d49afa9f4f",
           "src/Effects/xBR/xBR_LV2_Common.hlsli": "af2cde9c6c91d04383bb39f0984f251a4d943aa027531abf376aa491d078b174"
         }
       },
@@ -11413,7 +11457,7 @@
         "runtimeEvidenceSha256": {
           "src/Magpie.Core/HdrEffectBoundary.cpp": "75f166cd9c3c9cddf931b499f445f76c353d51000d1df36894f819a01809a8eb",
           "src/Magpie.Core/EffectProtocolCatalogC.h": "a2b63ba974d319fd9212377dd1978d2ca9dc19e1f17f666d457b85fb68de171c",
-          "src/Magpie.Core/Renderer.cpp": "b03b12ffcbc19f9f84b8cba6e765e2618de77a558105b46299de2f7792fa3eb2"
+          "src/Magpie.Core/Renderer.cpp": "90366e17aeae0752f25cc11f60dcaba24b1e325d27fbaf38bff327d49afa9f4f"
         }
       },
       "zh-Hans": {
@@ -11476,7 +11520,7 @@
         "runtimeEvidenceSha256": {
           "src/Magpie.Core/HdrEffectBoundary.cpp": "75f166cd9c3c9cddf931b499f445f76c353d51000d1df36894f819a01809a8eb",
           "src/Magpie.Core/EffectProtocolCatalogC.h": "a2b63ba974d319fd9212377dd1978d2ca9dc19e1f17f666d457b85fb68de171c",
-          "src/Magpie.Core/Renderer.cpp": "b03b12ffcbc19f9f84b8cba6e765e2618de77a558105b46299de2f7792fa3eb2"
+          "src/Magpie.Core/Renderer.cpp": "90366e17aeae0752f25cc11f60dcaba24b1e325d27fbaf38bff327d49afa9f4f"
         }
       },
       "zh-Hans": {
@@ -11916,11 +11960,11 @@
         "copyScope": "User-focused bilingual purpose, content and starting steps; shared guidance moved to categories, parameter help and usage docs. Source review only; no build, deployment, UI or GPU acceptance.",
         "runtimeEvidenceSha256": {
           "src/Magpie.Core/HdrEffectBoundary.cpp": "75f166cd9c3c9cddf931b499f445f76c353d51000d1df36894f819a01809a8eb",
-          "src/Magpie.Core/NativeEffectBackendFactory.cpp": "fae3c55516bbdb38e524a9bd220a87274a80445da2679474d62a46c084e3ea45",
+          "src/Magpie.Core/NativeEffectBackendFactory.cpp": "9e36abc63a3dac84357d2e020f25342257d83b51669b97e9053d73f15adfebc4",
           "src/Magpie.Core/GroupBHdrRoutes.cpp": "970281df968a0f92276e60c09afd76e0171bb87d57db8fe2bdecc58d595656b3",
           "src/Magpie.Core/XeSSUpscaler.cpp": "3b3d0535cad1b2f6f644ad08bf1045202a341b0a6804e3452c9fc15ccaf6ed6d",
           "src/Magpie.Core/EffectProtocolCatalogC.h": "a2b63ba974d319fd9212377dd1978d2ca9dc19e1f17f666d457b85fb68de171c",
-          "src/Magpie.Core/Renderer.cpp": "b03b12ffcbc19f9f84b8cba6e765e2618de77a558105b46299de2f7792fa3eb2"
+          "src/Magpie.Core/Renderer.cpp": "90366e17aeae0752f25cc11f60dcaba24b1e325d27fbaf38bff327d49afa9f4f"
         },
         "evidenceBaseline": "cbe2c2cb + UWP fullscreen, HDR overlay, DLSSNR guidance and effect-description integration; copy contracts rechecked"
       },
@@ -12034,7 +12078,7 @@
         "copyScope": "User-focused bilingual purpose, content and starting steps; shared guidance moved to categories, parameter help and usage docs. Source review only; no build, deployment, UI or GPU acceptance.",
         "runtimeEvidenceSha256": {
           "src/Magpie.Core/HdrEffectBoundary.cpp": "75f166cd9c3c9cddf931b499f445f76c353d51000d1df36894f819a01809a8eb",
-          "src/Magpie.Core/Renderer.cpp": "b03b12ffcbc19f9f84b8cba6e765e2618de77a558105b46299de2f7792fa3eb2",
+          "src/Magpie.Core/Renderer.cpp": "90366e17aeae0752f25cc11f60dcaba24b1e325d27fbaf38bff327d49afa9f4f",
           "src/Magpie.Core/include/FramePacingOptions.h": "a2706ceaa17b802bfe5e31f489c8af288b5dd9af5765ec9e5b608e9e01764808",
           "src/Magpie.Core/XeSSFGPresenter.cpp": "9da3a3b31e7fba0a7c29d43c33eaf509731122f09c433ef5f44f8bab327e203e",
           "src/Magpie.Core/XeSSFGCompatibility.h": "0e89a59facd54580912d4ee458624c0803c1a0cedc9af3cd88eeae18c90f0953"
@@ -12120,11 +12164,11 @@
         "copyScope": "User-focused bilingual purpose, content and starting steps; shared guidance moved to categories, parameter help and usage docs. Source review only; no build, deployment, UI or GPU acceptance.",
         "runtimeEvidenceSha256": {
           "src/Magpie.Core/HdrEffectBoundary.cpp": "75f166cd9c3c9cddf931b499f445f76c353d51000d1df36894f819a01809a8eb",
-          "src/Magpie.Core/NativeEffectBackendFactory.cpp": "fae3c55516bbdb38e524a9bd220a87274a80445da2679474d62a46c084e3ea45",
+          "src/Magpie.Core/NativeEffectBackendFactory.cpp": "9e36abc63a3dac84357d2e020f25342257d83b51669b97e9053d73f15adfebc4",
           "src/Magpie.Core/GroupBHdrRoutes.cpp": "970281df968a0f92276e60c09afd76e0171bb87d57db8fe2bdecc58d595656b3",
           "src/Magpie.Core/RTXVideoDenoiser.cpp": "16a1677dae90e2c736b8e7ddc8f8ebb6169f7b1851db88553e68355f2969f583",
           "src/Magpie.Core/EffectProtocolCatalogC.h": "a2b63ba974d319fd9212377dd1978d2ca9dc19e1f17f666d457b85fb68de171c",
-          "src/Magpie.Core/Renderer.cpp": "b03b12ffcbc19f9f84b8cba6e765e2618de77a558105b46299de2f7792fa3eb2"
+          "src/Magpie.Core/Renderer.cpp": "90366e17aeae0752f25cc11f60dcaba24b1e325d27fbaf38bff327d49afa9f4f"
         },
         "evidenceBaseline": "cbe2c2cb + UWP fullscreen, HDR overlay, DLSSNR guidance and effect-description integration; copy contracts rechecked"
       },

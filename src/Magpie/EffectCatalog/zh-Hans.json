@@ -1594,10 +1594,10 @@
         "upscale"
       ],
       "summary": "DLSS 时序超分，结合连续帧重建放大细节。",
-      "details": "结合当前画面与帧历史重建细节，适合游戏和连续视频的放大。在效果组中设置放大尺寸，可通过光流选项加入从捕获画面估计的运动信息。需要受支持的 NVIDIA RTX 渲染 GPU 与配套 DLSS 运行库。",
+      "details": "结合当前画面与帧历史重建细节，适合游戏和连续视频的放大。在效果组中设置放大尺寸，可通过光流选项加入从捕获画面估计的运动信息。需要受支持的 NVIDIA RTX 渲染 GPU 与配套 DLSS 运行库。 模型预设默认 K，可按效果实例选择；修改后重新启动缩放。",
       "level": "advanced",
       "recommendation": "进阶／实验",
-      "search": "DLSS\\DLSS_SR DLSS SR 放大与超分 时序重建 DLSS\\DLSS_SR DLSS\\DLSS_ZeroMV DLSS\\DLSS_ZeroMV_Jitter DLSS\\DLSS_OpticalFlow Optical Flow Method OF Quality OF Quality DLSS 时序超分，结合连续帧重建放大细节。 结合当前画面与帧历史重建细节，适合游戏和连续视频的放大。在效果组中设置放大尺寸，可通过光流选项加入从捕获画面估计的运动信息。需要受支持的 NVIDIA RTX 渲染 GPU 与配套 DLSS 运行库。",
+      "search": "DLSS\\DLSS_SR DLSS SR 放大与超分 时序重建 DLSS\\DLSS_SR DLSS\\DLSS_ZeroMV DLSS\\DLSS_ZeroMV_Jitter DLSS\\DLSS_OpticalFlow Optical Flow Method OF Quality OF Quality DLSS 时序超分，结合连续帧重建放大细节。 结合当前画面与帧历史重建细节，适合游戏和连续视频的放大。在效果组中设置放大尺寸，可通过光流选项加入从捕获画面估计的运动信息。需要受支持的 NVIDIA RTX 渲染 GPU 与配套 DLSS 运行库。 模型预设默认 K，可按效果实例选择；修改后重新启动缩放。",
       "family": null,
       "subfamily": null
     },
@@ -1610,10 +1610,10 @@
         "frame"
       ],
       "summary": "在连续画面之间补帧，可选 2×～4× 倍率。",
-      "details": "生成中间帧，让游戏与视频的运动呈现更连贯，保持画面尺寸。先选 2×，并在“帧率与刷新”中设置基础帧率。需要支持相应倍率的 NVIDIA 渲染 GPU、驱动与随附兼容运行库；切换渲染显卡后需重启喜鹊。",
+      "details": "生成中间帧，让游戏与视频的运动呈现更连贯，保持画面尺寸。先选 2×，并在“帧率与刷新”中设置基础帧率。需要支持相应倍率的 NVIDIA 渲染 GPU、驱动与随附兼容运行库；切换渲染显卡后需重启喜鹊。 模型预设可选自动、A、B、C，默认自动；修改后重新启动缩放。",
       "level": "advanced",
       "recommendation": "进阶／实验",
-      "search": "DLSSFG\\DLSS_FrameGeneration DLSS FrameGeneration 在连续画面之间补帧，可选 2×～4× 倍率。 生成中间帧，让游戏与视频的运动呈现更连贯，保持画面尺寸。先选 2×，并在“帧率与刷新”中设置基础帧率。需要支持相应倍率的 NVIDIA 渲染 GPU、驱动与随附兼容运行库；切换渲染显卡后需重启喜鹊。",
+      "search": "DLSSFG\\DLSS_FrameGeneration DLSS FrameGeneration 在连续画面之间补帧，可选 2×～4× 倍率。 生成中间帧，让游戏与视频的运动呈现更连贯，保持画面尺寸。先选 2×，并在“帧率与刷新”中设置基础帧率。需要支持相应倍率的 NVIDIA 渲染 GPU、驱动与随附兼容运行库；切换渲染显卡后需重启喜鹊。 模型预设可选自动、A、B、C，默认自动；修改后重新启动缩放。",
       "family": null,
       "subfamily": null
     },
@@ -1626,10 +1626,10 @@
         "style"
       ],
       "summary": "用 AI 重塑纹理与细节，保持画面尺寸。",
-      "details": "改变游戏与图像的纹理和细节风格，适合尝试不同画面质感。先用单次处理调节风格与强度，也可选择 1～3 次连续处理。SDR 下开启“调整输入分辨率”可进一步控制整体变化。需要能够初始化该实验功能的 NVIDIA 渲染 GPU 与配套运行库。",
+      "details": "改变游戏与图像的纹理和细节风格，适合尝试不同画面质感。先用单次处理调节风格与强度，也可选择 1～3 次连续处理。SDR 下开启“调整输入分辨率”可进一步控制整体变化。需要能够初始化该实验功能的 NVIDIA 渲染 GPU 与配套运行库。 抗闪烁响应时间可在 5–200 ms 调整，默认 80 ms；较大值更稳定、响应更慢。",
       "level": "advanced",
       "recommendation": "进阶／实验",
-      "search": "DLSSNR\\DLSSNR_AI_Filter DLSSNR AI Filter 风格显示 AI 画面重塑 DLSSNR\\DLSSNR_AI_Filter Adjust Input Resolution Input Resolution (%) Overall Strength Chroma Strength Overall Lightness Strength Shadow / Structure Strength Highlight / Glow Strength Advanced Adjustments Optical Flow Method Optical Flow Quality Optical Flow Quality Hue Protection Shadow Protection Highlight Protection Overcorrection Suppression Low-frequency Range Strength High-frequency Range Strength Diagnostic View NR Style NR Intensity Local Tone Strength Local Structure Strength Skin Structure Strength Automatic Mask NR UI Correction Multi Pass Anti-flicker NR Style NR Intensity Local Tone Strength Local Structure Strength Skin Structure Strength Automatic Mask NR UI Correction NR Style NR Intensity Local Tone Strength Local Structure Strength Skin Structure Strength Automatic Mask NR UI Correction 用 AI 重塑纹理与细节，保持画面尺寸。 改变游戏与图像的纹理和细节风格，适合尝试不同画面质感。先用单次处理调节风格与强度，也可选择 1～3 次连续处理。SDR 下开启“调整输入分辨率”可进一步控制整体变化。需要能够初始化该实验功能的 NVIDIA 渲染 GPU 与配套运行库。",
+      "search": "DLSSNR\\DLSSNR_AI_Filter DLSSNR AI Filter 风格显示 AI 画面重塑 DLSSNR\\DLSSNR_AI_Filter Adjust Input Resolution Input Resolution (%) Overall Strength Chroma Strength Overall Lightness Strength Shadow / Structure Strength Highlight / Glow Strength Advanced Adjustments Optical Flow Method Optical Flow Quality Optical Flow Quality Hue Protection Shadow Protection Highlight Protection Overcorrection Suppression Low-frequency Range Strength High-frequency Range Strength Diagnostic View NR Style NR Intensity Local Tone Strength Local Structure Strength Skin Structure Strength Automatic Mask NR UI Correction Multi Pass Anti-flicker NR Style NR Intensity Local Tone Strength Local Structure Strength Skin Structure Strength Automatic Mask NR UI Correction NR Style NR Intensity Local Tone Strength Local Structure Strength Skin Structure Strength Automatic Mask NR UI Correction 用 AI 重塑纹理与细节，保持画面尺寸。 改变游戏与图像的纹理和细节风格，适合尝试不同画面质感。先用单次处理调节风格与强度，也可选择 1～3 次连续处理。SDR 下开启“调整输入分辨率”可进一步控制整体变化。需要能够初始化该实验功能的 NVIDIA 渲染 GPU 与配套运行库。 抗闪烁响应时间可在 5–200 ms 调整，默认 80 ms；较大值更稳定、响应更慢。",
       "family": null,
       "subfamily": null
     },
