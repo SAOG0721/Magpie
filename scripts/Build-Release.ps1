@@ -46,6 +46,18 @@ if (Test-Path -LiteralPath $userOptionsPath) {
         $featureOptions[$property.Name] = [string]$property.InnerText
     }
 }
+# Read the same runtime override used by MSBuild. The checked-in default is
+# relative to BuildOptions.props, while local worktrees can use an absolute path.
+$dlssnrRuntimeNode = $buildOptions.SelectSingleNode("//*[local-name()='DLSSNRRuntimeDir']")
+$dlssnrRuntimeDirectory = if ($dlssnrRuntimeNode) { $dlssnrRuntimeNode.InnerText } else { '' }
+if (Test-Path -LiteralPath $userOptionsPath) {
+    $dlssnrRuntimeNode = $userOptions.SelectSingleNode("//*[local-name()='DLSSNRRuntimeDir']")
+    if ($dlssnrRuntimeNode) { $dlssnrRuntimeDirectory = $dlssnrRuntimeNode.InnerText }
+}
+if ($dlssnrRuntimeDirectory) {
+    $dlssnrRuntimeDirectory = $dlssnrRuntimeDirectory.Replace('$(MSBuildThisFileDirectory)', (Join-Path $sourceRoot 'src/'))
+    $dlssnrRuntimeDirectory = [IO.Path]::GetFullPath($dlssnrRuntimeDirectory, (Join-Path $sourceRoot 'src'))
+}
 # Match the compatibility defaults as well as explicit user overrides.
 if (!$featureOptions.Contains("EnableDLSSSR") -and
     $featureOptions.Contains("EnableDLSSZeroMV")) {
@@ -322,6 +334,13 @@ $missingRuntimePaths = @($requiredRuntimePaths | Where-Object {
 })
 if ($missingRuntimePaths.Count -ne 0) {
     throw "Release runtime layout is incomplete in $buildOutput. Missing: $($missingRuntimePaths -join ', ')"
+}
+
+if ($Platform -eq 'x64' -and $featureOptions['EnableDLSSNR'] -eq 'true') {
+    if (!$dlssnrRuntimeDirectory) { throw 'DLSSNRRuntimeDir must point to the prepared DLSSNR distribution inputs.' }
+    # Also refresh -SkipBuild packages so a stale DLL cannot silently survive.
+    & (Join-Path $PSScriptRoot 'Copy-DlssnrDistribution.ps1') `
+        -RuntimeDirectory $dlssnrRuntimeDirectory -PackageDirectory $stagingDir -OptionsDirectory $releaseContainer
 }
 
 if ($IncludeSymbols) {

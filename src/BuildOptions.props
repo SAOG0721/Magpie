@@ -29,7 +29,8 @@
     <DlssgSm86RuntimeDir>$(MSBuildThisFileDirectory)..\..\dependencies\dlssg-sm86</DlssgSm86RuntimeDir>
     <!-- Official NVAPI headers for native DLSS FG Reflex; no driver DLL is packaged. -->
     <NvapiSdkDir>$(MSBuildThisFileDirectory)..\..\dependencies\nvapi-sdk</NvapiSdkDir>
-    <DLSSNRRuntimeDir></DLSSNRRuntimeDir>
+    <!-- Prepared community runtime and unchanged optional DLL archive. -->
+    <DLSSNRRuntimeDir>$(MSBuildThisFileDirectory)..\..\dependencies\dlssnr-runtime</DLSSNRRuntimeDir>
     <!-- Renderer-owned NVIDIA Optical Flow frame-guidance provider. -->
     <EnableNvidiaOpticalFlow>false</EnableNvidiaOpticalFlow>
     <NvidiaOpticalFlowSdkDir></NvidiaOpticalFlowSdkDir>

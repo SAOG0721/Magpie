@@ -767,7 +767,7 @@
     <Copy SourceFiles="$(MSBuildThisFileDirectory)..\..\docs\licenses\NVIDIA-NVAPI.txt" DestinationFiles="$(OutDir)\NVIDIA-NVAPI-LICENSE.txt" SkipUnchangedFiles="true" />
   </Target>
   <Target Name="CopyDLSSNRRuntime" AfterTargets="Build" Condition="$(EnableDLSSNR) And '$(Platform)' == 'x64'">
-    <Copy SourceFiles="$(DLSSNRRuntimeDir)\nvngx_dlssnr.dll" DestinationFolder="$(OutDir)" SkipUnchangedFiles="true" />
+    <Exec Command="pwsh -NoProfile -File &quot;$(ProjectDir)..\..\scripts\Copy-DlssnrDistribution.ps1&quot; -RuntimeDirectory &quot;$(DLSSNRRuntimeDir)&quot; -PackageDirectory &quot;$(OutDir).&quot;" />
   </Target>
   <Target Name="CopyFSR2ZeroMVRuntime" AfterTargets="Build" Condition="$(EnableFSR2ZeroMV) And '$(Platform)' == 'x64'">
     <Copy SourceFiles="$(FSR2RuntimeDir)\ffx_fsr2_api_x64.dll;$(FSR2RuntimeDir)\ffx_fsr2_api_dx11_x64.dll" DestinationFolder="$(OutDir)" />

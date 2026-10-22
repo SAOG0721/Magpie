@@ -217,3 +217,9 @@
 - [x] 按用户最新要求，仅显示架构：A–F（CNN）、J/K（Transformer 1代）、L/M（Transformer 2代）；去掉界面的旧版／弃用说明，默认 K 不变。
 - [x] 三语言资源、描述符与源审查元数据同步；现有参数回归和目录检查通过，完整 Release 构建与编译资源标签核对通过。
 - [x] 已更新本地 0.6.11-beta1 及 ZIP，244 个运行文件校验通过；保留当前配置与更新前备份，程序保持退出状态。见[最新部署记录](../reviews/20261022-v0.6.11-beta1-deployment.md#sr-预设架构标签更新)。
+
+## 14. 后续打包默认来源
+
+- [x] 用户指定后续主包默认采用 `release/v0.6.10-experimental/updated-20261017-two-options/DLSSNR-DLL-Options.zip` 中的社区兼容 DLL 310.9.16；可选附件原样复用同一 ZIP。已准备到工作区 `dependencies/dlssnr-runtime`，更新普通构建、Release（含 SkipBuild）及发布规范，保留原依赖备份。
+- [x] 隔离输出中执行真实 MSBuild `CopyDLSSNRRuntime` 目标和分发复制脚本，DLL 与可选包的 SHA-256 均匹配所选源文件。未替换当前运行目录，未把复制验证写成新 DLL 的实际 GPU 验收。
+- 0.6.11 正式版、Release Notes、远端更新及 Draft Release 按用户后续指令暂不准备。

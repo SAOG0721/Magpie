@@ -121,7 +121,11 @@ Contributor: [GitHub 用户名](https://github.com/用户名) 具体贡献。
 
 ### DLSSNR DLL 选项包
 
-- 使用 `DLSSNR-DLL-Options.zip` 命名；DLL 文件版本和 SHA-256 保留在包内说明中。目录名直接标明 NVIDIA 原版 RTX 50、社区 RTX 40/50 或 SF-v2 FP16 RTX 30/20 的适用范围。
+- 默认来源固定为维护者指定的 `release/v0.6.10-experimental/updated-20261017-two-options/DLSSNR-DLL-Options.zip`。主包使用其中 `Community-Patched-310.9.16-RTX20-RTX30-RTX40-Series/nvngx_dlssnr.dll`；分发用的可选 ZIP 原样复制，不重新压缩或恢复已移除的 SF-v2。
+- 准备依赖时，将上述社区 DLL 提取为 `dependencies/dlssnr-runtime/nvngx_dlssnr.dll`，同时把原 ZIP 复制为该目录下的 `DLSSNR-DLL-Options.zip`。普通构建和 Release 使用同一个 `DLSSNRRuntimeDir`；独立 worktree 的本地 props 可将它设为工作区内该目录的绝对路径。第三方二进制不提交 Git。
+- 已选输入的 SHA-256：社区 DLL `A8A237A967469C455A84654932B513AB656FBAA1E0C44504B1E1BF0890F902B8`；可选 ZIP `1F900DF1063E3FFCA632220E7F1830AB0B22EA56AAC629AD9E858C3A13115EC1`。构建复制时校验完整性；开发者仍可显式指定其它运行库目录。
+- `Build-Release.ps1`（含 `-SkipBuild`）从同一依赖目录刷新主包 DLL，并将可选包放在主 ZIP 旁。缺少输入文件时直接报错，不能沿用旧包冒充新的默认来源。这里的可选包 README 中保留原有 0.6.10 来源版本标记。
+- 使用 `DLSSNR-DLL-Options.zip` 命名；包内只保留 NVIDIA 原版 RTX 50 和社区兼容 RTX 20/30/40 两个目录，以及安装说明、文件版本和 SHA-256。
 - 包内明确区分 NVIDIA 原版与社区兼容版本，并附带切换说明、文件版本和 SHA-256。
 - 替换前必须完全退出 Magpie。第三方 DLL 不进入源码仓库或 GitHub 自动生成的源码归档。
 
