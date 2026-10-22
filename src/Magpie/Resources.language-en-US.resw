@@ -2331,7 +2331,7 @@
     <value>Model Preset</value>
   </data>
   <data name="EffectParam_DLSS_DLSS_SR_renderPreset_Description" xml:space="preserve">
-    <value>Defaults to K. A–D are legacy requests that newer runtimes may ignore or replace; E/F are deprecated. Restart scaling to apply changes.</value>
+    <value>A–F: CNN; J/K: Transformer 1; L/M: Transformer 2.</value>
   </data>
   <data name="EffectParam_DLSS_DLSS_SR_renderPreset_Option_0" xml:space="preserve">
     <value>Auto</value>
@@ -2343,22 +2343,34 @@
     <value>Higher values retain history longer for greater stability and a slower response. Lower values follow changes faster. Applies on the next captured frame.</value>
   </data>
   <data name="EffectParam_DLSS_DLSS_SR_renderPreset_Option_1" xml:space="preserve">
-    <value>A (Legacy)</value>
+    <value>A (CNN)</value>
   </data>
   <data name="EffectParam_DLSS_DLSS_SR_renderPreset_Option_2" xml:space="preserve">
-    <value>B (Legacy)</value>
+    <value>B (CNN)</value>
   </data>
   <data name="EffectParam_DLSS_DLSS_SR_renderPreset_Option_3" xml:space="preserve">
-    <value>C (Legacy)</value>
+    <value>C (CNN)</value>
   </data>
   <data name="EffectParam_DLSS_DLSS_SR_renderPreset_Option_4" xml:space="preserve">
-    <value>D (Legacy)</value>
+    <value>D (CNN)</value>
   </data>
   <data name="EffectParam_DLSS_DLSS_SR_renderPreset_Option_5" xml:space="preserve">
-    <value>E (Deprecated)</value>
+    <value>E (CNN)</value>
   </data>
   <data name="EffectParam_DLSS_DLSS_SR_renderPreset_Option_6" xml:space="preserve">
-    <value>F (Deprecated)</value>
+    <value>F (CNN)</value>
+  </data>
+  <data name="EffectParam_DLSS_DLSS_SR_renderPreset_Option_10" xml:space="preserve">
+    <value>J (Transformer 1)</value>
+  </data>
+  <data name="EffectParam_DLSS_DLSS_SR_renderPreset_Option_11" xml:space="preserve">
+    <value>K (Transformer 1)</value>
+  </data>
+  <data name="EffectParam_DLSS_DLSS_SR_renderPreset_Option_12" xml:space="preserve">
+    <value>L (Transformer 2)</value>
+  </data>
+  <data name="EffectParam_DLSS_DLSS_SR_renderPreset_Option_13" xml:space="preserve">
+    <value>M (Transformer 2)</value>
   </data>
   <data name="EffectParam_DLSSFG_DLSS_FrameGeneration_renderPreset_Label" xml:space="preserve"><value>Render Preset</value></data>
   <data name="EffectParam_DLSSFG_DLSS_FrameGeneration_renderPreset_Option_0" xml:space="preserve"><value>Auto (Default)</value></data>

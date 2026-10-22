@@ -5427,7 +5427,7 @@
       "level": "advanced",
       "source": {
         "path": "src/Effects/DLSS/DLSS_SR.hlsl",
-        "sha256": "3c09bf33a165e8dadbc949368697d711cda9ac679a6d56c7ca05e9874b774a09",
+        "sha256": "b9f7661972088159dfb9923f270621d8f4d602e95c50aef90a9b713d7179ccf5",
         "output": {
           "mode": "group-output-size"
         },
@@ -5440,16 +5440,16 @@
             "default": "11",
             "options": [
               "0 Auto",
-              "1 A (Legacy)",
-              "2 B (Legacy)",
-              "3 C (Legacy)",
-              "4 D (Legacy)",
-              "5 E (Deprecated)",
-              "6 F (Deprecated)",
-              "10 J",
-              "11 K",
-              "12 L",
-              "13 M"
+              "1 A (CNN)",
+              "2 B (CNN)",
+              "3 C (CNN)",
+              "4 D (CNN)",
+              "5 E (CNN)",
+              "6 F (CNN)",
+              "10 J (Transformer 1)",
+              "11 K (Transformer 1)",
+              "12 L (Transformer 2)",
+              "13 M (Transformer 2)"
             ]
           },
           {

@@ -8,16 +8,16 @@
 //!LABEL Model Preset
 //!DEFAULT 11
 //!OPTION 0 Auto
-//!OPTION 1 A (Legacy)
-//!OPTION 2 B (Legacy)
-//!OPTION 3 C (Legacy)
-//!OPTION 4 D (Legacy)
-//!OPTION 5 E (Deprecated)
-//!OPTION 6 F (Deprecated)
-//!OPTION 10 J
-//!OPTION 11 K
-//!OPTION 12 L
-//!OPTION 13 M
+//!OPTION 1 A (CNN)
+//!OPTION 2 B (CNN)
+//!OPTION 3 C (CNN)
+//!OPTION 4 D (CNN)
+//!OPTION 5 E (CNN)
+//!OPTION 6 F (CNN)
+//!OPTION 10 J (Transformer 1)
+//!OPTION 11 K (Transformer 1)
+//!OPTION 12 L (Transformer 2)
+//!OPTION 13 M (Transformer 2)
 int renderPreset;
 
 //!PARAMETER

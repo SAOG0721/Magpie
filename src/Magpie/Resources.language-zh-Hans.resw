@@ -2331,7 +2331,7 @@
     <value>模型预设</value>
   </data>
   <data name="EffectParam_DLSS_DLSS_SR_renderPreset_Description" xml:space="preserve">
-    <value>默认 K。A–D 为旧预设，新版可能忽略或回退；E/F 已弃用。修改后重新启动缩放。</value>
+    <value>A–F：CNN；J/K：Transformer 1代；L/M：Transformer 2代。</value>
   </data>
   <data name="EffectParam_DLSS_DLSS_SR_renderPreset_Option_0" xml:space="preserve">
     <value>自动</value>
@@ -2343,22 +2343,34 @@
     <value>数值越大越稳定、响应越慢；数值越小跟随变化越快。下一有效捕获帧生效。</value>
   </data>
   <data name="EffectParam_DLSS_DLSS_SR_renderPreset_Option_1" xml:space="preserve">
-    <value>A（旧预设）</value>
+    <value>A（CNN）</value>
   </data>
   <data name="EffectParam_DLSS_DLSS_SR_renderPreset_Option_2" xml:space="preserve">
-    <value>B（旧预设）</value>
+    <value>B（CNN）</value>
   </data>
   <data name="EffectParam_DLSS_DLSS_SR_renderPreset_Option_3" xml:space="preserve">
-    <value>C（旧预设）</value>
+    <value>C（CNN）</value>
   </data>
   <data name="EffectParam_DLSS_DLSS_SR_renderPreset_Option_4" xml:space="preserve">
-    <value>D（旧预设）</value>
+    <value>D（CNN）</value>
   </data>
   <data name="EffectParam_DLSS_DLSS_SR_renderPreset_Option_5" xml:space="preserve">
-    <value>E（已弃用）</value>
+    <value>E（CNN）</value>
   </data>
   <data name="EffectParam_DLSS_DLSS_SR_renderPreset_Option_6" xml:space="preserve">
-    <value>F（已弃用）</value>
+    <value>F（CNN）</value>
+  </data>
+  <data name="EffectParam_DLSS_DLSS_SR_renderPreset_Option_10" xml:space="preserve">
+    <value>J（Transformer 1代）</value>
+  </data>
+  <data name="EffectParam_DLSS_DLSS_SR_renderPreset_Option_11" xml:space="preserve">
+    <value>K（Transformer 1代）</value>
+  </data>
+  <data name="EffectParam_DLSS_DLSS_SR_renderPreset_Option_12" xml:space="preserve">
+    <value>L（Transformer 2代）</value>
+  </data>
+  <data name="EffectParam_DLSS_DLSS_SR_renderPreset_Option_13" xml:space="preserve">
+    <value>M（Transformer 2代）</value>
   </data>
   <data name="EffectParam_DLSSFG_DLSS_FrameGeneration_renderPreset_Label" xml:space="preserve"><value>模型预设</value></data>
   <data name="EffectParam_DLSSFG_DLSS_FrameGeneration_renderPreset_Option_0" xml:space="preserve"><value>自动（默认）</value></data>
