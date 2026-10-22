@@ -276,6 +276,7 @@ void ScalingModesPage::EffectParametersFlyout_Opening(
 	IInspectable const& sender,
 	IInspectable const&
 ) {
+	TraceParameterFlyout("parent.Opening", uintptr_t(get_abi(sender)));
 	Flyout flyout = sender.try_as<Flyout>();
 	ContentControl content = flyout ? flyout.Content().try_as<ContentControl>() : nullptr;
 	winrt::Magpie::EffectParametersViewModel parameters = content ?
@@ -283,6 +284,8 @@ void ScalingModesPage::EffectParametersFlyout_Opening(
 	if (!parameters || !XamlRoot()) return;
 
 	const auto anchor = flyout.Target();
+	TraceParameterFlyout("parent.context", uintptr_t(get_abi(flyout)),
+		intptr_t(get_abi(anchor)), intptr_t(get_abi(parameters)));
 	const auto& window = App::Get().MainWindow();
 	POINT position{};
 	if (anchor) {
@@ -303,6 +306,43 @@ void ScalingModesPage::EffectParametersFlyout_Opening(
 	// Leave room for its chrome while sizing against this monitor's work area.
 	get_self<EffectParametersViewModel>(parameters)->UpdateLayoutSize(
 		size.width, size.height);
+}
+
+void ScalingModesPage::EffectParametersFlyout_Opened(IInspectable const& sender, IInspectable const&) {
+	TraceParameterFlyout("parent.Opened", uintptr_t(get_abi(sender)));
+}
+
+void ScalingModesPage::EffectParametersFlyout_Closing(IInspectable const& sender, IInspectable const&) {
+	TraceParameterFlyout("parent.Closing", uintptr_t(get_abi(sender)));
+}
+
+void ScalingModesPage::EffectParametersFlyout_Closed(IInspectable const& sender, IInspectable const&) {
+	TraceParameterFlyout("parent.Closed", uintptr_t(get_abi(sender)));
+}
+
+void ScalingModesPage::ParameterChoice_DropDownOpened(IInspectable const& sender, IInspectable const&) {
+	if (!IsParameterFlyoutTraceEnabled()) return;
+	TraceParameterFlyout("child.DropDownOpened", uintptr_t(get_abi(sender)), sender.as<ComboBox>().SelectedIndex());
+}
+
+void ScalingModesPage::ParameterChoice_DropDownClosed(IInspectable const& sender, IInspectable const&) {
+	if (!IsParameterFlyoutTraceEnabled()) return;
+	TraceParameterFlyout("child.DropDownClosed", uintptr_t(get_abi(sender)), sender.as<ComboBox>().SelectedIndex());
+}
+
+void ScalingModesPage::ParameterChoice_SelectionChanged(IInspectable const& sender, IInspectable const&) {
+	if (!IsParameterFlyoutTraceEnabled()) return;
+	const auto combo = sender.as<ComboBox>();
+	TraceParameterFlyout("child.SelectionChanged", uintptr_t(get_abi(sender)), combo.SelectedIndex(),
+		intptr_t(get_abi(combo.DataContext())));
+}
+
+void ScalingModesPage::ParameterAnchor_Loaded(IInspectable const& sender, RoutedEventArgs const&) {
+	TraceParameterFlyout("anchor.Loaded", uintptr_t(get_abi(sender)));
+}
+
+void ScalingModesPage::ParameterAnchor_Unloaded(IInspectable const& sender, RoutedEventArgs const&) {
+	TraceParameterFlyout("anchor.Unloaded", uintptr_t(get_abi(sender)));
 }
 
 void ScalingModesPage::AddEffectButton_Click(IInspectable const& sender, RoutedEventArgs const&) {

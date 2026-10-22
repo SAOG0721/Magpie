@@ -36,6 +36,14 @@ struct ScalingModesPage : ScalingModesPageT<ScalingModesPage> {
 	void EffectSettingsCard_Loaded(IInspectable const& sender, RoutedEventArgs const&);
 
 	void EffectParametersFlyout_Opening(IInspectable const& sender, IInspectable const&);
+	void EffectParametersFlyout_Opened(IInspectable const& sender, IInspectable const&);
+	void EffectParametersFlyout_Closing(IInspectable const& sender, IInspectable const&);
+	void EffectParametersFlyout_Closed(IInspectable const& sender, IInspectable const&);
+	void ParameterChoice_DropDownOpened(IInspectable const& sender, IInspectable const&);
+	void ParameterChoice_DropDownClosed(IInspectable const& sender, IInspectable const&);
+	void ParameterChoice_SelectionChanged(IInspectable const& sender, IInspectable const&);
+	void ParameterAnchor_Loaded(IInspectable const& sender, RoutedEventArgs const&);
+	void ParameterAnchor_Unloaded(IInspectable const& sender, RoutedEventArgs const&);
 
 	void AddEffectButton_Click(IInspectable const& sender, RoutedEventArgs const&);
 

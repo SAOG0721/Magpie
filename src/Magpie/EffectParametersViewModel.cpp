@@ -271,6 +271,11 @@ void EffectParametersViewModel::_ScalingModeParameter_PropertyChanged(
 	ScalingModeParameter* paramImpl = get_self<ScalingModeParameter>(
 		sender.try_as<Magpie::ScalingModeParameter>());
 	if (paramImpl->Index() >= _effectInfo->params.size()) return;
+	TraceParameterFlyout("parameter.edit.begin", uintptr_t(paramImpl), paramImpl->Index(),
+		paramImpl->IsChoice() ? paramImpl->ChoiceValue() : 0);
+	auto traceEnd = wil::scope_exit([paramImpl] {
+		TraceParameterFlyout("parameter.edit.end", uintptr_t(paramImpl));
+	});
 	const std::string& effectName = _effectInfo->params[paramImpl->Index()].name;
 	if (_effectInfo->name == L"RTXVideo\\RTXVideo_VSR" && effectName == "category") {
 		auto& item = ScalingModesService::Get().GetScalingMode(_scalingModeIdx).effects[_effectIdx];

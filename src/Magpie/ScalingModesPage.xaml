@@ -254,6 +254,9 @@
 										</ToolTipService.ToolTip>
 									</TextBlock>
 									<ComboBox HorizontalAlignment="Stretch"
+									          DropDownOpened="ParameterChoice_DropDownOpened"
+									          DropDownClosed="ParameterChoice_DropDownClosed"
+									          SelectionChanged="ParameterChoice_SelectionChanged"
 									          IsEnabled="{x:Bind IsEnabled, Mode=OneWay}"
 									          ItemsSource="{x:Bind Choices, Mode=OneWay}"
 									          SelectedIndex="{x:Bind ChoiceIndex, Mode=TwoWay}" />
@@ -624,13 +627,16 @@
 														</Button.Flyout>
 													</Button>
 													<Button x:Uid="ScalingModes_Parameters"
+													        Loaded="ParameterAnchor_Loaded" Unloaded="ParameterAnchor_Unloaded"
 													        Margin="0,0,4,0"
 													        Visibility="{x:Bind HasParameters}">
 														<Button.Content>
 															<FontIcon Glyph="&#xE9E9;" />
 														</Button.Content>
 													<Button.Flyout>
-														<Flyout Opening="EffectParametersFlyout_Opening" ShouldConstrainToRootBounds="False">
+														<Flyout Opening="EffectParametersFlyout_Opening" ShouldConstrainToRootBounds="False"
+														        Opened="EffectParametersFlyout_Opened" Closing="EffectParametersFlyout_Closing"
+														        Closed="EffectParametersFlyout_Closed">
 															<Flyout.FlyoutPresenterStyle>
 																<Style BasedOn="{StaticResource DefaultFlyoutPresenterStyle}"
 																       TargetType="FlyoutPresenter">

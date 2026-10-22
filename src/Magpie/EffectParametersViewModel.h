@@ -6,6 +6,7 @@
 #include "Event.h"
 #include "EffectChoiceItems.h"
 #include "EffectParameterValue.h"
+#include "ParameterFlyoutTrace.h"
 #include <optional>
 
 namespace Magpie {
@@ -60,6 +61,7 @@ struct ScalingModeParameter : ScalingModeParameterT<ScalingModeParameter>,
 			items.push_back(choiceLabel);
 		}
 		if (_choices) {
+			::Magpie::TraceParameterFlyout("Choices.Reset", uintptr_t(this), _choices.Size(), items.size());
 			_choices.ReplaceAll(items);
 		} else {
 			_choices = ::Magpie::MakeEffectChoiceItems(std::move(items));

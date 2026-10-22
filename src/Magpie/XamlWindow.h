@@ -5,6 +5,7 @@
 #include "Win32Helper.h"
 #include "WindowBase.h"
 #include "XamlHelper.h"
+#include "ParameterFlyoutTrace.h"
 #include <CoreWindow.h>
 #include <dwmapi.h>
 #include <cmath>
@@ -351,6 +352,13 @@ protected:
 		}
 		case WM_ACTIVATE:
 		{
+			TraceParameterFlyoutWindow("WM_ACTIVATE", this->Handle(), wParam, lParam);
+			if (IsParameterFlyoutTraceEnabled() && lParam) {
+				const HWND other = HWND(lParam);
+				DWORD process = 0;
+				GetWindowThreadProcessId(other, &process);
+				TraceParameterFlyout("WM_ACTIVATE.other", uintptr_t(other), process, intptr_t(GetWindow(other, GW_OWNER)));
+			}
 			if (LOWORD(wParam) == WA_INACTIVE && _content) {
 				XamlHelper::CloseComboBoxPopup(_content->XamlRoot());
 			}
@@ -359,6 +367,7 @@ protected:
 		}
 		case WM_SIZE:
 		{
+			TraceParameterFlyoutWindow("WM_SIZE", this->Handle(), wParam, lParam);
 			_isMaximized = IsMaximized(this->Handle());
 
 			if (wParam != SIZE_MINIMIZED) {
@@ -373,7 +382,9 @@ protected:
 						PostMessage(hwndDWXS, WM_SIZE, wParam, lParam);
 					}
 
+					TraceParameterFlyout("resize.enqueue", uintptr_t(winrt::get_abi(_content->XamlRoot())));
 					_dispatcher.TryEnqueue([xamlRoot(_content->XamlRoot())]() {
+						TraceParameterFlyout("resize.execute", uintptr_t(winrt::get_abi(xamlRoot)));
 						XamlHelper::RepositionXamlPopups(xamlRoot, true);
 					});
 				}

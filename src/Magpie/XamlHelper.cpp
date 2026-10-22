@@ -2,6 +2,7 @@
 #include "XamlHelper.h"
 #include "Win32Helper.h"
 #include "SmallVector.h"
+#include "ParameterFlyoutTrace.h"
 
 using namespace winrt;
 using namespace Windows::UI::Xaml::Controls::Primitives;
@@ -41,6 +42,7 @@ static bool IsComboBoxPopup(const Popup& popup) {
 void XamlHelper::CloseComboBoxPopup(const XamlRoot& root) {
 	for (const Popup& popup : VisualTreeHelper::GetOpenPopupsForXamlRoot(root)) {
 		if (IsComboBoxPopup(popup)) {
+			TraceParameterFlyout("host.closeComboBox", uintptr_t(get_abi(popup)));
 			popup.IsOpen(false);
 			return;
 		}
@@ -71,6 +73,7 @@ void XamlHelper::RepositionXamlPopups(const Windows::UI::Xaml::XamlRoot& root, b
 			auto className = get_class_name(popup.Child());
 			if (className == name_of<FlyoutPresenter>() ||
 				className == name_of<MenuFlyoutPresenter>()) {
+				TraceParameterFlyout("host.closeFlyoutPresenter", uintptr_t(get_abi(popup)));
 				popup.IsOpen(false);
 				continue;
 			}
