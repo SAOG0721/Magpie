@@ -1,21 +1,18 @@
-Magpie Experimental v0.6.10 x64
+Magpie Experimental v0.6.11 x64
 
 安装或升级
 备份设置并从托盘完全退出 Magpie，将 Magpie-Experimental-x64.zip 完整解压到新目录，再运行 Magpie.exe。
 普通配置：%LOCALAPPDATA%\Magpie\config\v4e\config.json。没有 v4e 时导入旧 v4，后续保存到 v4e。
 便携配置：程序目录内的 config\v4e\config.json。保留旧程序和原配置，以便回退。
 
-0.6.10 使用要点
-帧率与刷新默认简单模式；高级模式提供节奏、光标和通用重复检测选项。切换保留高级偏好，重新开始缩放后生效。
-内容帧率为跟随源或自定义，旧内容自动模式迁移为跟随源。手动值 15–360 FPS、步进 1；新配置内容 60 FPS、空闲重绘开启且为 30 FPS。
-RTSS 联动与 VRR 默认关闭，按需开启。RTSS 状态反映配置和工具状态，实际游戏限帧需要确认。
-DLSS/XeSS/FSR3/VFG 共用通用重复帧检测，新配置默认关闭。空闲重绘复用缓存画面，不增加真实内容或生成帧。
-FSR3 固定 2×、仅 SDR，默认 AMDOF 质量，组合限制见 FSR3FG-README.md。
-NVIDIA VFX 提供 Upscale、VSR、VFG 和 TrueHDR。VFG 为 SDR 2–8×，默认 2×、Balanced，旧 High 迁移为 Balanced。
-HDR 通过手动添加并排序转换节点配置。截图可选输入＋输出、仅输出（默认）或仅输入。
-DLSSNR 状态与分类引导帮助判断实际运行状态；165 个效果的双语说明提供用途与起步建议。
+0.6.11 使用要点
+在效果组页面的效果器参数中选择 DLSS SR／FG 模型预设。SR 默认 K，A–F 为 CNN，J/K 为 Transformer 1代，L/M 为 Transformer 2代；FG 默认自动，可选 A/B/C。修改模型后重新开始缩放。
+DLSSNR 抗闪烁响应时间为 5–200 ms，步进 5 ms，默认 80 ms；关闭抗闪烁时隐藏并保留数值。下一有效捕获帧生效，较大值更稳定、响应更慢。
+主包默认携带 310.9.16 社区兼容 DLSSNR；可选包原样保留 NVIDIA 原版 RTX 50 和社区兼容 RTX 20/30/40 两个选项。
+截图可选输入＋输出、仅输出（默认）或仅输入；暂停时通过保留画面保存快照。
+截图名为 Magpie_YYYYMMDD_HHmmss_SSS_input.png / _output.png，时间取请求时的本地时间，精确到毫秒；同组共用时间戳，重名加短序号。右键导出带效果／Pass／纹理后缀，PNG／DDS 格式保持原样。
 
-完整更新、安装与限制见 RELEASE-NOTES.md，帧率说明见 FRAME_SYNC_GUIDE.md。
+完整更新、安装与限制见 RELEASE-NOTES.md；帧率说明见 FRAME_SYNC_GUIDE.md。
 保留 LICENSE-Magpie.txt、THIRD-PARTY-NOTICES.md、组件许可证及 build-manifest.json。
 可选附件：DLSSNR-DLL-Options.zip、NGX_OTA_Switch.bat。普通安装无需运行 OTA 工具。
 
@@ -26,15 +23,12 @@ Back up settings, fully exit Magpie from the tray, extract the complete Magpie-E
 Normal settings: %LOCALAPPDATA%\Magpie\config\v4e\config.json. If v4e is absent, import v4 and save subsequent changes to v4e.
 Portable settings: config\v4e\config.json under the program folder. Keep the previous program and settings for rollback.
 
-0.6.10 essentials
-Frame rate and refresh defaults to Simple. Advanced exposes pacing, cursor and general duplicate-detection options. Switching retains advanced preferences and applies after restarting scaling.
-Content rate is Follow source or Custom; legacy content Automatic migrates to Follow source. Manual rates use 15–360 FPS in steps of 1. New defaults: 60-FPS content and enabled 30-FPS idle redraw.
-RTSS integration and VRR default to Off; enable as needed. RTSS status describes configuration and tool state; confirm actual in-game limiting separately.
-DLSS/XeSS/FSR3/VFG share general duplicate detection, default-off for new settings. Idle redraw reuses cached pictures without adding real content or generated frames.
-FSR3 is fixed 2x SDR and defaults to AMDOF Quality. See FSR3FG-README.md for combination restrictions.
-NVIDIA VFX provides Upscale, VSR, VFG and TrueHDR. VFG uses SDR 2–8x, defaults to 2x Balanced and migrates retired High to Balanced.
-Configure HDR by manually adding and ordering conversion nodes. Screenshots offer input + output, output only (default), or input only.
-DLSSNR state and cause-specific guidance help identify actual operation; bilingual descriptions for 165 effects explain purpose and initial setup.
+0.6.11 essentials
+Choose DLSS SR/FG model presets in each effect's parameter settings on the Scaling modes page. SR defaults to K: A–F are CNN, J/K are Transformer 1, and L/M are Transformer 2. FG defaults to Auto with A/B/C choices. Restart scaling after changing a model preset.
+DLSSNR anti-flicker response time ranges from 5 to 200 ms in 5-ms steps, defaulting to 80 ms. Turning anti-flicker Off hides the control and retains its value. Changes apply on the next valid captured frame; higher values favor stability with slower adaptation.
+The main package includes the 310.9.16 community compatibility DLSSNR. The unchanged optional ZIP contains the NVIDIA original for RTX 50 and the community version for RTX 20/30/40.
+Screenshots offer input + output, output only (default), or input only, with snapshots of retained content while paused.
+Files use Magpie_YYYYMMDD_HHmmss_SSS_input.png / _output.png with the request's local time to millisecond precision. Pairs share a timestamp; collisions add a short sequence number. Right-click exports include effect/pass/texture suffixes and keep their PNG/DDS formats.
 
 See RELEASE-NOTES.md for updates, installation and limitations, and FRAME_SYNC_GUIDE.md for refresh settings.
 Retain LICENSE-Magpie.txt, THIRD-PARTY-NOTICES.md, component licenses and build-manifest.json.

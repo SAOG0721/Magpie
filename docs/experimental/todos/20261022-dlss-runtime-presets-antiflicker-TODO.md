@@ -223,3 +223,13 @@
 - [x] 用户指定后续主包默认采用 `release/v0.6.10-experimental/updated-20261017-two-options/DLSSNR-DLL-Options.zip` 中的社区兼容 DLL 310.9.16；可选附件原样复用同一 ZIP。已准备到工作区 `dependencies/dlssnr-runtime`，更新普通构建、Release（含 SkipBuild）及发布规范，保留原依赖备份。
 - [x] 隔离输出中执行真实 MSBuild `CopyDLSSNRRuntime` 目标和分发复制脚本，DLL 与可选包的 SHA-256 均匹配所选源文件。未替换当前运行目录，未把复制验证写成新 DLL 的实际 GPU 验收。
 - 0.6.11 正式版、Release Notes、远端更新及 Draft Release 按用户后续指令暂不准备。
+
+## 15. 截图时间戳与 0.6.11 Draft 准备
+
+用户随后确认修改截图代码，并授权按平常流程准备 0.6.11、同步 GitHub、上传 Draft 后停止等待人工检查；此指令接替上一节的暂缓范围。
+
+- [x] 普通截图在请求时记录本地毫秒时间，输入／输出共用同一时间戳，单图也保留侧别；同毫秒冲突按整组增加序号，保持独占保存。右键效果／通道导出采用同一规则并保留用途后缀及 PNG／DDS 格式。
+- [x] 既有截图完整回归通过，新增真实磁盘的八线程同毫秒配对、部分成功后避让、目录／大小写冲突和旧编号共存覆盖。源代码审查确认只改命名与分配，165 效果目录的对应 Renderer 证据哈希同步并校验通过。
+- [x] 新默认社区 DLSSNR 310.9.16 在 RTX 5070 Ti／617.42 上完成独立 SDR／FP16 单 Pass 运行验证，见[证据](../reviews/20261022-community-dlssnr-default-smoke.md)。未扩展为其他型号、画质或性能验收。
+- [x] 准备完整中英[0.6.11 Release Notes](../../RELEASE_NOTES_v0.6.11-experimental.md)与包内说明，公开入口按线上已发布状态同步至 0.6.10；0.6.11 标记待审核。构建程序版本使用 0.6.11，`version.json` 在 Draft 阶段只指向已公开的 0.6.10。
+- 构建、附件逐项核验、远端提交／标签与 Draft 状态的最终收据保存于仓库外 `release/v0.6.11-experimental/`，不将本段准备状态写成已公开发布。

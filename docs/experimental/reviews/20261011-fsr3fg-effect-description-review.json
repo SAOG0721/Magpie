@@ -89,7 +89,7 @@
         "runtimeEvidenceSha256": {
           "src/Magpie.Core/FSR3FGPresenter.cpp": "84b37cd0543f88813fd5d09c19463d883a1cf2ceb2f23faca9f09628f7da035e",
           "src/Magpie.Core/FSR3FGPolicy.h": "fc8083f161bc29eb3781453c4207ff1de64809a7214d1c25292a798701dc5ed3",
-          "src/Magpie.Core/Renderer.cpp": "811549faa2326b088b2066c848795dbfa9dd29c860b7ec5a73de23c744448249",
+          "src/Magpie.Core/Renderer.cpp": "423c2cea1bbe6a146aa48cd035698e1d556ca7f074e28627ee3eae6beb283886",
           "src/Magpie.Core/include/FrameGenerationParameters.h": "3d83785bc44ef71c2ad68d4c55aa6ac3993e3d860b3aff0a4aedbce91d99688d"
         },
         "evidenceBaseline": "cbe2c2cb + UWP fullscreen, HDR overlay, DLSSNR guidance and effect-description integration; copy contracts rechecked"

@@ -10,7 +10,7 @@
 
 - 修复包含原始输入的截图在暂停、没有新捕获帧时可能等待后续画面、不能及时保存的问题。截图改用独立快照交接，已匹配的输入与输出无需等待下一次画面刷新即可保存；仅输入截图也不再等待输出呈现。
 - 保留 **原始输入＋最终输出、仅输出、仅输入** 三种内容选择。成对截图继续匹配同一真实内容帧，不将不同时刻的输入和输出拼成一组。
-- 截图文件改为 **`Magpie_YYYYMMDD_HHmmss_SSS_input.png`** 和 **`Magpie_YYYYMMDD_HHmmss_SSS_output.png`**。同组输入／输出共用时间戳；单图也保留对应的 `_input` 或 `_output` 后缀。同名冲突时追加短序号，避免覆盖已有截图。
+- 截图文件改为 **`Magpie_YYYYMMDD_HHmmss_SSS_input.png`** 和 **`Magpie_YYYYMMDD_HHmmss_SSS_output.png`**。时间取请求时的本地时间，精确到毫秒；同组输入／输出共用时间戳；单图也保留对应的 `_input` 或 `_output` 后缀。同名冲突时追加短序号，避免覆盖已有截图。右键效果／通道导出也使用时间戳，并保留效果、Pass 和纹理用途后缀及原有 PNG／DDS 格式。
 
 ### 效果器更新
 
@@ -18,9 +18,9 @@
 
 #### DLSS SR 模型预设
 
-- 新增 **自动、A–F（CNN）、J／K（Transformer 第一代）、L／M（Transformer 第二代）**。
+- 新增 **自动、A–F（CNN）、J／K（Transformer 1代）、L／M（Transformer 2代）**。
 - **默认 K**。新建效果和旧配置缺少该字段时使用 K，已有明确保存的有效选择保留；“自动”与 K 是不同选项。
-- 修改后重新开始缩放生效。旧 A–F 预设仍可选择，实际采用情况由运行库决定；不同预设的画质与性能取决于显卡、驱动和素材。
+- 修改后重新开始缩放生效。
 
 #### DLSS FG 运行库与预设
 
@@ -31,7 +31,7 @@
 
 - 在抗闪烁选项下新增 **抗闪烁响应时间：5–200 ms，步进 5 ms，默认 80 ms**。旧配置缺少该字段时仍使用 80 ms，与原固定时间保持一致。
 - 抗闪烁关闭时隐藏时间控件并保留保存值；四种抗闪烁模式均使用这一设置，多 Pass 共用链末端的响应时间。
-- 修改后在**下一有效捕获帧**应用，无需重新开始缩放。单独调整时间不清空已有历史，也不额外运行降噪网络。
+- 修改后在**下一有效捕获帧**应用，无需重新开始缩放。单独调整时间不清空已有历史，也不额外执行 DLSSNR。
 - 数值越大越稳定、变化跟随越慢；数值越小响应越快。该数值控制累积响应，不代表同等时长的额外显示延迟。
 
 #### DLSSNR 默认运行库
@@ -71,7 +71,7 @@ This release updates the DLSS frame-generation runtime, adds DLSS SR / FG model 
 
 - Fix screenshots that include the original input potentially waiting for subsequent content while playback is paused and no new capture arrives. An independent snapshot handoff allows matched input and output to be saved without another picture refresh; input-only screenshots no longer wait for output presentation either.
 - Retain **original input + final output, output only, and input only**. Screenshot pairs continue to match the same real content frame rather than combining input and output from different moments.
-- Use **`Magpie_YYYYMMDD_HHmmss_SSS_input.png`** and **`Magpie_YYYYMMDD_HHmmss_SSS_output.png`**. A pair shares one timestamp; single screenshots retain the appropriate `_input` or `_output` suffix. Add a short sequence number on a filename collision to avoid overwriting existing screenshots.
+- Use **`Magpie_YYYYMMDD_HHmmss_SSS_input.png`** and **`Magpie_YYYYMMDD_HHmmss_SSS_output.png`**. The local timestamp is captured when the screenshot is requested, with millisecond precision. A pair shares one timestamp; single screenshots retain the appropriate `_input` or `_output` suffix. Add a short sequence number on a filename collision to avoid overwriting existing screenshots. Right-click effect and channel exports also use timestamps, with effect/pass/texture purpose suffixes and their existing PNG/DDS formats.
 
 ### Effect updates
 
@@ -79,9 +79,9 @@ All new parameters are available through **the parameter button on the right of 
 
 #### DLSS SR model presets
 
-- Add **Auto, A–F (CNN), J / K (first-generation Transformer), and L / M (second-generation Transformer)**.
+- Add **Auto, A–F (CNN), J / K (Transformer 1), and L / M (Transformer 2)**.
 - **Default to K** for new effects and older configurations without this field. Retain existing explicitly saved valid choices; Auto and K are separate options.
-- Restart scaling to apply a change. Legacy A–F presets remain selectable, while the runtime determines which request it adopts. Image quality and performance vary with GPU, driver and content.
+- Restart scaling to apply a change.
 
 #### DLSS FG runtime and presets
 
@@ -92,7 +92,7 @@ All new parameters are available through **the parameter button on the right of 
 
 - Add **Anti-flicker response time: 5–200 ms, 5-ms steps, default 80 ms** below the anti-flicker option. Older configurations without this field continue to use 80 ms, matching the previous fixed value.
 - Hide the time control when anti-flicker is Off and retain its saved value. All four anti-flicker modes use this setting; multiple passes share one response time at the end of the chain.
-- Apply changes on the **next valid captured frame**, without restarting scaling. Adjusting only the response time retains existing history and does not run an extra denoising-network evaluation.
+- Apply changes on the **next valid captured frame**, without restarting scaling. Adjusting only the response time retains existing history and does not trigger an extra DLSSNR evaluation.
 - Higher values favor stability with slower adaptation; lower values respond faster. This value controls accumulation response and does not add an equivalent amount of display latency.
 
 #### Default DLSSNR runtime

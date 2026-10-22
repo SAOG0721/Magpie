@@ -5647,7 +5647,7 @@
           "src/Magpie.Core/HdrEffectBoundary.cpp": "75f166cd9c3c9cddf931b499f445f76c353d51000d1df36894f819a01809a8eb",
           "src/Magpie.Core/NativeEffectBackendFactory.cpp": "9e36abc63a3dac84357d2e020f25342257d83b51669b97e9053d73f15adfebc4",
           "src/Magpie.Core/GroupBHdrRoutes.cpp": "970281df968a0f92276e60c09afd76e0171bb87d57db8fe2bdecc58d595656b3",
-          "src/Magpie.Core/Renderer.cpp": "811549faa2326b088b2066c848795dbfa9dd29c860b7ec5a73de23c744448249",
+          "src/Magpie.Core/Renderer.cpp": "423c2cea1bbe6a146aa48cd035698e1d556ca7f074e28627ee3eae6beb283886",
           "src/Magpie.Core/include/FramePacingOptions.h": "a2706ceaa17b802bfe5e31f489c8af288b5dd9af5765ec9e5b608e9e01764808",
           "src/Magpie.Core/DLSSFrameGenerator.cpp": "1bad8a6a844a65eda3d7501a5f9efafbe6e1f962bf5820b36829c24dfa03e0a4",
           "src/Magpie.Core/EffectProtocolCatalogC.h": "a2b63ba974d319fd9212377dd1978d2ca9dc19e1f17f666d457b85fb68de171c"
@@ -6286,7 +6286,7 @@
         "copyScope": "User-focused bilingual purpose, content and starting steps; shared guidance moved to categories, parameter help and usage docs. Source review only; no build, deployment, UI or GPU acceptance.",
         "runtimeEvidenceSha256": {
           "src/Magpie.Core/HdrEffectBoundary.cpp": "75f166cd9c3c9cddf931b499f445f76c353d51000d1df36894f819a01809a8eb",
-          "src/Magpie.Core/Renderer.cpp": "811549faa2326b088b2066c848795dbfa9dd29c860b7ec5a73de23c744448249",
+          "src/Magpie.Core/Renderer.cpp": "423c2cea1bbe6a146aa48cd035698e1d556ca7f074e28627ee3eae6beb283886",
           "src/Magpie.Core/include/FramePacingOptions.h": "a2706ceaa17b802bfe5e31f489c8af288b5dd9af5765ec9e5b608e9e01764808"
         },
         "evidenceBaseline": "cbe2c2cb + UWP fullscreen, HDR overlay, DLSSNR guidance and effect-description integration; copy contracts rechecked"
@@ -11169,7 +11169,7 @@
         "runtimeEvidenceSha256": {
           "src/Magpie.Core/HdrEffectBoundary.cpp": "75f166cd9c3c9cddf931b499f445f76c353d51000d1df36894f819a01809a8eb",
           "src/Magpie.Core/EffectProtocolCatalogC.h": "a2b63ba974d319fd9212377dd1978d2ca9dc19e1f17f666d457b85fb68de171c",
-          "src/Magpie.Core/Renderer.cpp": "811549faa2326b088b2066c848795dbfa9dd29c860b7ec5a73de23c744448249",
+          "src/Magpie.Core/Renderer.cpp": "423c2cea1bbe6a146aa48cd035698e1d556ca7f074e28627ee3eae6beb283886",
           "src/Effects/xBR/xBR_LV2_Common.hlsli": "af2cde9c6c91d04383bb39f0984f251a4d943aa027531abf376aa491d078b174"
         }
       },
@@ -11276,7 +11276,7 @@
         "runtimeEvidenceSha256": {
           "src/Magpie.Core/HdrEffectBoundary.cpp": "75f166cd9c3c9cddf931b499f445f76c353d51000d1df36894f819a01809a8eb",
           "src/Magpie.Core/EffectProtocolCatalogC.h": "a2b63ba974d319fd9212377dd1978d2ca9dc19e1f17f666d457b85fb68de171c",
-          "src/Magpie.Core/Renderer.cpp": "811549faa2326b088b2066c848795dbfa9dd29c860b7ec5a73de23c744448249",
+          "src/Magpie.Core/Renderer.cpp": "423c2cea1bbe6a146aa48cd035698e1d556ca7f074e28627ee3eae6beb283886",
           "src/Effects/xBR/xBR_LV2_Common.hlsli": "af2cde9c6c91d04383bb39f0984f251a4d943aa027531abf376aa491d078b174"
         }
       },
@@ -11383,7 +11383,7 @@
         "runtimeEvidenceSha256": {
           "src/Magpie.Core/HdrEffectBoundary.cpp": "75f166cd9c3c9cddf931b499f445f76c353d51000d1df36894f819a01809a8eb",
           "src/Magpie.Core/EffectProtocolCatalogC.h": "a2b63ba974d319fd9212377dd1978d2ca9dc19e1f17f666d457b85fb68de171c",
-          "src/Magpie.Core/Renderer.cpp": "811549faa2326b088b2066c848795dbfa9dd29c860b7ec5a73de23c744448249",
+          "src/Magpie.Core/Renderer.cpp": "423c2cea1bbe6a146aa48cd035698e1d556ca7f074e28627ee3eae6beb283886",
           "src/Effects/xBR/xBR_LV2_Common.hlsli": "af2cde9c6c91d04383bb39f0984f251a4d943aa027531abf376aa491d078b174"
         }
       },
@@ -11457,7 +11457,7 @@
         "runtimeEvidenceSha256": {
           "src/Magpie.Core/HdrEffectBoundary.cpp": "75f166cd9c3c9cddf931b499f445f76c353d51000d1df36894f819a01809a8eb",
           "src/Magpie.Core/EffectProtocolCatalogC.h": "a2b63ba974d319fd9212377dd1978d2ca9dc19e1f17f666d457b85fb68de171c",
-          "src/Magpie.Core/Renderer.cpp": "811549faa2326b088b2066c848795dbfa9dd29c860b7ec5a73de23c744448249"
+          "src/Magpie.Core/Renderer.cpp": "423c2cea1bbe6a146aa48cd035698e1d556ca7f074e28627ee3eae6beb283886"
         }
       },
       "zh-Hans": {
@@ -11520,7 +11520,7 @@
         "runtimeEvidenceSha256": {
           "src/Magpie.Core/HdrEffectBoundary.cpp": "75f166cd9c3c9cddf931b499f445f76c353d51000d1df36894f819a01809a8eb",
           "src/Magpie.Core/EffectProtocolCatalogC.h": "a2b63ba974d319fd9212377dd1978d2ca9dc19e1f17f666d457b85fb68de171c",
-          "src/Magpie.Core/Renderer.cpp": "811549faa2326b088b2066c848795dbfa9dd29c860b7ec5a73de23c744448249"
+          "src/Magpie.Core/Renderer.cpp": "423c2cea1bbe6a146aa48cd035698e1d556ca7f074e28627ee3eae6beb283886"
         }
       },
       "zh-Hans": {
@@ -11964,7 +11964,7 @@
           "src/Magpie.Core/GroupBHdrRoutes.cpp": "970281df968a0f92276e60c09afd76e0171bb87d57db8fe2bdecc58d595656b3",
           "src/Magpie.Core/XeSSUpscaler.cpp": "3b3d0535cad1b2f6f644ad08bf1045202a341b0a6804e3452c9fc15ccaf6ed6d",
           "src/Magpie.Core/EffectProtocolCatalogC.h": "a2b63ba974d319fd9212377dd1978d2ca9dc19e1f17f666d457b85fb68de171c",
-          "src/Magpie.Core/Renderer.cpp": "811549faa2326b088b2066c848795dbfa9dd29c860b7ec5a73de23c744448249"
+          "src/Magpie.Core/Renderer.cpp": "423c2cea1bbe6a146aa48cd035698e1d556ca7f074e28627ee3eae6beb283886"
         },
         "evidenceBaseline": "cbe2c2cb + UWP fullscreen, HDR overlay, DLSSNR guidance and effect-description integration; copy contracts rechecked"
       },
@@ -12078,7 +12078,7 @@
         "copyScope": "User-focused bilingual purpose, content and starting steps; shared guidance moved to categories, parameter help and usage docs. Source review only; no build, deployment, UI or GPU acceptance.",
         "runtimeEvidenceSha256": {
           "src/Magpie.Core/HdrEffectBoundary.cpp": "75f166cd9c3c9cddf931b499f445f76c353d51000d1df36894f819a01809a8eb",
-          "src/Magpie.Core/Renderer.cpp": "811549faa2326b088b2066c848795dbfa9dd29c860b7ec5a73de23c744448249",
+          "src/Magpie.Core/Renderer.cpp": "423c2cea1bbe6a146aa48cd035698e1d556ca7f074e28627ee3eae6beb283886",
           "src/Magpie.Core/include/FramePacingOptions.h": "a2706ceaa17b802bfe5e31f489c8af288b5dd9af5765ec9e5b608e9e01764808",
           "src/Magpie.Core/XeSSFGPresenter.cpp": "9da3a3b31e7fba0a7c29d43c33eaf509731122f09c433ef5f44f8bab327e203e",
           "src/Magpie.Core/XeSSFGCompatibility.h": "0e89a59facd54580912d4ee458624c0803c1a0cedc9af3cd88eeae18c90f0953"
@@ -12168,7 +12168,7 @@
           "src/Magpie.Core/GroupBHdrRoutes.cpp": "970281df968a0f92276e60c09afd76e0171bb87d57db8fe2bdecc58d595656b3",
           "src/Magpie.Core/RTXVideoDenoiser.cpp": "16a1677dae90e2c736b8e7ddc8f8ebb6169f7b1851db88553e68355f2969f583",
           "src/Magpie.Core/EffectProtocolCatalogC.h": "a2b63ba974d319fd9212377dd1978d2ca9dc19e1f17f666d457b85fb68de171c",
-          "src/Magpie.Core/Renderer.cpp": "811549faa2326b088b2066c848795dbfa9dd29c860b7ec5a73de23c744448249"
+          "src/Magpie.Core/Renderer.cpp": "423c2cea1bbe6a146aa48cd035698e1d556ca7f074e28627ee3eae6beb283886"
         },
         "evidenceBaseline": "cbe2c2cb + UWP fullscreen, HDR overlay, DLSSNR guidance and effect-description integration; copy contracts rechecked"
       },
