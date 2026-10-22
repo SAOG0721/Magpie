@@ -47,7 +47,14 @@ assert 'mutex->AcquireSync(1, 0)' in input_wait
 assert 'mutex->AcquireSync(1, 10000)' not in save
 assert 'request->CancelPending()' in new
 assert 'input->metadata.color' in save and 'outputMetadata.color' in save
-assert 'images.size() == 2' in save and 'Magpie_{:03}_{}.png' in save
+assert 'images.size() == 2' in save and 'fmt::format(L"{}_{}.png", stem, image.side)' in save
+assert 'request->timestamp = ScreenshotHelper::CaptureTimestamp();' in request
+assert 'FindUnusedScreenshotStem(request->directory, request->timestamp)' in save
+export = renderer[renderer.index('winrt::IAsyncOperation<bool> Renderer::_TakeScreenshotImpl('):]
+assert export.index('ScreenshotHelper::CaptureTimestamp()') < export.index('co_await dispatcher')
+assert 'FindUnusedScreenshotStem(screenshotsDir, timestamp)' in export
+assert 'effect_{:02}_output' in export and 'effect_{:02}_pass_{:02}_texture_{:02}' in export
+assert 'FindUnusedScreenshotNum' not in renderer and 'FindUnusedScreenshotNum' not in new
 assert 'ScreenshotHelper::SaveMutex()' in renderer and 'ScreenshotHelper::SaveMutex()' in save
 assert 'SaveTextureExclusive' in renderer and 'SaveTextureExclusive' in save
 assert 'TakeDisplayedScreenshot();' in renderer

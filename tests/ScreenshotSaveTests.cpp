@@ -29,40 +29,55 @@ int wmain(int argc, wchar_t** argv) {
 		return TextureHelper::SaveTextureExclusive(path.c_str(), w, h,
 			DXGI_FORMAT_R8G8B8A8_UNORM, pixels, w * 4, &error);
 	};
-	assert(ScreenshotHelper::FindUnusedScreenshotNum(root) == 1);
-	assert(save(root/L"Magpie_001_input.png"));
-	assert(save(root/L"Magpie_001_output.png", 26, 14));
-	DecodeSize(root/L"Magpie_001_input.png", 13, 7);
-	DecodeSize(root/L"Magpie_001_output.png", 26, 14);
-	assert(ScreenshotHelper::FindUnusedScreenshotNum(root) == 2);
-	const auto original = ReadFile(root/L"Magpie_001_input.png");
+	// Hold the request timestamp fixed while later writes and all workers run.
+	const std::wstring timestamp = L"20261022_194530_123";
+	const auto captured = ScreenshotHelper::CaptureTimestamp();
+	assert(captured.size() == 19 && captured[8] == L'_' && captured[15] == L'_');
+	for (size_t i = 0; i < captured.size(); ++i)
+		if (i != 8 && i != 15) assert(captured[i] >= L'0' && captured[i] <= L'9');
+	std::ofstream(root/L"Magpie_001.png") << "legacy screenshot";
+	std::ofstream(root/L"Magpie_4294967295_input.png") << "legacy pair";
+	const auto base = ScreenshotHelper::FindUnusedScreenshotStem(root, timestamp);
+	assert(base == L"Magpie_20261022_194530_123");
+	assert(save(root/(base + L"_input.png")));
+	assert(save(root/(base + L"_output.png"), 26, 14));
+	DecodeSize(root/(base + L"_input.png"), 13, 7);
+	DecodeSize(root/(base + L"_output.png"), 26, 14);
+	const auto original = ReadFile(root/(base + L"_input.png"));
 	assert(!original.empty());
-	assert(!save(root/L"Magpie_001_input.png"));
-	assert(ReadFile(root/L"Magpie_001_input.png") == original);
-	std::filesystem::create_directory(root/L"Magpie_002_output.png");
-	assert(save(root/L"Magpie_002_input.png"));
-	assert(!save(root/L"Magpie_002_output.png"));
-	assert(std::filesystem::is_regular_file(root/L"Magpie_002_input.png"));
-	assert(ScreenshotHelper::FindUnusedScreenshotNum(root) == 3);
-	assert(save(root/L"Magpie_003.png"));
-	std::ofstream(root/L"Magpie_004.dds") << "intermediate";
-	assert(ScreenshotHelper::FindUnusedScreenshotNum(root) == 5);
-	assert(save(root/L"Magpie_4294967295.png"));
-	assert(ScreenshotHelper::FindUnusedScreenshotNum(root) == 5);
+	assert(!save(root/(base + L"_input.png")));
+	assert(ReadFile(root/(base + L"_input.png")) == original);
+	const auto partial = ScreenshotHelper::FindUnusedScreenshotStem(root, timestamp);
+	assert(partial == base + L"_01");
+	// Simulate a path becoming occupied between naming and exclusive commit.
+	std::filesystem::create_directory(root/(partial + L"_output.png"));
+	assert(save(root/(partial + L"_input.png")));
+	assert(!save(root/(partial + L"_output.png")));
+	assert(std::filesystem::is_regular_file(root/(partial + L"_input.png")));
+	const auto single = ScreenshotHelper::FindUnusedScreenshotStem(root, timestamp);
+	assert(single == base + L"_02");
+	assert(save(root/(single + L"_output.png")));
+	const auto exported = ScreenshotHelper::FindUnusedScreenshotStem(root, timestamp);
+	assert(exported == base + L"_03");
+	std::ofstream(root/(exported + L"_effect_01_pass_02_texture_03.dds")) << "intermediate";
 	std::vector<std::thread> workers;
 	for (int i = 0; i < 8; ++i) workers.emplace_back([&] {
 		winrt::init_apartment(winrt::apartment_type::multi_threaded);
 		std::lock_guard lock(ScreenshotHelper::SaveMutex());
-		const uint32_t number = ScreenshotHelper::FindUnusedScreenshotNum(root);
-		assert(save(root/fmt::format(L"Magpie_{:03}_input.png", number)));
-		assert(save(root/fmt::format(L"Magpie_{:03}_output.png", number), 26, 14));
+		const auto stem = ScreenshotHelper::FindUnusedScreenshotStem(root, timestamp);
+		assert(save(root/(stem + L"_input.png")));
+		assert(save(root/(stem + L"_output.png"), 26, 14));
 	});
 	for (auto& worker : workers) worker.join();
-	assert(ScreenshotHelper::FindUnusedScreenshotNum(root) == 13);
-	for (uint32_t i = 5; i < 13; ++i) {
-		DecodeSize(root/fmt::format(L"Magpie_{:03}_input.png", i), 13, 7);
-		DecodeSize(root/fmt::format(L"Magpie_{:03}_output.png", i), 26, 14);
+	assert(ScreenshotHelper::FindUnusedScreenshotStem(root, timestamp) == base + L"_12");
+	for (uint32_t i = 4; i < 12; ++i) {
+		DecodeSize(root/(ScreenshotStem(timestamp, i) + L"_input.png"), 13, 7);
+		DecodeSize(root/(ScreenshotStem(timestamp, i) + L"_output.png"), 26, 14);
 	}
+	assert(ScreenshotHelper::FindUnusedScreenshotStem(root, L"20261022_194530_124") == L"Magpie_20261022_194530_124");
+	std::ofstream(root/L"MAGPIE_20261022_194530_124_INPUT.PNG") << "case-insensitive existing name";
+	assert(ScreenshotHelper::FindUnusedScreenshotStem(root, L"20261022_194530_124") == L"Magpie_20261022_194530_124_01");
+	assert(ReadFile(root/L"Magpie_001.png") == "legacy screenshot");
 	for (const auto& entry : std::filesystem::directory_iterator(root))
 		assert(!entry.path().filename().native().starts_with(L".Magpie-"));
 	TextureSaveError error;
@@ -70,5 +85,5 @@ int wmain(int argc, wchar_t** argv) {
 	assert(!TextureHelper::SaveTextureExclusive(missing.c_str(), 1, 1,
 		DXGI_FORMAT_R8G8B8A8_UNORM, pixels, 4, &error));
 	assert(error.fileWriteFailed);
-	std::cout << "PASS: production WIC PNG sizes, pair/legacy/DDS numbering, overflow, eight concurrent pairs, partial failure, no overwrite and temp cleanup\n";
+	std::cout << "PASS: production WIC PNG sizes, request timestamps, retained side/export suffixes, legacy coexistence, eight same-millisecond pairs, partial failure, no overwrite and temp cleanup\n";
 }
