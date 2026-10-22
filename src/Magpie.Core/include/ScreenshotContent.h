@@ -27,4 +27,20 @@ struct ScreenshotFrameIdentity {
 	}
 };
 
+// A pending pair can finish against the output fixed at request time, or a
+// later successfully presented real candidate. Dropped inputs must be retried,
+// never paired with an unrelated latest output. No content/pacing counters here.
+enum class ScreenshotSelection { Input, FixedOutput, PresentedOutput, RetryInput, Wait };
+constexpr ScreenshotSelection SelectScreenshotCandidate(ScreenshotContent content,
+	const ScreenshotFrameIdentity& input, const ScreenshotFrameIdentity& fixedOutput,
+	bool fixedGenerated, const ScreenshotFrameIdentity& presentedOutput, bool presentedGenerated) noexcept {
+	if (content == ScreenshotContent::InputOnly) return ScreenshotSelection::Input;
+	if (input.Matches(fixedOutput, fixedGenerated)) return ScreenshotSelection::FixedOutput;
+	if (input.Matches(presentedOutput, presentedGenerated)) return ScreenshotSelection::PresentedOutput;
+	if (presentedOutput.captureSequence == input.captureSequence &&
+		presentedOutput.resourceGeneration == input.resourceGeneration &&
+		presentedOutput.frameId > input.frameId) return ScreenshotSelection::RetryInput;
+	return ScreenshotSelection::Wait;
+}
+
 }

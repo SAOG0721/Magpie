@@ -47,14 +47,14 @@ if ($LASTEXITCODE) { throw 'Screenshot wiring validation failed' }
 if ($LASTEXITCODE) { throw 'Screenshot disk fixture extraction failed' }
 & python (Join-Path $PSScriptRoot 'prepare_hdr_export_tests.py') $OutputDirectory
 if ($LASTEXITCODE) { throw 'Existing HDR export fixture extraction failed' }
-foreach ($test in @('ScreenshotContentTests', 'ScreenshotSaveTests', 'HdrExportTests', 'config_recovery')) {
+foreach ($test in @('ScreenshotContentTests', 'ScreenshotHandoffTests', 'ScreenshotSaveTests', 'HdrExportTests', 'config_recovery')) {
     $source = switch ($test) {
         'ScreenshotSaveTests' { Join-Path $OutputDirectory 'ScreenshotSaveTests.generated.cpp' }
         'HdrExportTests' { Join-Path $OutputDirectory 'HdrExportTests.cpp' }
         'config_recovery' { Join-Path $repo 'scripts/tests/config_recovery.cpp' }
         default { Join-Path $PSScriptRoot "$test.cpp" }
     }
-    & cl.exe @common $source windowscodecs.lib windowsapp.lib ole32.lib "/Fe:$OutputDirectory/$test.exe" "/Fo:$OutputDirectory/$test.obj"
+    & cl.exe @common $source windowscodecs.lib windowsapp.lib ole32.lib d3d11.lib dxgi.lib "/Fe:$OutputDirectory/$test.exe" "/Fo:$OutputDirectory/$test.obj"
     if ($LASTEXITCODE) { throw "$test compilation failed" }
     & (Join-Path $OutputDirectory "$test.exe") $OutputDirectory
     if ($LASTEXITCODE) { throw "$test failed" }
