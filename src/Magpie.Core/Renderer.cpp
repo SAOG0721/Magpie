@@ -3536,7 +3536,7 @@ void Renderer::_BackendThreadProc() noexcept {
 			if (_frameSource->IsCaptureInterrupted()) {
 				if (_backendScreenshotRequest &&
 					_backendScreenshotRequest->state.load() == SceneScreenshotState::Pending)
-					_FailScreenshotRequest(_backendScreenshotRequest, "Capture interrupted before screenshot handoff completed", ERROR_CANCELLED);
+					_FailScreenshotRequest(_backendScreenshotRequest, "Capture interrupted before screenshot handoff completed", ERROR_CANCELLED, true);
 				_reflex.CompleteCapture();
 				// Keep the last published frame; even live parameter edits must wait
 				// for valid input before re-entering temporal effects. The timeout

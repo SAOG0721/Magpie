@@ -174,7 +174,7 @@ private:
 		HdrFrameMetadata outputMetadata,
 		std::shared_ptr<SceneScreenshotFrame> input = {});
 	static void _FailScreenshotRequest(const std::shared_ptr<SceneScreenshotRequest>& request,
-		std::string_view stage, uint32_t code = 0) noexcept;
+		std::string_view stage, uint32_t code = 0, bool pendingOnly = false) noexcept;
 	bool _frameTraceStarted = false;
 	// Set before starting the backend; immutable for this session.
 	bool _frameSyncEnabled = false;

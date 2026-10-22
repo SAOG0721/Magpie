@@ -24,6 +24,10 @@ struct SceneScreenshotRequest {
 	std::mutex inputMutex;
 	std::shared_ptr<SceneScreenshotFrame> input;
 	std::atomic<SceneScreenshotState> state = SceneScreenshotState::Pending;
+	bool CancelPending() noexcept {
+		auto expected = SceneScreenshotState::Pending;
+		return state.compare_exchange_strong(expected, SceneScreenshotState::Finished);
+	}
 	std::shared_ptr<ScalingSessionLifetime> session;
 	winrt::DispatcherQueue cleanupDispatcher{ nullptr };
 	std::filesystem::path directory;
@@ -39,10 +43,12 @@ struct SceneScreenshotFrame {
 	uint64_t requestId = 0;
 	winrt::com_ptr<ID3D11Texture2D> input;
 	wil::unique_handle inputHandle;
+	winrt::com_ptr<ID3D11Fence> readyFence;
+	wil::unique_event_nothrow readyEvent;
 	HdrFrameMetadata metadata;
 	// The caller owns the backend immediate context. This one-off copy must
 	// submit its own work: a paused source may never publish another frame.
-	void CopyInput(ID3D11Device* device, ID3D11DeviceContext* context, ID3D11Texture2D* source) {
+	void CopyInput(ID3D11Device5* device, ID3D11DeviceContext4* context, ID3D11Texture2D* source) {
 		D3D11_TEXTURE2D_DESC desc{};
 		source->GetDesc(&desc);
 		metadata.width = desc.Width;
@@ -61,6 +67,12 @@ struct SceneScreenshotFrame {
 		if (acquired != S_OK) winrt::throw_hresult(HRESULT_FROM_WIN32(acquired));
 		context->CopyResource(input.get(), source);
 		winrt::check_hresult(mutex->ReleaseSync(1));
+		// Background consumers wait only this Win32 event, never a DXGI
+		// object belonging to the single-threaded frontend device.
+		winrt::check_hresult(device->CreateFence(0, D3D11_FENCE_FLAG_NONE, IID_PPV_ARGS(readyFence.put())));
+		if (!readyEvent.try_create(wil::EventOptions::ManualReset, nullptr)) winrt::throw_last_error();
+		winrt::check_hresult(context->Signal(readyFence.get(), 1));
+		winrt::check_hresult(readyFence->SetEventOnCompletion(1, readyEvent.get()));
 		context->Flush();
 	}
 	ScreenshotFrameIdentity Identity() const noexcept {

@@ -40,6 +40,12 @@ assert '_TryCompleteSceneScreenshot();' in renderer
 save = new[new.index('winrt::fire_and_forget Renderer::_SaveSceneScreenshot('):]
 suspended = save[save.index('co_await winrt::resume_background();'):]
 assert 'ScalingWindow::' not in suspended and '[this]' not in suspended
+# The SINGLETHREADED frontend may not touch DXGI from the background wait.
+input_wait = save[save.index('const bool inputReady'):save.index('snapshot(original.get()')]
+assert input_wait.index('co_await dispatcher;') < input_wait.index('device->OpenSharedResource1')
+assert 'mutex->AcquireSync(1, 0)' in input_wait
+assert 'mutex->AcquireSync(1, 10000)' not in save
+assert 'request->CancelPending()' in new
 assert 'input->metadata.color' in save and 'outputMetadata.color' in save
 assert 'images.size() == 2' in save and 'Magpie_{:03}_{}.png' in save
 assert 'ScreenshotHelper::SaveMutex()' in renderer and 'ScreenshotHelper::SaveMutex()' in save

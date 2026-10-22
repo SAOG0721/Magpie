@@ -30,8 +30,10 @@ void Renderer::_QueueScreenshotCleanup(std::shared_ptr<SceneScreenshotRequest> r
 }
 
 void Renderer::_FailScreenshotRequest(const std::shared_ptr<SceneScreenshotRequest>& request,
-	std::string_view stage, uint32_t code) noexcept {
-	if (request->state.exchange(SceneScreenshotState::Finished) == SceneScreenshotState::Finished) return;
+	std::string_view stage, uint32_t code, bool pendingOnly) noexcept {
+	if (pendingOnly) {
+		if (!request->CancelPending()) return;
+	} else if (request->state.exchange(SceneScreenshotState::Finished) == SceneScreenshotState::Finished) return;
 	_QueueScreenshotCleanup(request);
 	if (request->report) request->report(request->target, ScalingError::ScreenshotReadbackFailed,
 		fmt::format("Screenshot request={} run={} / {} / {}", request->id,
@@ -170,7 +172,7 @@ void Renderer::_SnapshotScreenshotInput() noexcept {
 		if (!source || !_capturedFrameId || !_frameSource->IsHdrFrameReady() || _frameSource->IsCaptureInterrupted()) {
 			_FailScreenshotRequest(request, fmt::format(
 				"Retained input unavailable: frame={} source={} ready={} interrupted={}",
-				_capturedFrameId, source != nullptr, _frameSource->IsHdrFrameReady(), _frameSource->IsCaptureInterrupted()), ERROR_CANCELLED);
+				_capturedFrameId, source != nullptr, _frameSource->IsHdrFrameReady(), _frameSource->IsCaptureInterrupted()), ERROR_CANCELLED, true);
 			return;
 		}
 		if ((request->captureSequence != _captureSequence || _captureSequence != _frameSource->CaptureSequence()) ||
@@ -178,7 +180,7 @@ void Renderer::_SnapshotScreenshotInput() noexcept {
 			_FailScreenshotRequest(request, fmt::format(
 				"Capture epoch changed: requested={}/{} retained={}/{} sourceSequence={}",
 				request->captureSequence, request->resourceGeneration, _captureSequence,
-				_frameSource->ResourceGeneration(), _frameSource->CaptureSequence()), ERROR_CANCELLED);
+				_frameSource->ResourceGeneration(), _frameSource->CaptureSequence()), ERROR_CANCELLED, true);
 			return;
 		}
 		{
@@ -209,10 +211,10 @@ void Renderer::_SnapshotScreenshotInput() noexcept {
 			auto& window = ScalingWindow::Get();
 			if (!request->session->IsCurrent(ScalingWindow::RunId()) || !window || !window.TryGetRenderer()) return;
 			window.Renderer()._TryCompleteSceneScreenshot();
-		})) _FailScreenshotRequest(request, "Queue screenshot handoff", ERROR_CANCELLED);
+		})) _FailScreenshotRequest(request, "Queue screenshot handoff", ERROR_CANCELLED, true);
 	} catch (const winrt::hresult_error& error) {
-		_FailScreenshotRequest(request, "Create native-size input snapshot", static_cast<uint32_t>(error.code().value));
-	} catch (...) { _FailScreenshotRequest(request, "Create native-size input snapshot"); }
+		_FailScreenshotRequest(request, "Create native-size input snapshot", static_cast<uint32_t>(error.code().value), true);
+	} catch (...) { _FailScreenshotRequest(request, "Create native-size input snapshot", 0, true); }
 }
 
 winrt::fire_and_forget Renderer::_SaveSceneScreenshot(
@@ -261,24 +263,30 @@ winrt::fire_and_forget Renderer::_SaveSceneScreenshot(
 				_FailScreenshotRequest(request, "Input/output frame identity mismatch");
 				co_return;
 			}
-			winrt::com_ptr<ID3D11Texture2D> original;
-			stage = "input / Open shared native-size texture";
-			winrt::check_hresult(device->OpenSharedResource1(input->inputHandle.get(), IID_PPV_ARGS(original.put())));
-			auto mutex = original.as<IDXGIKeyedMutex>();
-			// Never block the render thread or mistake a queued GPU copy for
-			// failure. The immutable pair survives suspension independently.
+			// The frontend device can be SINGLETHREADED. Only wait on the
+			// producer's Win32 completion event off-thread; all DXGI/context
+			// operations stay on the frontend dispatcher.
 			co_await winrt::resume_background();
-			const HRESULT acquired = mutex->AcquireSync(1, 10000);
-			if (acquired != S_OK) {
-				_FailScreenshotRequest(request, "Acquire native input on frontend", static_cast<uint32_t>(acquired));
+			const bool inputReady = input->readyEvent.wait(10000);
+			co_await dispatcher;
+			if (!inputReady) {
+				_FailScreenshotRequest(request, "Input snapshot GPU completion timeout", WAIT_TIMEOUT);
 				co_return;
 			}
-			const auto release = wil::scope_exit([&] { mutex->ReleaseSync(2); });
-			co_await dispatcher;
 			if (request->session->IsStopping()) {
 				_FailScreenshotRequest(request, "Scaling session stopped before input readback", ERROR_CANCELLED);
 				co_return;
 			}
+			winrt::com_ptr<ID3D11Texture2D> original;
+			stage = "input / Open shared native-size texture";
+			winrt::check_hresult(device->OpenSharedResource1(input->inputHandle.get(), IID_PPV_ARGS(original.put())));
+			auto mutex = original.as<IDXGIKeyedMutex>();
+			const HRESULT acquired = mutex->AcquireSync(1, 0);
+			if (acquired != S_OK) {
+				_FailScreenshotRequest(request, "Acquire completed native input on frontend", static_cast<uint32_t>(acquired));
+				co_return;
+			}
+			const auto release = wil::scope_exit([&] { mutex->ReleaseSync(2); });
 			snapshot(original.get(), input->metadata.color, L"input");
 		}
 		if (request->content != ScreenshotContent::InputOnly)
@@ -295,9 +303,10 @@ winrt::fire_and_forget Renderer::_SaveSceneScreenshot(
 		context->Flush();
 		_QueueScreenshotCleanup(request);
 		co_await winrt::resume_background();
-		if (!event.wait(10000)) { _FailScreenshotRequest(request, "GPU readback timeout", WAIT_TIMEOUT); co_return; }
+		const bool readbackReady = event.wait(10000);
 		stage = "input/output / Resume readback dispatcher";
 		co_await dispatcher;
+		if (!readbackReady) { _FailScreenshotRequest(request, "GPU readback timeout", WAIT_TIMEOUT); co_return; }
 		if (request->session->IsStopping()) {
 			_FailScreenshotRequest(request, "Scaling session stopped during readback", ERROR_CANCELLED);
 			co_return;
@@ -314,10 +323,11 @@ winrt::fire_and_forget Renderer::_SaveSceneScreenshot(
 			image.pixels.resize(size_t(mapped.RowPitch) * image.desc.Height);
 			std::memcpy(image.pixels.data(), mapped.pData, image.pixels.size());
 		}
-		co_await winrt::resume_background();
-		// Drop native GPU resources before potentially slow filesystem work.
+		// Release frontend GPU objects on their owning dispatcher as well.
 		for (auto& image : images) image.staging = nullptr;
+		fence = nullptr;
 		input.reset(); output = nullptr; context = nullptr; device = nullptr;
+		co_await winrt::resume_background();
 		std::lock_guard saveLock(ScreenshotHelper::SaveMutex());
 		if (!Win32Helper::CreateDir(request->directory.c_str(), true)) {
 			if (request->report) request->report(request->target, ScalingError::ScreenshotDirectoryFailed,
