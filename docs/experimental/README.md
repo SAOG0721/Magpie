@@ -3,11 +3,11 @@
 - [0.6.11 Beta1：DLSS 参数、SM86、VFX 浮窗与暂停截图](todos/20261022-dlss-runtime-presets-antiflicker-TODO.md)：四个独立分支已整合，0.6.11-beta1 已完成构建、包校验及本机部署启动；VFX 按用户意见暂定通过。[分支与验证记录](reviews/20261022-v0.6.11-beta1-implementation.md)。
 
 
-## 0.6.10 待审核分发 / Distribution under review
+## 0.6.11 待审核分发 / Distribution under review
 
-[完整中英更新说明](../RELEASE_NOTES_v0.6.10-experimental.md)汇总 0.6.9 之后的已整合功能。分发候选以 Beta8 为基线，更新 GitHub 源码并创建 Draft + Pre-release 供维护者 review；公开入口保持 0.6.9。真实 GPU／游戏／HDR／VRR 与完整 DPI 验收另行记录。
+[完整中英更新说明](../RELEASE_NOTES_v0.6.11-experimental.md)汇总 0.6.10 之后的变化。分发候选整合 DLSS 参数、SM86 0.4.0、默认社区 DLSSNR、暂停截图和时间戳命名。按用户授权完成文件准备并同步 GitHub，Release 保持 Draft + Pre-release 供人工检查。
 
-The 0.6.10 candidate builds on Beta8. Source is synchronized to GitHub and assets are staged as Draft + Pre-release for review. Public downloads remain at 0.6.9; hardware and full UI acceptance remain separate.
+The 0.6.11 candidate integrates DLSS parameter controls, SM86 0.4.0, the default community DLSSNR runtime, paused screenshots and timestamped filenames. Source and assets are prepared for review, with the release kept as Draft + Pre-release.
 
 - [错误状态与操作引导规范](../ERROR-REPORTING-GUIDELINES.md)：修改错误状态、提示或恢复入口时按需使用。
 - [DLSSNR 状态与恢复](../DLSSNR-TROUBLESHOOTING.md)：检测结果、处理入口及恢复确认。
@@ -17,7 +17,7 @@ The 0.6.10 candidate builds on Beta8. Source is synchronized to GitHub and asset
 
 帧率与刷新及配置页布局：原 `feature/0610-frame-refresh-rtss-auto` 分支在整页 280 DIP 布局基础上，完成模式外框圆角、10 处单位外置及 RTSS 独立分组。见[第五阶段实施与交接](reviews/20261011-rtss-grouped-units.md)及[TODO R01–R06](todos/20261011-frame-refresh-modes-TODO.md)。最新设计参照为 `profile-rtss-grouped.html`；R06 / S07 / V07 原生视觉与运行验收、产品编译部署交给后续会话。[第四阶段](reviews/20261011-profile-controls-unified.md)、[第三阶段](reviews/20261011-frame-refresh-visual-alignment.md)、[第二阶段](reviews/20261011-frame-refresh-rtss-auto.md)与[第一阶段](reviews/20261011-frame-refresh-modes.md)保留为历史。
 
-当前公开版本为 [Magpie Experimental v0.6.9](https://github.com/SAOG0721/Magpie/releases/tag/v0.6.9-experimental)：[完整中英 Release Note](../RELEASE_NOTES_v0.6.9-experimental.md)、[分发准备记录](reviews/20261002-v0.6.9-release-preparation.md)。默认分支 `experimental` 已同步完整 0.6.9 源码，`version.json` 指向该版本。发布标签及运行包的准确构建提交为 `27c5df91177a29b33be612e98274169f3d2fca49`；后续文档与版本入口更新保留为独立提交。
+当前公开版本为 [Magpie Experimental v0.6.10](https://github.com/SAOG0721/Magpie/releases/tag/v0.6.10-experimental)，其[中英 Release Note](../RELEASE_NOTES_v0.6.10-experimental.md)已按线上正文同步。`version.json` 和公开下载入口保持指向该已发布版本。0.6.11 Draft 审核及发布完成后再更新公开入口。
 
 HDR 兼容模式更新开发中：见[功能文档](design/20261005-hdr-compatibility-update-functional-spec.md)和[开发需求与进度](todos/20261005-hdr-compatibility-update-development-TODO.md)。本轮进行源码和针对性回归，应用完整编译及部署留给后续会话。
 
