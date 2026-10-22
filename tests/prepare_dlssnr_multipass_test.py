@@ -32,12 +32,17 @@ for block in shader.split("//!PARAMETER\n")[1:]:
     match = re.search(r"^(?:int|float) (\w+);", block, re.M)
     assert match and match[1] not in blocks
     blocks[match[1]] = block[:match.end()]
-assert len(blocks) == 41
+assert len(blocks) == 42
 assert "residualColorMode" not in blocks and "residualShowProtection" not in blocks
 anti = blocks["antiFlicker"]
 assert list(blocks).index("antiFlicker") == list(blocks).index("multiPass") + 1
 assert "//!GROUP DLSSNR · Pass 1" in anti and "//!DEFAULT 0" in anti
 assert re.findall(r"//!OPTION (\d+) (.*)", anti) == [("0", "None"), ("1", "Static Accumulation"), ("2", "Optical Flow Accumulation"), ("3", "Optical Flow Accumulation+"), ("4", "Low-frequency Temporal Reconstruction")]
+time = blocks["antiFlickerTimeMs"]
+assert list(blocks).index("antiFlickerTimeMs") == list(blocks).index("antiFlicker") + 1
+for field, value in (("DEFAULT", "80"), ("MIN", "5"), ("MAX", "200"), ("STEP", "5")):
+    assert f"//!{field} {value}\n" in time
+assert "pass2_antiFlickerTimeMs" not in blocks and "pass3_antiFlickerTimeMs" not in blocks
 count = blocks["multiPass"]
 assert list(blocks).index("multiPass") == list(blocks).index("uiCorrection") + 1
 assert re.search(r"//!LABEL (.*)", count)[1] == "Multi Pass"

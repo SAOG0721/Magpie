@@ -175,7 +175,7 @@ NativeEffectBackendResult CreateNativeEffectBackend(
 			const auto motion = ParseOpticalFlowRequest(option);
 			if (effectName == "DLSS\\DLSS_SR")
 				return CreateBackend<DLSSSRUpscaler>(effectName, resources, input, output,
-					DLSSSRSettings{ .motionRequest = motion });
+					DLSSSRSettings{ .motionRequest = motion, .renderPreset = ParseDLSSSRPreset(option) });
 			if (effectName == "FSR2\\FSR2_SR")
 				return CreateBackend<FSR2Upscaler>(effectName, resources, input, output, motion);
 			if (effectName == "XeSS\\XeSS_SR")
@@ -204,7 +204,8 @@ NativeEffectBackendResult CreateNativeEffectBackend(
 			DLSSSRSettings{
 				.motionRequest = isLegacyOpticalFlow
 					? MotionVectorRequest::Nvidia(quality)
-					: MotionVectorRequest{}
+					: MotionVectorRequest{},
+				.renderPreset = 10 // Preserve the hidden legacy adapter's J contract.
 			});
 	}
 
@@ -264,7 +265,7 @@ NativeEffectBackendResult CreateNativeEffectBackend(
 			backend->SetDlssHdrProtocol(hdrProtocol);
 			Logger::DiagnosticCapture diagnostic;
 			if (!backend->Initialize(resources, input, output,
-				DLSSSRSettings{ .motionRequest = motion })) {
+				DLSSSRSettings{ .motionRequest = motion, .renderPreset = ParseDLSSSRPreset(option) })) {
 				return { true, nullptr, NgxRuntimeGuard::IsFaulted() ?
 					ScalingError::NgxRestartRequired : ScalingError::NoError,
 					DescribeNativeFailure(resources, input, output, diagnostic), diagnostic.SystemError() };

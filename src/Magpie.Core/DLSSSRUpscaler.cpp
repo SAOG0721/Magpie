@@ -5,17 +5,52 @@
 #include "DeviceResources.h"
 #include "DirectXHelper.h"
 #include "Logger.h"
+#include "StrHelper.h"
 
 namespace Magpie { DLSSSRUpscaler::DLSSSRUpscaler() = default; }
 
 #ifdef MP_ENABLE_DLSS_SR
 #include <nvsdk_ngx.h>
 #include <nvsdk_ngx_helpers.h>
+#include <winver.h>
+#pragma comment(lib, "version.lib")
 
 namespace Magpie {
 
 static bool NGXSucceeded(NVSDK_NGX_Result result) noexcept {
 	return NVSDK_NGX_SUCCEED(result);
+}
+
+static int NgxRenderPreset(int preset) noexcept {
+	switch (preset) {
+	case 10: return NVSDK_NGX_DLSS_Hint_Render_Preset_J;
+	case 11: return NVSDK_NGX_DLSS_Hint_Render_Preset_K;
+	case 12: return NVSDK_NGX_DLSS_Hint_Render_Preset_L;
+	case 13: return NVSDK_NGX_DLSS_Hint_Render_Preset_M;
+	default: return preset; // Historical A-F values; zero is handled by the caller.
+	}
+}
+
+static std::string LoadedSrLibrary() {
+	const HMODULE module = GetModuleHandleW(L"nvngx_dlss.dll");
+	if (!module) return "not observable";
+	std::wstring path(32768, L'\0');
+	const DWORD length = GetModuleFileNameW(module, path.data(), static_cast<DWORD>(path.size()));
+	if (!length || length >= path.size()) return "path unavailable";
+	path.resize(length);
+	std::string description = StrHelper::UTF16ToUTF8(path);
+	DWORD unused = 0;
+	const DWORD size = GetFileVersionInfoSizeW(path.c_str(), &unused);
+	std::vector<uint8_t> data(size);
+	VS_FIXEDFILEINFO* version = nullptr;
+	UINT versionLength = 0;
+	if (size && GetFileVersionInfoW(path.c_str(), 0, size, data.data()) &&
+		VerQueryValueW(data.data(), L"\\", reinterpret_cast<void**>(&version), &versionLength) &&
+		versionLength >= sizeof(VS_FIXEDFILEINFO) && version->dwSignature == 0xFEEF04BD) {
+		description += fmt::format(" / FileVersion={}.{}.{}.{}", HIWORD(version->dwFileVersionMS),
+			LOWORD(version->dwFileVersionMS), HIWORD(version->dwFileVersionLS), LOWORD(version->dwFileVersionLS));
+	} else description += " / FileVersion=unavailable";
+	return description;
 }
 
 DLSSSRUpscaler::~DLSSSRUpscaler() {
@@ -60,6 +95,7 @@ bool DLSSSRUpscaler::Initialize(
 ) noexcept {
 	_Reset();
 	_settings = settings;
+	_settings.renderPreset = NormalizeDLSSSRPreset(static_cast<float>(settings.renderPreset));
 	_device = deviceResources.GetD3DDevice();
 	_d3dDC = deviceResources.GetD3DDC();
 
@@ -147,13 +183,14 @@ bool DLSSSRUpscaler::Initialize(
 	}
 	_parameters = parameters;
 
-	// Preset J remains the established default for this captured-frame path.
-	// Real optical flow improves temporal input but is not engine motion.
-	NVSDK_NGX_Parameter_SetI(
-		parameters,
-		NVSDK_NGX_Parameter_DLSS_Hint_Render_Preset_Balanced,
-		NVSDK_NGX_DLSS_Hint_Render_Preset_J
-	);
+	// Auto leaves the runtime's hint untouched. Presets do not change the
+	// Balanced quality mode, output size or captured-frame guidance contract.
+	if (_settings.renderPreset != 0) {
+		NVSDK_NGX_Parameter_SetI(parameters, NVSDK_NGX_Parameter_DLSS_Hint_Render_Preset_Balanced,
+			NgxRenderPreset(_settings.renderPreset));
+	}
+	Logger::Get().Info(fmt::format("DLSS SR requestedPreset={} hintSubmitted={} actualPreset=unknown",
+		DLSSSRPresetName(_settings.renderPreset), _settings.renderPreset != 0));
 
 	NVSDK_NGX_DLSS_Create_Params createParams{
 		.Feature{
@@ -180,10 +217,12 @@ bool DLSSSRUpscaler::Initialize(
 	_feature = feature;
 
 	Logger::Get().Info(fmt::format(
-		"DLSS SR initialized (Balanced, preset J): {}x{} -> {}x{}, "
+		"DLSS SR initialized (Balanced, requestedPreset={}, actualPreset=unknown): {}x{} -> {}x{}, "
 		"requestedMotion={} quality={}, depth=zero-contract",
+		DLSSSRPresetName(_settings.renderPreset),
 		inputDesc.Width, inputDesc.Height, outputDesc.Width, outputDesc.Height,
 		uint32_t(_settings.motionRequest.method), _settings.motionRequest.quality));
+	Logger::Get().Info("DLSS SR loaded library: " + LoadedSrLibrary());
 	return true;
 }
 

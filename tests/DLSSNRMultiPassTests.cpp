@@ -86,13 +86,15 @@ struct DeviceResources {
 struct NgxD3D12Core {};
 struct DLSSNRTemporal {
 	inline static int resets = 0, draws = 0;
+	inline static float timeMs = 0;
 	inline static ID3D11Texture2D* lastBase = nullptr;
 	ID3D11Texture2D* raw = nullptr;
 	bool Initialize(DeviceResources&, ID3D11Texture2D*, ID3D11Texture2D* base,
-		ID3D11Texture2D* value, ID3D11Texture2D*, int, bool) {
-		raw = value; lastBase = base; return true;
+		ID3D11Texture2D* value, ID3D11Texture2D*, int, bool, float time) {
+		raw = value; lastBase = base; timeMs = time; return true;
 	}
 	void Reset() { ++resets; }
+	void SetTimeConstant(float value) { timeMs = NormalizeDLSSNRAntiFlickerTimeMs(value); }
 	void ConfigureDetail(float, bool) {}
 	bool Draw(const NativeEffectDrawContext& context) { ++draws; context.output->value = raw->value; return true; }
 };
@@ -222,7 +224,7 @@ int main() {
 	assert(DLSSNRFilter::liveInstances == 0);
 	for (int mode : {1, 2, 3, 4}) {
 		option.parameters["antiFlicker"] = static_cast<float>(mode);
-		for (int count : {1, 3}) {
+		for (int count : {1, 2, 3}) {
 			option.parameters["multiPass"] = static_cast<float>(count);
 			DLSSNRMultiPass chain;
 			assert(chain.Initialize(resources, core, &input, &output, option, false));
@@ -230,7 +232,7 @@ int main() {
 			assert(chain.GetFrameGuidanceRequirements().HasMotion() == (mode >= 2));
 			assert(chain.GetParameterApplyMode("antiFlicker") == EffectParameterApplyMode::RestartRequired);
 			assert(chain.Draw({&input, &output, 7}));
-			assert(output.value == (count == 1 ? 2 : 223));
+			assert(output.value == (count == 1 ? 2 : count == 2 ? 22 : 223));
 			const int resets = DLSSNRTemporal::resets;
 			std::vector<std::string> names{"residualMultiplier"};
 			assert(chain.ApplyLiveParameters(option, names));
@@ -243,6 +245,27 @@ int main() {
 				assert(chain.ApplyLiveParameters(option, names));
 				assert(DLSSNRTemporal::resets == resets + 1);
 			}
+			// The chain owns time-only edits: no NR setter, history reset, resource
+			// creation or draw. Mixed edits still keep their original reset rules.
+			const int textures = resources.created;
+			const int draws = DLSSNRTemporal::draws;
+			for (float time : {5.f, 80.f, 200.f}) {
+				option.parameters["antiFlickerTimeMs"] = time;
+				names = {"antiFlickerTimeMs"};
+				DLSSNRFilter::receivedNames.clear();
+				assert(chain.GetParameterApplyMode(names[0]) == EffectParameterApplyMode::Live);
+				assert(chain.ApplyLiveParameters(option, names));
+				assert(DLSSNRTemporal::timeMs == time && DLSSNRTemporal::resets == resets + 1);
+				assert(DLSSNRFilter::receivedNames.empty() && resources.created == textures);
+				assert(DLSSNRTemporal::draws == draws);
+				assert(!DLSSNRParameterChangesCurrentOutput(names[0], count));
+			}
+			names = {"antiFlickerTimeMs", "intensity"};
+			assert(chain.ApplyLiveParameters(option, names));
+			assert(DLSSNRTemporal::resets == resets + 2);
+			assert(DLSSNRFilter::receivedNames == std::vector<std::string>{"intensity"});
+			assert(chain.Resize(resources, &input, &output));
+			assert(DLSSNRTemporal::timeMs == 200);
 		}
 	}
 	resources.failTextureAt = resources.created;

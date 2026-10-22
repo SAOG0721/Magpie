@@ -5,6 +5,22 @@
 //!SORT_NAME DLSS SR
 
 //!PARAMETER
+//!LABEL Model Preset
+//!DEFAULT 11
+//!OPTION 0 Auto
+//!OPTION 1 A (Legacy)
+//!OPTION 2 B (Legacy)
+//!OPTION 3 C (Legacy)
+//!OPTION 4 D (Legacy)
+//!OPTION 5 E (Deprecated)
+//!OPTION 6 F (Deprecated)
+//!OPTION 10 J
+//!OPTION 11 K
+//!OPTION 12 L
+//!OPTION 13 M
+int renderPreset;
+
+//!PARAMETER
 //!LABEL Optical Flow Method
 //!DEFAULT 0
 //!OPTION 0 None

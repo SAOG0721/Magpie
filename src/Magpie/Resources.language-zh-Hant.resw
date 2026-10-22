@@ -2161,4 +2161,37 @@
     <value>相關效果組：{}{}</value>
   </data>
   <data name="Overlay_EffectParameters_RestrictedBadge" xml:space="preserve"><value>正常受限</value></data>
+  <data name="EffectParam_DLSS_DLSS_SR_renderPreset_Label" xml:space="preserve">
+    <value>模型預設</value>
+  </data>
+  <data name="EffectParam_DLSS_DLSS_SR_renderPreset_Description" xml:space="preserve">
+    <value>預設 K。A–D 為舊預設，新版可能忽略或回退；E/F 已棄用。變更後重新啟動縮放。</value>
+  </data>
+  <data name="EffectParam_DLSS_DLSS_SR_renderPreset_Option_0" xml:space="preserve">
+    <value>自動</value>
+  </data>
+  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_antiFlickerTimeMs_Label" xml:space="preserve">
+    <value>抗閃爍響應時間（ms）</value>
+  </data>
+  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_antiFlickerTimeMs_Description" xml:space="preserve">
+    <value>數值越大越穩定、響應越慢；數值越小跟隨變化越快。下一個有效捕獲幀生效。</value>
+  </data>
+  <data name="EffectParam_DLSS_DLSS_SR_renderPreset_Option_1" xml:space="preserve">
+    <value>A（舊預設）</value>
+  </data>
+  <data name="EffectParam_DLSS_DLSS_SR_renderPreset_Option_2" xml:space="preserve">
+    <value>B（舊預設）</value>
+  </data>
+  <data name="EffectParam_DLSS_DLSS_SR_renderPreset_Option_3" xml:space="preserve">
+    <value>C（舊預設）</value>
+  </data>
+  <data name="EffectParam_DLSS_DLSS_SR_renderPreset_Option_4" xml:space="preserve">
+    <value>D（舊預設）</value>
+  </data>
+  <data name="EffectParam_DLSS_DLSS_SR_renderPreset_Option_5" xml:space="preserve">
+    <value>E（已棄用）</value>
+  </data>
+  <data name="EffectParam_DLSS_DLSS_SR_renderPreset_Option_6" xml:space="preserve">
+    <value>F（已棄用）</value>
+  </data>
 </root>

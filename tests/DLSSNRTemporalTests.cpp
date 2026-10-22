@@ -157,6 +157,27 @@ int main(int argc, char** argv) {
 	Near(state.Weight(2,4,3,1166667,false),std::exp(-1.f/60/.08f));
 	Near(static_cast<float>(std::pow(state.Weight(2,4,3,1166667,false),60)),
 		static_cast<float>(std::pow(state.Weight(2,4,3,1333333,false),30)),1e-7f);
+	for (float time : {5.f, 80.f, 200.f}) {
+		// Equal elapsed time must decay equally at 30/60/120 capture FPS.
+		for (int fps : {30, 60, 120}) {
+			DLSSNRTemporalState clock;
+			clock.Commit(1, 0, 1, 0);
+			double weight = 1;
+			for (int i = 1; i <= fps; ++i) {
+				const int64_t timestamp = std::llround(double(i) * 10000000 / fps);
+				weight *= clock.Weight(i + 1, 0, 1, timestamp, false, time);
+				clock.Commit(i + 1, 0, 1, timestamp);
+			}
+			Near(float(weight), float(std::exp(-1000.0 / time)), 1e-7f);
+		}
+		assert(state.Weight(1,4,3,1166667,false,time) == 0);
+		assert(state.Weight(2,4,3,4000000,false,time) == 0);
+		assert(state.Weight(2,4,4,1166667,false,time) == 0);
+	}
+	assert(state.Weight(2,4,3,1166667,false,5) < state.Weight(2,4,3,1166667,false,80));
+	assert(state.Weight(2,4,3,1166667,false,80) < state.Weight(2,4,3,1166667,false,200));
+	Near(state.Weight(2,4,3,1166667,false,std::numeric_limits<float>::quiet_NaN()),
+		state.Weight(2,4,3,1166667,false,80));
 	Harness h;
 	const unsigned center=8*W+8;
 	h.Default(); auto out=h.Run(); Near(out[center][0],.66f); Near(out[center][3],.7f);

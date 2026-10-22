@@ -143,6 +143,7 @@
     <ClInclude Include="TextureHelper.h" />
     <ClInclude Include="YasHelper.h" />
     <ClInclude Include="DLSSSRUpscaler.h" />
+    <ClInclude Include="include\DLSSSRParameters.h" />
     <ClInclude Include="DLSSFrameGenerator.h" />
     <ClInclude Include="include\DlssgSm86Runtime.h" />
     <ClInclude Include="NgxFeatureDiscovery.h" />

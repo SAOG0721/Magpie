@@ -26,10 +26,11 @@ inline float NormalizeEffectParameterValue(
 ) noexcept {
 	if (IsChoiceEffectParameter(parameter)) {
 		const int defaultValue = std::get<1>(parameter.constant).defaultValue;
-		if (!std::isfinite(value)) {
+		if (!std::isfinite(value) || value != std::floor(value) ||
+			double(value) < std::numeric_limits<int>::min() || double(value) > std::numeric_limits<int>::max()) {
 			return static_cast<float>(defaultValue);
 		}
-		const int candidate = static_cast<int>(std::llround(value));
+		const int candidate = static_cast<int>(value);
 		const auto it = std::ranges::find(
 			parameter.choices, candidate, &EffectParameterChoice::value);
 		return static_cast<float>(it == parameter.choices.end()

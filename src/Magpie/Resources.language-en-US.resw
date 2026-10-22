@@ -2327,4 +2327,37 @@
   <data name="EffectParam_XeSSFG_XeSS_FrameGeneration_nvidiaOpticalFlowQuality_Description" xml:space="preserve">
     <value>Applies when NVOF is selected. Higher levels use more computation for motion estimation. Restart scaling to apply changes.</value>
   </data>
+  <data name="EffectParam_DLSS_DLSS_SR_renderPreset_Label" xml:space="preserve">
+    <value>Model Preset</value>
+  </data>
+  <data name="EffectParam_DLSS_DLSS_SR_renderPreset_Description" xml:space="preserve">
+    <value>Defaults to K. A–D are legacy requests that newer runtimes may ignore or replace; E/F are deprecated. Restart scaling to apply changes.</value>
+  </data>
+  <data name="EffectParam_DLSS_DLSS_SR_renderPreset_Option_0" xml:space="preserve">
+    <value>Auto</value>
+  </data>
+  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_antiFlickerTimeMs_Label" xml:space="preserve">
+    <value>Anti-flicker Response Time (ms)</value>
+  </data>
+  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_antiFlickerTimeMs_Description" xml:space="preserve">
+    <value>Higher values retain history longer for greater stability and a slower response. Lower values follow changes faster. Applies on the next captured frame.</value>
+  </data>
+  <data name="EffectParam_DLSS_DLSS_SR_renderPreset_Option_1" xml:space="preserve">
+    <value>A (Legacy)</value>
+  </data>
+  <data name="EffectParam_DLSS_DLSS_SR_renderPreset_Option_2" xml:space="preserve">
+    <value>B (Legacy)</value>
+  </data>
+  <data name="EffectParam_DLSS_DLSS_SR_renderPreset_Option_3" xml:space="preserve">
+    <value>C (Legacy)</value>
+  </data>
+  <data name="EffectParam_DLSS_DLSS_SR_renderPreset_Option_4" xml:space="preserve">
+    <value>D (Legacy)</value>
+  </data>
+  <data name="EffectParam_DLSS_DLSS_SR_renderPreset_Option_5" xml:space="preserve">
+    <value>E (Deprecated)</value>
+  </data>
+  <data name="EffectParam_DLSS_DLSS_SR_renderPreset_Option_6" xml:space="preserve">
+    <value>F (Deprecated)</value>
+  </data>
 </root>

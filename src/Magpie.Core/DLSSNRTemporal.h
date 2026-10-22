@@ -12,8 +12,9 @@ public:
 	~DLSSNRTemporal();
 	bool Initialize(DeviceResources& resources, ID3D11Texture2D* input,
 		ID3D11Texture2D* base, ID3D11Texture2D* raw, ID3D11Texture2D* output,
-		int mode, bool hdr) noexcept;
+		int mode, bool hdr, float timeMs) noexcept;
 	void Reset() noexcept;
+	void SetTimeConstant(float timeMs) noexcept;
 	void ConfigureDetail(float chromaStrength, bool enforceZero) noexcept;
 	bool Draw(const NativeEffectDrawContext& context) noexcept;
 private:

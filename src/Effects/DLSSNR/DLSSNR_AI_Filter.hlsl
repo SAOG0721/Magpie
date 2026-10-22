@@ -257,6 +257,15 @@ int multiPass;
 int antiFlicker;
 
 //!PARAMETER
+//!GROUP DLSSNR · Pass 1
+//!LABEL Anti-flicker Response Time (ms)
+//!DEFAULT 80
+//!MIN 5
+//!MAX 200
+//!STEP 5
+float antiFlickerTimeMs;
+
+//!PARAMETER
 //!GROUP DLSSNR · Pass 2
 //!LABEL NR Style
 //!DEFAULT 0

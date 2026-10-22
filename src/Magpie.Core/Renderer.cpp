@@ -2570,7 +2570,7 @@ void Renderer::_ApplyPendingEffectParameters() noexcept {
 					return it == values.end() ? fallback : it->second;
 				});
 				changesOutput = std::ranges::any_of(changedNames, [&](const std::string& name) {
-					return DLSSNRParameterPass(name) <= activePasses;
+					return DLSSNRParameterChangesCurrentOutput(name, activePasses);
 				});
 			}
 			if (changesOutput) {
