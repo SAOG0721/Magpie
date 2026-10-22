@@ -18,16 +18,12 @@ void Renderer::_QueueScreenshotCleanup(std::shared_ptr<SceneScreenshotRequest> r
 		auto& window = ScalingWindow::Get();
 		if (!request->session->IsCurrent(ScalingWindow::RunId()) || !window || !window.TryGetRenderer()) return;
 		auto& renderer = window.Renderer();
-		for (uint32_t i = 0; i < renderer._sharedTextureSlotCount; ++i) {
-			std::lock_guard lock(renderer._sharedTextureAccessMutexes[i]);
-			if (renderer._sharedScreenshotFrames[i] && renderer._sharedScreenshotFrames[i]->request == request)
-				renderer._sharedScreenshotFrames[i].reset();
+		request->output = nullptr;
+		{
+			std::lock_guard lock(request->inputMutex);
+			request->input.reset();
 		}
-		if (renderer._frontendScreenshotFrame && renderer._frontendScreenshotFrame->request == request)
-			renderer._frontendScreenshotFrame.reset();
 		renderer._backendThreadDispatcher.TryEnqueue([owner = &renderer, request] {
-			if (owner->_backendScreenshotFrame && owner->_backendScreenshotFrame->request == request)
-				owner->_backendScreenshotFrame.reset();
 			if (owner->_backendScreenshotRequest == request) owner->_backendScreenshotRequest.reset();
 		});
 	});
@@ -48,7 +44,7 @@ winrt::fire_and_forget Renderer::_WatchScreenshotRequest(std::shared_ptr<SceneSc
 	if (request->state.compare_exchange_strong(expected, SceneScreenshotState::Finished)) {
 		_QueueScreenshotCleanup(request);
 		if (request->report) request->report(request->target, ScalingError::ScreenshotReadbackFailed,
-			fmt::format("Screenshot request={} run={} / {} / waiting for a matching real presentation timed out",
+			fmt::format("Screenshot request={} run={} / {} / waiting for input handoff or matching presented output timed out",
 				request->id, request->runId, StrHelper::UTF16ToUTF8(request->directory.native())), WAIT_TIMEOUT);
 	}
 }
@@ -78,76 +74,142 @@ void Renderer::TakeDisplayedScreenshot() noexcept {
 	request->pairSavedMessage = window.GetLocalizedString(L"Message_ScreenshotPairSaved");
 	request->partialMessage = window.GetLocalizedString(L"Message_ScreenshotPartialSaved");
 	_sceneScreenshotRequest = request;
+	Logger::Get().Info(fmt::format(
+		"Screenshot requested: request={} run={} mode={} displayedFrame={} sequence={} generation={} generated={}",
+		request->id, request->runId, static_cast<uint32_t>(request->content),
+		_frontendPresentedFrameMetadata.frameId, request->captureSequence,
+		request->resourceGeneration, _frontendPresentedFrameMetadata.generated));
+	if (request->content != ScreenshotContent::InputOnly && !_frontendPresentedBaseValid) {
+		_FailScreenshotRequest(request, "No successfully presented final scene available");
+		return;
+	}
 	if (request->content == ScreenshotContent::OutputOnly) {
-		if (!_frontendPresentedBaseValid) {
-			_FailScreenshotRequest(request, "No successfully presented final scene available");
-			return;
-		}
 		winrt::com_ptr<ID3D11Device5> device;
 		device.copy_from(_frontendResources.GetD3DDevice());
 		winrt::com_ptr<ID3D11DeviceContext4> context;
 		context.copy_from(_frontendResources.GetD3DDC());
 		_SaveSceneScreenshot(request, std::move(device), std::move(context), ScalingWindow::Dispatcher(),
-			_frontendPresentedBaseValid ? _frontendPresentedBaseTexture : nullptr, _frontendPresentedFrameMetadata);
+			_frontendPresentedBaseTexture, _frontendPresentedFrameMetadata);
+		return;
+	}
+	try {
+		if (request->content == ScreenshotContent::InputAndOutput) _FixScreenshotOutput(request);
+	} catch (const winrt::hresult_error& error) {
+		_FailScreenshotRequest(request, "Fix displayed screenshot output", static_cast<uint32_t>(error.code().value));
 		return;
 	}
 	_WatchScreenshotRequest(request);
 	if (!_backendThreadDispatcher.TryEnqueue([this, request] {
 		if (request->session->IsStopping() || request->state.load() != SceneScreenshotState::Pending) return;
 		_backendScreenshotRequest = request;
-		_backendScreenshotFrame.reset();
-		// A static/duplicate source must not wait for a new-content notification.
-		_forceNextRender = true;
+		// Service the retained capture directly. A screenshot is not a new
+		// render, a temporal Evaluate, or an FG publication (even while paused).
+		_SnapshotScreenshotInput();
 	})) _FailScreenshotRequest(request, "Queue input snapshot", ERROR_CANCELLED);
 }
 
+void Renderer::_FixScreenshotOutput(const std::shared_ptr<SceneScreenshotRequest>& request) {
+	D3D11_TEXTURE2D_DESC desc{};
+	_frontendPresentedBaseTexture->GetDesc(&desc);
+	winrt::com_ptr<ID3D11Texture2D> output;
+	winrt::check_hresult(_frontendResources.GetD3DDevice()->CreateTexture2D(&desc, nullptr, output.put()));
+	_frontendResources.GetD3DDC()->CopyResource(output.get(), _frontendPresentedBaseTexture.get());
+	request->output = std::move(output);
+	request->outputMetadata = _frontendPresentedFrameMetadata;
+}
+
+void Renderer::_TryCompleteSceneScreenshot() noexcept {
+	const auto request = _sceneScreenshotRequest;
+	if (!request || request->state.load() != SceneScreenshotState::Pending || IsStopping()) return;
+	std::shared_ptr<SceneScreenshotFrame> input;
+	{
+		std::lock_guard lock(request->inputMutex);
+		input = request->input;
+	}
+	if (!input) return;
+	const auto& fixed = request->outputMetadata;
+	const auto& presented = _frontendPresentedFrameMetadata;
+	const auto selection = SelectScreenshotCandidate(request->content, input->Identity(),
+		{ fixed.frameId, fixed.captureSequence, fixed.resourceGeneration }, fixed.generated,
+		_frontendPresentedBaseValid ? ScreenshotFrameIdentity{ presented.frameId,
+			presented.captureSequence, presented.resourceGeneration } : ScreenshotFrameIdentity{}, presented.generated);
+	if (selection == ScreenshotSelection::Wait) return;
+	if (selection == ScreenshotSelection::RetryInput) {
+		{
+			std::lock_guard lock(request->inputMutex);
+			request->input.reset();
+		}
+		Logger::Get().Info(fmt::format("Screenshot request={} inputFrame={} skipped; presentedFrame={}, retry retained input",
+			request->id, input->metadata.frameId, presented.frameId));
+		if (!_backendThreadDispatcher.TryEnqueue([this, request] {
+			if (_backendScreenshotRequest == request) _SnapshotScreenshotInput();
+		})) _FailScreenshotRequest(request, "Queue newer input snapshot", ERROR_CANCELLED);
+		return;
+	}
+	try {
+		if (selection == ScreenshotSelection::PresentedOutput) _FixScreenshotOutput(request);
+		winrt::com_ptr<ID3D11Device5> device;
+		device.copy_from(_frontendResources.GetD3DDevice());
+		winrt::com_ptr<ID3D11DeviceContext4> context;
+		context.copy_from(_frontendResources.GetD3DDC());
+		_SaveSceneScreenshot(request, std::move(device), std::move(context), ScalingWindow::Dispatcher(),
+			request->output, request->content == ScreenshotContent::InputOnly ? input->metadata : request->outputMetadata, input);
+	} catch (const winrt::hresult_error& error) {
+		_FailScreenshotRequest(request, "Fix matching screenshot output", static_cast<uint32_t>(error.code().value));
+	}
+}
+
 void Renderer::_SnapshotScreenshotInput() noexcept {
-	_backendScreenshotFrame.reset();
 	const auto request = _backendScreenshotRequest;
 	if (!request || request->state.load() != SceneScreenshotState::Pending || IsStopping()) {
 		_backendScreenshotRequest.reset();
 		return;
 	}
 	try {
-		auto frame = std::make_shared<SceneScreenshotFrame>();
-		frame->request = request;
 		auto* source = _frameSource->GetPipelineTexture();
-		if (!source || !_frameSource->IsHdrFrameReady() || _frameSource->IsCaptureInterrupted()) return;
-		if ((request->resourceGeneration != 0 && request->captureSequence != _captureSequence) ||
-			(request->resourceGeneration != 0 && request->resourceGeneration != _frameSource->ResourceGeneration())) {
-			_FailScreenshotRequest(request, "Capture sequence or resources changed before input snapshot", ERROR_CANCELLED);
+		if (!source || !_capturedFrameId || !_frameSource->IsHdrFrameReady() || _frameSource->IsCaptureInterrupted()) {
+			_FailScreenshotRequest(request, fmt::format(
+				"Retained input unavailable: frame={} source={} ready={} interrupted={}",
+				_capturedFrameId, source != nullptr, _frameSource->IsHdrFrameReady(), _frameSource->IsCaptureInterrupted()), ERROR_CANCELLED);
 			return;
 		}
-		D3D11_TEXTURE2D_DESC desc{};
-		source->GetDesc(&desc);
+		if ((request->captureSequence != _captureSequence || _captureSequence != _frameSource->CaptureSequence()) ||
+			(request->resourceGeneration != 0 && request->resourceGeneration != _frameSource->ResourceGeneration())) {
+			_FailScreenshotRequest(request, fmt::format(
+				"Capture epoch changed: requested={}/{} retained={}/{} sourceSequence={}",
+				request->captureSequence, request->resourceGeneration, _captureSequence,
+				_frameSource->ResourceGeneration(), _frameSource->CaptureSequence()), ERROR_CANCELLED);
+			return;
+		}
+		{
+			std::lock_guard lock(request->inputMutex);
+			if (request->input) return;
+		}
+		auto frame = std::make_shared<SceneScreenshotFrame>();
+		frame->requestId = request->id;
 		frame->metadata = _frameSource->GetHdrFrameMetadata();
 		frame->metadata.frameId = _capturedFrameId;
 		frame->metadata.captureSequence = _captureSequence;
 		frame->metadata.resourceGeneration = _frameSource->ResourceGeneration();
 		frame->metadata.timestamp100ns = _acceptedCaptureTimestamp100ns;
-		frame->metadata.width = desc.Width;
-		frame->metadata.height = desc.Height;
-		frame->metadata.sourceFormat = desc.Format;
 		frame->metadata.generated = false;
 		frame->metadata.valid = true;
 		frame->metadata.stage = HdrFrameStage::CanonicalInput;
-		desc.Usage = D3D11_USAGE_DEFAULT;
-		desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
-		desc.CPUAccessFlags = 0;
-		desc.MiscFlags = D3D11_RESOURCE_MISC_SHARED_NTHANDLE | D3D11_RESOURCE_MISC_SHARED_KEYEDMUTEX;
-		winrt::check_hresult(_backendResources.GetD3DDevice()->CreateTexture2D(&desc, nullptr, frame->input.put()));
-		const auto resource = frame->input.as<IDXGIResource1>();
-		winrt::check_hresult(resource->CreateSharedHandle(nullptr, DXGI_SHARED_RESOURCE_READ | DXGI_SHARED_RESOURCE_WRITE,
-			nullptr, frame->inputHandle.put()));
-		const auto mutex = frame->input.as<IDXGIKeyedMutex>();
-		const HRESULT acquired = mutex->AcquireSync(0, 0);
-		if (acquired != S_OK) {
-			_FailScreenshotRequest(request, "Acquire input snapshot", static_cast<uint32_t>(acquired));
-			return;
+		frame->CopyInput(_backendResources.GetD3DDevice(), _backendResources.GetD3DDC(), source);
+		Logger::Get().Info(fmt::format(
+			"Screenshot input handed off: request={} frame={} sequence={} generation={} size={}x{}",
+			request->id, frame->metadata.frameId, frame->metadata.captureSequence,
+			frame->metadata.resourceGeneration, frame->metadata.width, frame->metadata.height));
+		{
+			std::lock_guard lock(request->inputMutex);
+			if (request->state.load() != SceneScreenshotState::Pending) return;
+			request->input = std::move(frame);
 		}
-		_backendResources.GetD3DDC()->CopyResource(frame->input.get(), source);
-		winrt::check_hresult(mutex->ReleaseSync(1));
-		_backendScreenshotFrame = std::move(frame);
+		if (!request->cleanupDispatcher.TryEnqueue([request] {
+			auto& window = ScalingWindow::Get();
+			if (!request->session->IsCurrent(ScalingWindow::RunId()) || !window || !window.TryGetRenderer()) return;
+			window.Renderer()._TryCompleteSceneScreenshot();
+		})) _FailScreenshotRequest(request, "Queue screenshot handoff", ERROR_CANCELLED);
 	} catch (const winrt::hresult_error& error) {
 		_FailScreenshotRequest(request, "Create native-size input snapshot", static_cast<uint32_t>(error.code().value));
 	} catch (...) { _FailScreenshotRequest(request, "Create native-size input snapshot"); }
@@ -193,7 +255,7 @@ winrt::fire_and_forget Renderer::_SaveSceneScreenshot(
 			context->CopyResource(image.staging.get(), source);
 		};
 		if (request->content != ScreenshotContent::OutputOnly) {
-			if (!input || input->request != request || !input->Identity().Matches(
+			if (!input || input->requestId != request->id || !input->Identity().Matches(
 				{ outputMetadata.frameId, outputMetadata.captureSequence, outputMetadata.resourceGeneration },
 				outputMetadata.generated)) {
 				_FailScreenshotRequest(request, "Input/output frame identity mismatch");
@@ -203,18 +265,26 @@ winrt::fire_and_forget Renderer::_SaveSceneScreenshot(
 			stage = "input / Open shared native-size texture";
 			winrt::check_hresult(device->OpenSharedResource1(input->inputHandle.get(), IID_PPV_ARGS(original.put())));
 			auto mutex = original.as<IDXGIKeyedMutex>();
-			const HRESULT acquired = mutex->AcquireSync(1, 0);
+			// Never block the render thread or mistake a queued GPU copy for
+			// failure. The immutable pair survives suspension independently.
+			co_await winrt::resume_background();
+			const HRESULT acquired = mutex->AcquireSync(1, 10000);
 			if (acquired != S_OK) {
 				_FailScreenshotRequest(request, "Acquire native input on frontend", static_cast<uint32_t>(acquired));
 				co_return;
 			}
 			const auto release = wil::scope_exit([&] { mutex->ReleaseSync(2); });
+			co_await dispatcher;
+			if (request->session->IsStopping()) {
+				_FailScreenshotRequest(request, "Scaling session stopped before input readback", ERROR_CANCELLED);
+				co_return;
+			}
 			snapshot(original.get(), input->metadata.color, L"input");
 		}
 		if (request->content != ScreenshotContent::InputOnly)
 			snapshot(output.get(), outputMetadata.color, L"output");
-		// All stable GPU copies precede suspension. No Renderer, ScalingWindow,
-		// or mutable shared slot is touched during readback/encoding below.
+		// No Renderer, ScalingWindow, or mutable shared slot is touched by
+		// readback/encoding. Both sides are immutable before the first suspension.
 		winrt::com_ptr<ID3D11Fence> fence;
 		stage = "input/output / Create and signal readback fence";
 		winrt::check_hresult(device->CreateFence(0, D3D11_FENCE_FLAG_NONE, IID_PPV_ARGS(fence.put())));
@@ -284,6 +354,8 @@ winrt::fire_and_forget Renderer::_SaveSceneScreenshot(
 					StrHelper::UTF16ToUTF8(path.native()), error.fileWriteFailed ? "write" : "encode", lastCode);
 			}
 		}
+		Logger::Get().Info(fmt::format("Screenshot completed: request={} run={} saved={}/{}",
+			request->id, request->runId, saved.size(), images.size()));
 		if (!failures.empty() && request->report)
 			request->report(request->target, lastError, fmt::format("Screenshot request={} run={} / saved={} / {}",
 				request->id, request->runId, saved.size(), failures), lastCode);

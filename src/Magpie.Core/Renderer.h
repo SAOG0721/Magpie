@@ -155,14 +155,14 @@ public:
 	) noexcept;
 
 private:
-	// Frontend-only admission; backend-only request/candidate; per-slot pointers
-	// use the same lock as frame metadata and scene copies.
+	// Frontend-only admission/output and backend-only request; input handoff
+	// is protected by the request mutex, independently of presentation slots.
 	std::shared_ptr<SceneScreenshotRequest> _sceneScreenshotRequest;
 	uint64_t _nextScreenshotRequestId = 0;
 	std::shared_ptr<SceneScreenshotRequest> _backendScreenshotRequest;
-	std::shared_ptr<SceneScreenshotFrame> _backendScreenshotFrame;
-	std::shared_ptr<SceneScreenshotFrame> _frontendScreenshotFrame;
 	void _SnapshotScreenshotInput() noexcept;
+	void _TryCompleteSceneScreenshot() noexcept;
+	void _FixScreenshotOutput(const std::shared_ptr<SceneScreenshotRequest>& request);
 	static void _QueueScreenshotCleanup(std::shared_ptr<SceneScreenshotRequest> request) noexcept;
 	static winrt::fire_and_forget _WatchScreenshotRequest(std::shared_ptr<SceneScreenshotRequest> request);
 	static winrt::fire_and_forget _SaveSceneScreenshot(
@@ -349,7 +349,6 @@ private:
 	// reference-image capacity and apply backpressure rather than allocating
 	// seven extra HDR outputs before the frontend can consume them.
 	static constexpr uint32_t MAX_SHARED_TEXTURE_SLOTS = PassThroughFrames::MAX_SLOTS;
-	std::array<std::shared_ptr<SceneScreenshotFrame>, MAX_SHARED_TEXTURE_SLOTS> _sharedScreenshotFrames{};
 	std::array<winrt::com_ptr<ID3D11Texture2D>, MAX_SHARED_TEXTURE_SLOTS>
 		_frontendSharedTextures;
 	std::array<winrt::com_ptr<IDXGIKeyedMutex>, MAX_SHARED_TEXTURE_SLOTS>

@@ -947,7 +947,6 @@ Renderer::FrontendBaseResult Renderer::_UpdateFrontendBase(uint32_t sharedTextur
 		_frontendCaptureFrameId = _sharedTextureFrameIds[sharedTextureSlot].load(std::memory_order_acquire);
 		_frontendFrameMetadata = _sharedFrameMetadata[sharedTextureSlot];
 		_frontendMotionAvailability = _sharedMotionAvailability[sharedTextureSlot];
-		_frontendScreenshotFrame = std::move(_sharedScreenshotFrames[sharedTextureSlot]);
 		FrameTrace::SetFrame(_frontendCaptureFrameId);
 		traceBase.FrameId(_frontendCaptureFrameId);
 		if (!_passThroughFrames.Consume(sharedTextureSlot) && _isPassThroughActive) {
@@ -1293,22 +1292,7 @@ bool Renderer::_SubmitFrontendFrame() noexcept {
 			_frontendPresentedFrameMetadata = _frontendFrameMetadata;
 			_frontendPresentedFrameMetadata.stage = HdrFrameStage::PresentedOutput;
 			_passThroughFrames.OnPresented();
-			// Only a successfully submitted real scene may complete an input pair.
-			if (_frontendScreenshotFrame && contentFrame &&
-				_frontendScreenshotFrame->Identity().Matches(
-					{ _frontendPresentedFrameMetadata.frameId,
-						_frontendPresentedFrameMetadata.captureSequence,
-						_frontendPresentedFrameMetadata.resourceGeneration },
-					_frontendPresentedFrameMetadata.generated)) {
-				winrt::com_ptr<ID3D11Device5> device;
-				device.copy_from(_frontendResources.GetD3DDevice());
-				winrt::com_ptr<ID3D11DeviceContext4> context;
-				context.copy_from(d3dDC);
-				_SaveSceneScreenshot(_frontendScreenshotFrame->request, std::move(device),
-					std::move(context), ScalingWindow::Dispatcher(), _frontendPresentedBaseTexture,
-					_frontendPresentedFrameMetadata, _frontendScreenshotFrame);
-				_frontendScreenshotFrame.reset();
-			}
+			_TryCompleteSceneScreenshot();
 		}
 		if (!stableBaseOnly) _frontendBaseNeedsPresent = false;
 		if (!uiInIndependentLayer) {
@@ -3551,6 +3535,9 @@ void Renderer::_BackendThreadProc() noexcept {
 		switch (frameSourceState) {
 		case FrameSourceState::Waiting:
 			if (_frameSource->IsCaptureInterrupted()) {
+				if (_backendScreenshotRequest &&
+					_backendScreenshotRequest->state.load() == SceneScreenshotState::Pending)
+					_FailScreenshotRequest(_backendScreenshotRequest, "Capture interrupted before screenshot handoff completed", ERROR_CANCELLED);
 				_reflex.CompleteCapture();
 				// Keep the last published frame; even live parameter edits must wait
 				// for valid input before re-entering temporal effects. The timeout
@@ -4588,11 +4575,6 @@ bool Renderer::_PublishBackendTexture(
 			_sharedTextureTimestamps[sharedTextureSlot].store(
 				_frameSource->CaptureTimestamp100ns(), std::memory_order_release);
 			_sharedFrameMetadata[sharedTextureSlot] = publicationMetadata;
-			_sharedScreenshotFrames[sharedTextureSlot] =
-				_backendScreenshotFrame && _backendScreenshotFrame->Identity().Matches(
-					{ publicationMetadata.frameId, publicationMetadata.captureSequence,
-						publicationMetadata.resourceGeneration }, generatedFrame)
-				? _backendScreenshotFrame : nullptr;
 			_sharedReflexIds[sharedTextureSlot] = { _reflex.CaptureFrameId(), reflexPresentId };
 			hr = ReleasePresentationTextures(mutexes, key);
 			if (SUCCEEDED(hr)) _sharedTextureMutexKeys[sharedTextureSlot].store(key, std::memory_order_release);

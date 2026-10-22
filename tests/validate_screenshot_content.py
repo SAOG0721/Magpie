@@ -29,9 +29,14 @@ effect_loops = [renderer.find(marker, snapshot) for marker in (
     'for (uint32_t i = 0; i < preEnd; ++i)')]
 assert snapshot < min(index for index in effect_loops if index >= 0)
 assert '_isPassThroughActive' not in new
-assert 'frame->input.get(), source' in new and 'GetPipelineTexture()' in new
-assert 'frame->metadata.width = desc.Width' in new
-assert 'frame->metadata.height = desc.Height' in new
+transfer = read('src/Magpie.Core/SceneScreenshot.h')
+assert 'CopyResource(input.get(), source)' in transfer and 'GetPipelineTexture()' in new
+assert 'metadata.width = desc.Width' in transfer
+assert 'metadata.height = desc.Height' in transfer
+assert '_sharedScreenshotFrames' not in renderer
+request = new[new.index('void Renderer::TakeDisplayedScreenshot'):new.index('void Renderer::_FixScreenshotOutput')]
+assert '_SnapshotScreenshotInput();' in request and '_forceNextRender' not in request
+assert '_TryCompleteSceneScreenshot();' in renderer
 save = new[new.index('winrt::fire_and_forget Renderer::_SaveSceneScreenshot('):]
 suspended = save[save.index('co_await winrt::resume_background();'):]
 assert 'ScalingWindow::' not in suspended and '[this]' not in suspended
