@@ -1,6 +1,6 @@
-# 性能分析浮窗：实现、验证与待部署记录
+# 性能分析浮窗：实现、验证与 0.6.11 部署记录
 
-2026-10-23。设计及任务清单：[TODO](../todos/20261023-profiler-compact-resizable-TODO.md)。产品提交 `9bfcc844228206108b218730d7d3e7f3a2db2765`，版本保持 0.6.11。
+2026-10-23。设计及任务清单：[TODO](../todos/20261023-profiler-compact-resizable-TODO.md)。产品提交 `9bfcc844228206108b218730d7d3e7f3a2db2765`，版本保持 0.6.11。北京时间约 17:22 完成备份覆盖部署。
 
 ## 最终交互
 
@@ -25,7 +25,7 @@ Release x64 0.6.11 完整构建通过，编译 PRI 的 16 项图表资源 × 三
 
 候选版第二轮同进程复测再次在进入 XeSS FG 时崩溃，异常子码和 `RTSSHooks64+0x26a7c → nvapi64_impl` 路径一致。最终观察为候选 **2/2** 次失败、旧版 **0/2** 次失败。这是少量样本，不能据此给出稳定的故障概率，也不能把独立场景通过视作完整运行验收通过。
 
-两次失败数据和转储均保留。现有 Magpie RTSS 配置的 `ReflexSetLatencyMarker=1`，配置目录需要管理员写权限；经用户另行授权，仅创建并清理了专属临时测试配置。未修改现有 Magpie／全局 RTSS 配置、驱动或用户配置，也未关闭 CFG 检查。
+两次失败数据和转储均保留。测试前 Magpie RTSS 配置的 `ReflexSetLatencyMarker=1`，配置目录需要管理员写权限；经用户授权，首先仅创建并清理了专属临时测试配置。该隔离阶段未修改现有 Magpie／全局 RTSS 配置、驱动或用户配置，也未关闭 CFG 检查；后续实际单项配置修改另经用户明确授权，详见下文。
 
 ## 经授权的单变量隔离实验
 
@@ -38,14 +38,20 @@ Release x64 0.6.11 完整构建通过，编译 PRI 的 16 项图表资源 × 三
 | 开启 B | 13,235 | 同一地址和路径 | 调试器捕获并脱离后正常 |
 | 关闭 B | 0 | 无 | 正常 |
 
-关闭组仍加载 RTSSHooks64，四次二进制哈希一致，配置差异仅该标记字段。该结果支持在本机按进程关闭 RTSS 标记来规避异常；没有把调试下的首机会异常计作四次新的崩溃，也不声称已修复 RTSS 内部的设备缓存。原应用名下、无调试器的最终验证仍需在用户同意实际配置修改后执行。
+关闭组仍加载 RTSSHooks64，四次二进制哈希一致，配置差异仅该标记字段。该结果支持在本机按进程关闭 RTSS 标记来规避异常；没有把调试下的首机会异常计作四次新的崩溃，也不声称已修复 RTSS 内部的设备缓存。
 
-临时配置已删除，管理员辅助进程已完成；现有 Magpie、Global 配置及 RTSS DLL 的前后哈希一致。精确的单项修改提案保存在审计目录 `Magpie-marker-off-proposal.cfg`，申请的实际改动为 `ReflexSetLatencyMarker=1 → 0`。该提案尚未应用；此前授权仅涵盖临时测试配置。
+临时配置已删除，管理员辅助进程已完成；隔离测试前后现有 Magpie、Global 配置及 RTSS DLL 的哈希一致。随后用户明确授权实际单项修改：17:18 将 Magpie 专用配置 `ReflexSetLatencyMarker=1 → 0`，备份为审计目录 `backup/RTSS-Magpie.exe.cfg`。Global 配置和其余字段未变。
 
-## 包校验与备份状态
+实际配置修改后，以原程序名 `Magpie.exe`、不带调试器，重新执行两轮普通 → DLSS FG → XeSS FG 测试，均正常退出，没有 GPU 计时禁用或超时。每轮包含分析器开关、源窗口尺寸变化及静止恢复；6 个场景均多次启动真实计时查询。全过程使用测试专属便携配置，78 个用户 Magpie 配置文件前后哈希一致。
+
+RTSS 配置原 SHA-256：`DDB7C5CAC39A2801E80BEDF68FDB001484AE17C7AA1A1AB304888EADEB1D3C99`；修改后：`105A8090E8F33DCA12FF5FB49AC4AFB5F59E6FE7BE75C4F1CE20CC4311AD2936`。审计目录中的 `Set-MagpieMarkerMitigation.ps1 -Action Restore` 提供独立回退路径，需管理员权限，并在恢复前检查当前文件与备份哈希，避免覆盖后来的用户修改。程序版本回滚与 RTSS 配置回滚可分别进行。
+
+## 包校验、备份与部署状态
 
 候选目录和 ZIP 的 246 个文件逐项哈希通过。当前安装 `cf2532e1` 的程序、ZIP、全部 78 个配置文件、快捷方式及部署收据已备份并核验到工作区 `.tools/deploy-0611-profiler-compact-20261023/backup/`。运行测试前后 78 个用户配置文件哈希一致。
 
-当前收据状态为 `backup-verified-awaiting-runtime-decision`，位于同一审计目录 `deployment-state.json`。**尚未覆盖** `worktrees/release/v0.6.11-experimental/`，原安装及其部署收据保持原样。程序已退出。跨效果链风险需排除或由用户明确接受后，才能继续覆盖部署；任务未标记完成。
+最终收据状态为 `deployed-package-and-shortcut-verified`，保存于审计目录及 `worktrees/release/v0.6.11-experimental/deployment-state.json`。正式目录现为 `9bfcc844`：246 个包文件与候选一致，实际变化为 `Magpie.exe`、`resources.pri`、`build-manifest.json`，13 个额外文件原样保留。78 个 Magpie 配置文件未变，快捷方式保持指向原正式目录，正式程序未重新启动。
+
+本次完成的是该本机 RTSS 配置下的有界复测及浮窗改动验收，不把单项规避写成 RTSS 自身缺陷已修复，也不保证所有驱动／跨效果链组合的长期稳定性。
 
 所有证据位于工作区 `.tools/deploy-0611-profiler-compact-20261023/`。未使用 Computer Use，未执行 GitHub push、标签、Draft 或公开发布。物理鼠标、真实跨屏 DPI、HDR 显示及长期游戏体验未作为自动验收通过项。
