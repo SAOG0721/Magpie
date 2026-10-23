@@ -1,4 +1,4 @@
-#include "pch.h"
+﻿#include "pch.h"
 #include "HdrParameterPolicy.h"
 #include "NvidiaVfxParameterPolicy.h"
 #include "OverlayDrawer.h"
@@ -2182,27 +2182,50 @@ void OverlayDrawer::_DrawProfilerGraph(const ProfilerHistory::Plot& plot, int me
 		if (metric == 0) return ProfilerHistory::Values{ point.fps, point.fps, point.fpsValid ? 1u : 0u };
 		return metric == 1 ? point.interval : point.effects;
 	};
-	ProfilerHistory::Values summary;
-	std::optional<float> current;
+	struct Series {
+		const ProfilerHistory::Plot* plot;
+		std::string label;
+		ImGuiCol color;
+		bool available;
+		ProfilerHistory::Values summary{};
+		std::optional<float> current{};
+	};
+	const int seriesCount = metric == 2 ? 1 : 2;
+	Series series[]{
+		{ &plot, _GetResourceString(L"Overlay_Profiler_CaptureSeries"), ImGuiCol_PlotLines, available },
+		{ &_profilerOutputProfile.plot, _GetResourceString(_profilerOutputProfile.source == ContentFrameCountSource::Submitted
+			? L"Overlay_Profiler_OutputSubmittedSeries" : L"Overlay_Profiler_OutputSeries"),
+			ImGuiCol_PlotHistogram, _profilerOutputProfile.active && (metric == 0 || _profilerOutputProfile.individualTimestamps) }
+	};
 	const auto now = plot.points.back().time;
-	for (const auto& point : plot.points) {
-		const auto value = values(point);
-		if (!value.count) continue;
-		summary.total += value.total;
-		summary.count += value.count;
-		summary.maximum = std::max(summary.maximum, value.maximum);
-		if (now - point.time <= 500ms) current = float(value.Mean());
+	double plotMaximum = 0;
+	for (int i = 0; i < seriesCount; ++i) {
+		auto& s = series[i];
+		for (const auto& point : s.plot->points) {
+			const auto value = values(point);
+			if (!value.count) continue;
+			s.summary.total += value.total;
+			s.summary.count += value.count;
+			s.summary.maximum = std::max(s.summary.maximum, value.maximum);
+			if (now - point.time <= 500ms) s.current = float(value.Mean());
+		}
+		if (!s.available || s.plot->suspended) s.current.reset();
+		plotMaximum = std::max(plotMaximum, s.summary.maximum);
 	}
-	if (!available || plot.suspended) current.reset();
 	ImGui::PushID(metric);
+	ImGui::PushTextWrapPos();
 	ImGui::TextUnformatted(_GetResourceString(LABELS[metric]).c_str());
 	if (ImGui::IsItemHovered()) ImGui::SetTooltip("%s", _GetResourceString(HELP[metric]).c_str());
-	const auto text = current ? fmt::format("{:.2f} {}", *current, unit) : fmt::format("-- {}", unit);
-	ImGui::SameLine(std::max(ImGui::GetCursorPosX(), ImGui::GetWindowContentRegionMax().x - ImGui::CalcTextSize(text.c_str()).x));
-	ImGui::TextUnformatted(text.c_str());
-	double plotMaximum = summary.maximum;
-	if (metric == 0 && _profilerHasOutput) for (const auto& output : _profilerOutputs) {
-		if (output.known && output.end > now - 10s) plotMaximum = std::max(plotMaximum, double(output.fps));
+	for (int i = 0; i < seriesCount; ++i) {
+		const auto& s = series[i];
+		if (seriesCount > 1) ImGui::TextColored(ImGui::GetStyleColorVec4(s.color), "%s", s.label.c_str());
+		const auto value = s.current ? fmt::format("{:.2f} {}", *s.current, unit) : fmt::format("-- {}", unit);
+		const float right = ImGui::GetWindowContentRegionMax().x - ImGui::CalcTextSize(value.c_str()).x;
+		// A narrow viewport may constrain the normal minimum width. Wrap the
+		// value to its own line instead of overlapping the source label.
+		if (right >= ImGui::GetItemRectMax().x - ImGui::GetWindowPos().x + ImGui::GetStyle().ItemSpacing.x)
+			ImGui::SameLine(right);
+		ImGui::TextUnformatted(value.c_str());
 	}
 	const float target = std::max(metric == 0 ? 10.0f : 0.1f, float(plotMaximum) * 1.15f);
 	float& scale = _profilerGraphMax[metric];
@@ -2214,59 +2237,66 @@ void OverlayDrawer::_DrawProfilerGraph(const ProfilerHistory::Plot& plot, int me
 	const ImVec2 end(origin.x + size.x, origin.y + size.y);
 	draw->AddRectFilled(origin, end, ImGui::GetColorU32(ImGuiCol_FrameBg), 3.0f * _dpiScale);
 	draw->PushClipRect(origin, end, true);
-	const ImU32 line = ImGui::GetColorU32(ImGuiCol_PlotLines);
-	const ImU32 peak = ImGui::GetColorU32(ImGuiCol_PlotLinesHovered, 0.55f);
 	auto position = [&](const auto& point, double value) {
 		const float age = float(duration<double>(now - point.time).count());
 		return ImVec2(end.x - std::clamp(age / 10.0f, 0.0f, 1.0f) * size.x,
 			end.y - 2.0f * _dpiScale - float(value / scale) * (size.y - 4.0f * _dpiScale));
 	};
-	std::optional<ImVec2> previous;
-	for (const auto& point : plot.points) {
-		const auto value = values(point);
-		if (!value.count) { previous.reset(); continue; }
-		const auto mean = position(point, value.Mean());
-		if (previous) draw->AddLine(*previous, mean, line, _dpiScale);
-		else draw->AddCircleFilled(mean, _dpiScale, line);
-		if (metric != 0) draw->AddLine(mean, position(point, value.maximum), peak, _dpiScale);
-		previous = mean;
-	}
-	if (metric == 0 && _profilerHasOutput) {
-		for (const auto& output : _profilerOutputs) {
-			if (!output.known || output.end <= now - 10s || output.end <= _profilerStartedAt) continue;
-			ProfilerHistory::Point begin{}, finish{};
-			begin.time = std::max(output.begin, _profilerStartedAt);
-			finish.time = output.end;
-			draw->AddLine(position(begin, output.fps), position(finish, output.fps),
-				ImGui::GetColorU32(ImGuiCol_PlotHistogram), 1.5f * _dpiScale);
+	bool hasSamples = false;
+	for (int i = 0; i < seriesCount; ++i) {
+		const auto& s = series[i];
+		hasSamples = hasSamples || s.summary.count != 0;
+		const ImU32 line = ImGui::GetColorU32(s.color);
+		const ImU32 peak = ImGui::GetColorU32(metric == 2 ? ImGuiCol_PlotLinesHovered : s.color, 0.55f);
+		std::optional<ImVec2> previous;
+		for (const auto& point : s.plot->points) {
+			const auto value = values(point);
+			if (!value.count) { previous.reset(); continue; }
+			const auto mean = position(point, value.Mean());
+			if (previous) draw->AddLine(*previous, mean, line, _dpiScale);
+			else draw->AddCircleFilled(mean, _dpiScale, line);
+			if (metric != 0) draw->AddLine(mean, position(point, value.maximum), peak, _dpiScale);
+			previous = mean;
 		}
 	}
 	const auto limit = fmt::format("{:.1f} {}", scale, unit);
 	draw->AddText(ImVec2(origin.x + 4 * _dpiScale, origin.y + 2 * _dpiScale), ImGui::GetColorU32(ImGuiCol_TextDisabled), limit.c_str());
-	if (!summary.count) draw->AddText(ImVec2(origin.x + 4 * _dpiScale, origin.y + 22 * _dpiScale),
+	if (!hasSamples) draw->AddText(ImVec2(origin.x + 4 * _dpiScale, origin.y + 22 * _dpiScale),
 		ImGui::GetColorU32(ImGuiCol_TextDisabled), _GetResourceString(available ? L"Overlay_Profiler_WaitingSamples" : L"Overlay_Profiler_TimingUnavailable").c_str());
 	draw->PopClipRect();
 	if (ImGui::IsItemHovered()) {
 		const float age = std::clamp((end.x - ImGui::GetIO().MousePos.x) / size.x, 0.0f, 1.0f) * 10.0f;
-		const ProfilerHistory::Point* nearest = &plot.points.front();
-		float distance = std::numeric_limits<float>::max();
-		for (const auto& point : plot.points) {
-			const float delta = std::abs(float(duration<double>(now - point.time).count()) - age);
-			if (delta < distance) { distance = delta; nearest = &point; }
+		std::string tooltip = fmt::format("-{:.1f} s\n{}", age, _GetResourceString(L"Overlay_Profiler_MeanPeak"));
+		for (int i = 0; i < seriesCount; ++i) {
+			const auto& s = series[i];
+			const ProfilerHistory::Point* nearest = &s.plot->points.front();
+			float distance = std::numeric_limits<float>::max();
+			for (const auto& point : s.plot->points) {
+				const float delta = std::abs(float(duration<double>(now - point.time).count()) - age);
+				if (delta < distance) { distance = delta; nearest = &point; }
+			}
+			const auto value = values(*nearest);
+			const auto sample = value.count ? fmt::format("{:.2f} / {:.2f} {}", value.Mean(), value.maximum, unit) : "--";
+			tooltip += seriesCount > 1 ? fmt::format("\n{}: {}", s.label, sample) : "\n" + sample;
 		}
-		const auto value = values(*nearest);
-		const auto sample = value.count ? fmt::format("{:.2f} / {:.2f} {}", value.Mean(), value.maximum, unit) : "--";
-		ImGui::SetTooltip("-%.1f s\n%s: %s", age, _GetResourceString(L"Overlay_Profiler_MeanPeak").c_str(), sample.c_str());
+		ImGui::SetTooltip("%s", tooltip.c_str());
 	}
-	if (summary.count) ImGui::TextDisabled("%s: %.2f / %.2f %s", _GetResourceString(L"Overlay_Profiler_MeanPeak").c_str(), summary.Mean(), summary.maximum, unit);
-	if (metric == 0 && plot.points.back().warming) ImGui::TextDisabled("%s", _GetResourceString(L"Overlay_Profiler_Warming").c_str());
-	if (metric == 0 && _profilerHasOutput) {
-		ImGui::TextColored(ImGui::GetStyleColorVec4(ImGuiCol_PlotHistogram), "%s",
-			_GetResourceString(_profilerOutputSubmitted ? L"Overlay_Profiler_SubmittedLine" : L"Overlay_Profiler_OutputLine").c_str());
+	for (int i = 0; i < seriesCount; ++i) {
+		const auto& s = series[i];
+		if (!s.summary.count) continue;
+		const auto label = seriesCount > 1 ? fmt::format("{} {}", s.label, _GetResourceString(L"Overlay_Profiler_MeanPeak"))
+			: _GetResourceString(L"Overlay_Profiler_MeanPeak");
+		ImGui::TextDisabled("%s: %.2f / %.2f %s", label.c_str(), s.summary.Mean(), s.summary.maximum, unit);
 	}
+	if (metric == 0 && (plot.points.back().warming || _profilerOutputProfile.plot.points.back().warming))
+		ImGui::TextDisabled("%s", _GetResourceString(L"Overlay_Profiler_Warming").c_str());
+	if (metric == 1 && !_profilerOutputProfile.individualTimestamps)
+		ImGui::TextDisabled("%s", _GetResourceString(L"Overlay_Profiler_OutputIntervalUnavailable").c_str());
 	ImGui::Spacing();
+	ImGui::PopTextWrapPos();
 	ImGui::PopID();
 }
+
 
 bool OverlayDrawer::_BeginProfilerWindow() noexcept {
 	const ImVec2 displaySize = ImGui::GetIO().DisplaySize;
@@ -2330,7 +2360,9 @@ bool OverlayDrawer::_DrawProfilerGraphs(const EffectsProfilerSnapshot& profile) 
 		ImGui::TextDisabled("-10 s");
 		ImGui::SameLine(ImGui::GetWindowContentRegionMax().x - ImGui::CalcTextSize("0 s").x);
 		ImGui::TextDisabled("0 s");
-		const auto plot = profile.history.Read(steady_clock::now());
+		const auto now = steady_clock::now();
+		const auto plot = profile.history.Read(now);
+		_profilerOutputProfile = ScalingWindow::Get().Renderer().PresentationProfile(now);
 		if (plot.suspended) ImGui::TextUnformatted(_GetResourceString(L"Overlay_Profiler_Paused").c_str());
 		_DrawProfilerGraph(plot, 0, profile.history.Active());
 		_DrawProfilerGraph(plot, 1, profile.history.Active());
@@ -2351,10 +2383,7 @@ bool OverlayDrawer::_DrawProfiler(const EffectsProfilerSnapshot& profile, uint32
 		for (auto& value : _effectTimingsStatistics) value = {};
 		for (auto& value : _lastestAvgEffectTimings) value = 0;
 		_profilerGraphMax = {};
-		_profilerOutputs = {};
-		_profilerOutputNext = 0;
-		_profilerOutputEnd = {};
-		_profilerStartedAt = steady_clock::now();
+		_profilerOutputProfile = {};
 	}
 	const ScalingOptions& options = ScalingWindow::Get().Options();
 	const Renderer& renderer = ScalingWindow::Get().Renderer();
@@ -2423,14 +2452,7 @@ bool OverlayDrawer::_DrawProfiler(const EffectsProfilerSnapshot& profile, uint32
 	}
 	const auto rate = renderer.PresentationRate();
 	const bool submittedRate = rate.source == ContentFrameCountSource::Submitted;
-	_profilerHasOutput = renderer.HasFrameGeneration() && profile.history.Active();
-	if (_profilerHasOutput && rate.windowEnd != _profilerOutputEnd) {
-		if (_profilerOutputSubmitted != submittedRate) _profilerOutputs = {};
-		_profilerOutputSubmitted = submittedRate;
-		_profilerOutputEnd = rate.windowEnd;
-		_profilerOutputs[_profilerOutputNext] = { rate.windowStart, rate.windowEnd, float(rate.total), rate.totalKnown };
-		_profilerOutputNext = (_profilerOutputNext + 1) % _profilerOutputs.size();
-	}
+
 	const std::string& frameRateStr = _GetResourceString(renderer.HasFrameGeneration() ?
 		(submittedRate ? L"Overlay_FG_SubmittedRate" : L"Overlay_Profiler_FrameRateWithFG") : L"Overlay_Profiler_FrameRate");
 	ImGui::TextUnformatted(fmt::format("{}: {}", frameRateStr, _FormatFrameRate(fps)).c_str());

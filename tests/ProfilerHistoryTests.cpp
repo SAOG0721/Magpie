@@ -22,6 +22,7 @@ int main() {
         history.Observe(base + 12s);
         const auto plot = history.Read(base + 12s);
         assert(Near(plot.points.back().fps, fps));
+        assert(!plot.points.back().warming);
         const auto& before = plot.points[98];
         assert(before.interval.count && Near(before.interval.Mean(), 1000.0 / fps));
         assert(before.effects.count && Near(before.effects.Mean(), 2.0));

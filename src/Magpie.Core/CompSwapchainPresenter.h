@@ -17,6 +17,10 @@ public:
 	) noexcept override;
 
 	bool EndFrame(bool waitForGpu = false) noexcept override;
+	ContentFrameCount LastContentFrameCount() const noexcept override {
+		return { _lastPresentedFrameCount, ContentFrameCountSource::Reported,
+			_lastPresentedFrameCount == 1u ? std::optional(_lastSubmissionTime) : std::nullopt };
+	}
 
 	bool OnResize() noexcept override;
 

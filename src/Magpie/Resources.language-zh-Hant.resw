@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <root>
   <!--
     Microsoft ResX Schema
@@ -2214,8 +2214,8 @@
   <data name="Overlay_Profiler_GraphFPS" xml:space="preserve"><value>幀率</value></data>
   <data name="Overlay_Profiler_GraphInterval" xml:space="preserve"><value>幀間隔</value></data>
   <data name="Overlay_Profiler_GraphEffects" xml:space="preserve"><value>效果器耗時</value></data>
-  <data name="Overlay_Profiler_GraphFPSHelp" xml:space="preserve"><value>喜鵲後端處理幀率，不含補幀輸出；約 1 秒滾動視窗。同一擷取幀的再次處理也計入，不能作為遊戲原生幀率。</value></data>
-  <data name="Overlay_Profiler_GraphIntervalHelp" xml:space="preserve"><value>相鄰處理事件的實際間隔。曲線為每 100 毫秒內的平均值，細線保留峰值；不是 1000/FPS 或顯示器掃描間隔。</value></data>
+  <data name="Overlay_Profiler_GraphFPSHelp" xml:space="preserve"><value>擷取為按目前去重規則接收的有效幀；輸出包含補幀，排除游標、介面更新及舊畫面重放。輸出按後端回報或提交計數，不代表顯示器掃描幀率。</value></data>
+  <data name="Overlay_Profiler_GraphIntervalHelp" xml:space="preserve"><value>擷取為相鄰有效幀的接收間隔，輸出為相鄰內容幀的提交間隔。只使用真實逐幀時間戳記，不從 FPS 或補幀倍率反推；每 100 毫秒保留平均值和峰值。</value></data>
   <data name="Overlay_Profiler_GraphEffectsHelp" xml:space="preserve"><value>每個有效樣本的已測效果器總耗時，包含零工作樣本。上方各效果器明細為各效果實際執行時的平均值，統計分母可能不同。</value></data>
   <data name="Overlay_Profiler_PartialTiming" xml:space="preserve"><value>部分統計</value></data>
   <data name="Overlay_Profiler_PartialTimingHelp" xml:space="preserve"><value>只統計 D3D11 效果區間。跨 D3D12/CUDA 的工作可能未被完整涵蓋，或包含佇列間等待；不代表所有效果器的純 GPU 耗時。補幀代理的輸入複製與 SDK 內部補幀仍分開。</value></data>
@@ -2227,4 +2227,8 @@
   <data name="Overlay_Profiler_OutputLine" xml:space="preserve"><value>輸出幀率（補幀後）</value></data>
   <data name="Overlay_Profiler_SubmittedLine" xml:space="preserve"><value>提交幀率（補幀後）</value></data>
   <data name="Overlay_Profiler_Graphs" xml:space="preserve"><value>圖表</value></data>
+  <data name="Overlay_Profiler_CaptureSeries" xml:space="preserve"><value>擷取</value></data>
+  <data name="Overlay_Profiler_OutputSeries" xml:space="preserve"><value>輸出</value></data>
+  <data name="Overlay_Profiler_OutputSubmittedSeries" xml:space="preserve"><value>輸出（提交）</value></data>
+  <data name="Overlay_Profiler_OutputIntervalUnavailable" xml:space="preserve"><value>輸出端暫未提供逐幀時間戳記</value></data>
 </root>

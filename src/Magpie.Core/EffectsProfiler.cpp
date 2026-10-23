@@ -77,7 +77,8 @@ void EffectsProfiler::SetPassCount(ID3D11Device* d3dDevice, uint32_t passCount, 
 	Start(d3dDevice, passCount, partial);
 }
 
-void EffectsProfiler::OnFrame(ID3D11Device* device, uint64_t captureSequence, uint64_t resourceGeneration) noexcept {
+void EffectsProfiler::OnFrame(ID3D11Device* device, uint64_t captureSequence, uint64_t resourceGeneration,
+	bool isNewCaptureFrame) noexcept {
 	if (!_enabled) return;
 	if (_contextSet && (_captureSequence != captureSequence || _resourceGeneration != resourceGeneration))
 		SetPassCount(device, _requestedPassCount, _partial);
@@ -85,7 +86,9 @@ void EffectsProfiler::OnFrame(ID3D11Device* device, uint64_t captureSequence, ui
 	_captureSequence = captureSequence;
 	_resourceGeneration = resourceGeneration;
 	_frameTime = ProfilerHistory::Clock::now();
-	_history.Frame(_frameTime);
+	// Reprocessing an old capture still has effect work, but is not a new input.
+	if (isNewCaptureFrame) _history.Frame(_frameTime);
+	else _history.Observe(_frameTime);
 	_PublishHistory(_frameTime);
 }
 

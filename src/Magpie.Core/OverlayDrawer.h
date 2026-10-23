@@ -5,6 +5,7 @@
 #include "ScalingOptions.h"
 #include "EffectParameterResetGesture.h"
 #include "ProfilerHistory.h"
+#include "PresentationFrameRate.h"
 
 namespace Magpie {
 
@@ -180,15 +181,7 @@ private:
 	std::chrono::steady_clock::time_point _lastProfilerDrawTime{};
 	uint64_t _profilerGeneration = 0;
 	std::array<float, 3> _profilerGraphMax{};
-	struct _ProfilerOutputSample {
-		ProfilerHistory::Time begin{}, end{};
-		float fps = 0;
-		bool known = false;
-	};
-	std::array<_ProfilerOutputSample, 12> _profilerOutputs{};
-	size_t _profilerOutputNext = 0;
-	ProfilerHistory::Time _profilerStartedAt{}, _profilerOutputEnd{};
-	bool _profilerHasOutput = false, _profilerOutputSubmitted = false;
+	PresentationProfilerSnapshot _profilerOutputProfile{};
 	bool _profilerTimingKnown = false;
 	bool _profilerWindowLayoutInitialized = false;
 	bool _profilerWindowLayoutDirty = false;

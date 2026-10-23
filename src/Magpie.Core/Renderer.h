@@ -53,6 +53,9 @@ public:
 	bool RenderOverlay() noexcept;
 	bool HasFrameGeneration() const noexcept { return _hasFrameGeneration; }
 	PresentationRateSnapshot PresentationRate() const noexcept { return _presentationRate.Get(); }
+	PresentationProfilerSnapshot PresentationProfile(ProfilerHistory::Time now) const noexcept {
+		return _presentationRate.Profile(now);
+	}
 	bool IsWaitingForNewContent() const noexcept {
 		return _hasFrameGeneration && _captureAllowsIdle.load(std::memory_order_acquire) &&
 			!HasPendingContent() && !_backendContentInFlight.load(std::memory_order_acquire) &&

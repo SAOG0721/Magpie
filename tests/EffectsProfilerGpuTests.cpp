@@ -24,7 +24,7 @@ static void Run(D3D_DRIVER_TYPE type) {
     assert(profiler.IsProfiling() && profiler.GetSnapshot().gpuAvailable);
     bool measured=false;
     for(int i=0;i<20;++i){
-        profiler.OnFrame(device.get(),1,1);
+        profiler.OnFrame(device.get(),1,1, i%2==0);
         profiler.OnBeginEffects(context.get());
         float color[]{float(i)/20.0f,0.2f,0.3f,1};
         for(int draw=0;draw<10;++draw) context->ClearRenderTargetView(view.get(),color);
@@ -51,25 +51,29 @@ static void Run(D3D_DRIVER_TYPE type) {
     uint32_t samples=0;
     for(const auto& point:plot.points) samples+=point.effects.count;
     assert(samples>1); // Last-value delivery must not lose completed history samples.
+    uint32_t intervals=0;
+    for(const auto& point:plot.points) intervals+=point.interval.count;
+    assert(intervals==9); // Ten accepted captures; ten old-frame rerenders add no input events.
+    assert(samples>10); // Rerenders still retain their actual effect timing samples.
     const auto generation=snapshot.generation;
     profiler.SetPassCount(device.get(),2,true);
     snapshot=profiler.GetSnapshot();
     assert(snapshot.generation>generation && snapshot.partial && snapshot.passTimings.empty());
     for(const auto& point:snapshot.history.Read(ProfilerHistory::Clock::now()).points) assert(!point.effects.count);
-    profiler.OnFrame(device.get(),1,1);
+    profiler.OnFrame(device.get(),1,1, true);
     profiler.SetSuspended(device.get(),true);
     assert(profiler.GetSnapshot().history.Suspended());
     profiler.SetSuspended(device.get(),false);
     assert(!profiler.GetSnapshot().history.Suspended());
-    profiler.OnFrame(device.get(),1,1);
+    profiler.OnFrame(device.get(),1,1, true);
     auto before=profiler.GetSnapshot().generation;
-    profiler.OnFrame(device.get(),2,1);
+    profiler.OnFrame(device.get(),2,1, true);
     assert(profiler.GetSnapshot().generation>before);
     // A query failure disables only GPU metrics; processing history keeps working.
     profiler.OnBeginEffects(context.get());
     profiler.OnEndEffects(context.get()); // Deliberately missing both passes.
     assert(profiler.IsProfiling() && !profiler.GetSnapshot().gpuAvailable);
-    profiler.OnFrame(device.get(),2,1);
+    profiler.OnFrame(device.get(),2,1, true);
     std::this_thread::sleep_for(110ms); profiler.Poll(context.get());
     snapshot=profiler.GetSnapshot();
     assert(snapshot.history.Active() && !snapshot.gpuAvailable);

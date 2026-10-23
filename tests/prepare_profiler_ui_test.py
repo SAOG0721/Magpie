@@ -32,3 +32,8 @@ for language in ['zh-Hans','zh-Hant','en-US']:
 lines.append('}};')
 (output / 'ProfilerUiResources.inc').write_text('\n'.join(lines), encoding='utf-8')
 
+renderer = (root / 'src/Magpie.Core/Renderer.cpp').read_text(encoding='utf-8-sig')
+start = renderer.index('\tif (submitted && contentFrame && _frontendCaptureFrameId != 0')
+end = renderer.index('\n\tbool overlayColorChanged', start)
+(output / 'ProfilerPresentationGate.inc').write_text(renderer[start:end], encoding='utf-8')
+

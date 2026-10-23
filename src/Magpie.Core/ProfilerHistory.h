@@ -8,8 +8,8 @@
 
 namespace Magpie {
 
-// Backend-owned, fixed-size history. Copies are safe to inspect on the frontend.
-// Time is supplied by the caller so presentation/UI activity cannot add frames.
+// Single-owner, fixed-size history. Time and events come from the producer;
+// a copied history is safe to inspect without adding capture/output samples.
 class ProfilerHistory {
 public:
     using Clock = std::chrono::steady_clock;
@@ -63,15 +63,25 @@ public:
     }
 
     void Frame(Time now) noexcept {
-        if (!_active || _suspended) return;
-        Advance(now);
-        Bucket& bucket = At(Tick(now));
-        ++bucket.frames;
+        if (!_active || _suspended || now < _started) return;
+        CountFrames(now, 1);
         if (_lastFrame && now > *_lastFrame) {
-            bucket.interval.Add(std::chrono::duration<double, std::milli>(now - *_lastFrame).count());
+            At(Tick(now)).interval.Add(std::chrono::duration<double, std::milli>(now - *_lastFrame).count());
         }
         _lastFrame = now;
     }
+
+    // SDK batches carry a count, not individual event times. Never derive
+    // intervals from their count or from a repeated UI read of the same sample.
+    void CountFrames(Time now, std::optional<uint32_t> count) noexcept {
+        if (!_active || _suspended || now < _started) return;
+        Advance(now);
+        auto& bucket = At(Tick(now));
+        if (count) bucket.frames += *count;
+        else bucket.framesKnown = false;
+    }
+
+    void BreakIntervals() noexcept { _lastFrame.reset(); }
 
     void Observe(Time now) noexcept {
         if (_active) Advance(now);
@@ -108,12 +118,16 @@ public:
             const double elapsed = std::chrono::duration<double>(end - begin).count();
             if (elapsed <= 0) continue;
             uint64_t frames = 0;
+            bool known = true;
             for (int64_t sample = tick - 9; sample <= tick; ++sample) {
-                if (const auto* bucket = Find(sample)) frames += bucket->frames;
+                if (const auto* bucket = Find(sample)) {
+                    frames += bucket->frames;
+                    known = known && bucket->framesKnown;
+                }
             }
             point.fps = float(double(frames) / elapsed);
-            point.fpsValid = true;
-            point.warming = elapsed < 0.999;
+            point.fpsValid = known;
+            point.warming = end - _started < std::chrono::seconds(1);
         }
         return result;
     }
@@ -126,7 +140,8 @@ private:
     static constexpr size_t Capacity = PointCount + 12;
     struct Bucket {
         int64_t tick = INT64_MIN;
-        uint32_t frames = 0;
+        uint64_t frames = 0;
+        bool framesKnown = true;
         Values interval;
         Values effects;
     };

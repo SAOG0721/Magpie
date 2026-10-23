@@ -701,6 +701,7 @@ void Renderer::ClearOverlayStates() noexcept {
 }
 
 void Renderer::StartProfile() noexcept {
+	_presentationRate.StartProfile();
 	_backendThreadDispatcher.TryEnqueue([this] {
 		uint32_t passCount = 0;
 		for (const EffectDesc* desc : _activeEffectDescs) {
@@ -713,6 +714,7 @@ void Renderer::StartProfile() noexcept {
 }
 
 void Renderer::StopProfile() noexcept {
+	_presentationRate.StopProfile();
 	_backendThreadDispatcher.TryEnqueue([this] {
 		_effectsProfiler.Stop();
 	});
@@ -1270,12 +1272,12 @@ bool Renderer::_SubmitFrontendFrame() noexcept {
 		_idlePresentationClock.Presented(std::chrono::steady_clock::now(), contentFrame);
 		if (idleRedraw) _presentationRate.RecordIdleSubmission();
 	}
-	if (submitted && contentFrame && _hasFrameGeneration && _frontendCaptureFrameId != 0 &&
+	if (submitted && contentFrame && _frontendCaptureFrameId != 0 &&
 		(generatedFrame || _frontendCaptureFrameId != _lastCountedRealFrameId)) {
 		const auto sample = _presenter->LastContentFrameCount();
 		const auto count = sample.total;
 		_presentationRate.Record(count, !generatedFrame && (!count || *count > 0) ? 1u : 0u,
-			PresentationFrameRate::Clock::now(), sample.source);
+			PresentationFrameRate::Clock::now(), sample.source, sample.individualTimestamp);
 		if (!generatedFrame && (!count || *count > 0)) _lastCountedRealFrameId = _frontendCaptureFrameId;
 	}
 	bool overlayColorChanged = false;
@@ -1341,7 +1343,10 @@ void Renderer::_DrawOverlay(ID3D11Texture2D* target, const HdrFrameMetadata& fra
 			_overlayMonitorSdrWhiteNits = Win32Helper::GetMonitorSdrWhiteNits(monitor);
 		}
 	}
-	_overlayDrawer.Draw(_stepTimer.FPS(), _effectsProfiler.GetSnapshot(), drawOffset,
+	const auto profile = _effectsProfiler.GetSnapshot();
+	if (profile.history.Active())
+		_presentationRate.SynchronizeProfile(profile.generation, profile.history.Suspended());
+	_overlayDrawer.Draw(_stepTimer.FPS(), profile, drawOffset,
 		ResolveOverlayWhiteScale(hdrOutput, desc.Format, frame, _overlayMonitorSdrWhiteNits));
 }
 
@@ -3903,7 +3908,8 @@ void Renderer::_BackendRender(
 	_activeResourceGeneration.store(_frameSource->ResourceGeneration(), std::memory_order_release);
 	FrameTrace::Scope traceRender(FrameTrace::Event::BackendRender, isNewCaptureFrame);
 	_stepTimer.PrepareForRender();
-	_effectsProfiler.OnFrame(_backendResources.GetD3DDevice(), _frameSource->CaptureSequence(), _frameSource->ResourceGeneration());
+	_effectsProfiler.OnFrame(_backendResources.GetD3DDevice(), _frameSource->CaptureSequence(),
+		_frameSource->ResourceGeneration(), isNewCaptureFrame);
 	if (isNewCaptureFrame) {
 		const auto captureTime = std::chrono::steady_clock::now();
 		const uint64_t sequence = _frameSource->CaptureSequence();

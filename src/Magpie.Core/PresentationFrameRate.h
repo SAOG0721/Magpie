@@ -4,6 +4,7 @@
 #include <cmath>
 #include <cstdint>
 #include <optional>
+#include "ProfilerHistory.h"
 
 namespace Magpie {
 
@@ -11,6 +12,16 @@ enum class ContentFrameCountSource { Reported, Submitted };
 struct ContentFrameCount {
 	std::optional<uint32_t> total;
 	ContentFrameCountSource source = ContentFrameCountSource::Reported;
+	// Only a directly observed single-frame content submission can supply this.
+	// SDK batch/status counts must leave it empty, even when a batch equals one.
+	std::optional<std::chrono::steady_clock::time_point> individualTimestamp = std::nullopt;
+};
+
+struct PresentationProfilerSnapshot {
+	ProfilerHistory::Plot plot;
+	ContentFrameCountSource source = ContentFrameCountSource::Reported;
+	bool active = false;
+	bool individualTimestamps = false;
 };
 
 struct PresentationRateSnapshot {
@@ -30,8 +41,25 @@ public:
 	using Clock = std::chrono::steady_clock;
 	void Record(std::optional<uint32_t> total, uint32_t real,
 		Clock::time_point now = Clock::now(),
-		ContentFrameCountSource source = ContentFrameCountSource::Reported) noexcept {
+		ContentFrameCountSource source = ContentFrameCountSource::Reported,
+		std::optional<Clock::time_point> individualTimestamp = std::nullopt) noexcept {
 		_Update(now);
+		if (_profiling && !_history.Suspended()) {
+			if (_profileSource != source) _ResetProfile(now);
+			_profileSource = source;
+			if (total == 1u && individualTimestamp && *individualTimestamp >= _profileStarted &&
+				*individualTimestamp <= now && (!_lastIndividualTimestamp || *individualTimestamp > *_lastIndividualTimestamp)) {
+				_history.Frame(*individualTimestamp);
+				_lastIndividualTimestamp = individualTimestamp;
+				_individualTimestamps = true;
+			} else {
+				_history.CountFrames(now, total);
+				if (!total || *total != 0) {
+					_history.BreakIntervals();
+					_lastIndividualTimestamp.reset();
+				}
+			}
+		}
 		if (_windowHasContent && _source != source) _known = false;
 		_source = source;
 		_windowHasContent = true;
@@ -54,10 +82,47 @@ public:
 		return _snapshot;
 	}
 	void Reset(ContentFrameCountSource source = ContentFrameCountSource::Reported) noexcept {
+		const bool profiling = _profiling;
 		*this = {}; _source = source; _snapshot.source = source;
+		if (profiling) StartProfile();
+	}
+	void StartProfile(Clock::time_point now = Clock::now()) noexcept {
+		_profiling = true;
+		_profileGeneration.reset();
+		_profileSource = _source;
+		_ResetProfile(now);
+	}
+	void StopProfile() noexcept {
+		_profiling = false;
+		_history = {};
+		_individualTimestamps = false;
+		_lastIndividualTimestamp.reset();
+	}
+	// Called on the frontend with the backend's coherent profiler snapshot.
+	// A UI generation transition may drop early output samples, but cannot mix
+	// old sequence/chain data into the newly displayed input/output comparison.
+	void SynchronizeProfile(uint64_t generation, bool suspended,
+		Clock::time_point now = Clock::now()) noexcept {
+		if (!_profiling) return;
+		if (_profileGeneration && *_profileGeneration != generation) _ResetProfile(now);
+		_profileGeneration = generation;
+		_history.Suspend(suspended, now);
+		if (suspended) _lastIndividualTimestamp.reset();
+	}
+	PresentationProfilerSnapshot Profile(Clock::time_point now = Clock::now()) noexcept {
+		// The frontend owns all output events, so observing an idle interval here
+		// is valid. This advances time only; it never creates frame samples.
+		_history.Observe(now);
+		return { _history.Read(now), _profileSource, _profiling, _individualTimestamps };
 	}
 
 private:
+	void _ResetProfile(Clock::time_point now) noexcept {
+		_history.Reset(now);
+		_profileStarted = now;
+		_lastIndividualTimestamp.reset();
+		_individualTimestamps = false;
+	}
 	void _Update(Clock::time_point now) noexcept {
 		if (!_started) { _start = now; _started = true; return; }
 		const double elapsed = std::chrono::duration<double>(now - _start).count();
@@ -78,6 +143,12 @@ private:
 	ContentFrameCountSource _source = ContentFrameCountSource::Reported;
 	bool _windowHasContent = false;
 	PresentationRateSnapshot _snapshot{};
+	ProfilerHistory _history;
+	Clock::time_point _profileStarted{};
+	std::optional<Clock::time_point> _lastIndividualTimestamp;
+	std::optional<uint64_t> _profileGeneration;
+	ContentFrameCountSource _profileSource = ContentFrameCountSource::Reported;
+	bool _profiling = false, _individualTimestamps = false;
 };
 
 }

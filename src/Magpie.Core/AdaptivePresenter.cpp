@@ -264,6 +264,7 @@ bool AdaptivePresenter::EndFrame(bool waitForGpu) noexcept {
 
 	if (_isDCompPresenting) {
 		FrameTrace::Scope traceCommit(FrameTrace::Event::DcompCommit);
+		_lastSubmissionTime = std::chrono::steady_clock::now();
 		const HRESULT commitResult = _dcompDevice->Commit();
 		traceCommit.Data(commitResult);
 		traceCommit.End();

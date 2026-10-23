@@ -239,6 +239,7 @@ bool CompSwapchainPresenter::EndFrame(bool waitForGpu) noexcept {
 		Win32Helper::WaitForDwmComposition();
 	}
 
+	_lastSubmissionTime = std::chrono::steady_clock::now();
 	const HRESULT presentResult = _presentationManager->Present();
 	_lastPresentedFrameCount = presentResult == S_OK ? 1u : 0u;
 

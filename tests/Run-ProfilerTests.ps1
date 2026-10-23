@@ -16,6 +16,10 @@ $fmt=Get-ChildItem -LiteralPath (Join-Path $env:USERPROFILE '.conan2/p/b') -Dire
 if(!$imgui -or !$fmt){throw 'Restore ImGui and fmt dependencies before profiler UI tests'}
 & python (Join-Path $PSScriptRoot 'prepare_profiler_ui_test.py') $OutputDirectory
 if($LASTEXITCODE){throw 'Production UI extraction failed'}
+& cl.exe /nologo /std:c++20 /EHsc /utf-8 /MT /O2 /W4 /WX /DNOMINMAX "/I$OutputDirectory" (Join-Path $PSScriptRoot 'ProfilerPresentationTests.cpp') "/Fe:$OutputDirectory/ProfilerPresentationTests.exe" "/Fo:$OutputDirectory/ProfilerPresentationTests.obj"
+if($LASTEXITCODE){throw 'Profiler presentation compile failed'}
+& (Join-Path $OutputDirectory 'ProfilerPresentationTests.exe')
+if($LASTEXITCODE){throw 'Profiler presentation tests failed'}
 & cl.exe /nologo /std:c++20 /EHsc /utf-8 /MT /O2 /W4 /WX /DNOMINMAX "/I$OutputDirectory" "/I$($imgui.FullName)/p/include" "/I$($fmt.FullName)/p/include" (Join-Path $PSScriptRoot 'ProfilerUiTests.cpp') "$($imgui.FullName)/p/lib/imgui.lib" user32.lib imm32.lib "/Fe:$OutputDirectory/ProfilerUiTests.exe" "/Fo:$OutputDirectory/ProfilerUiTests.obj"
 if($LASTEXITCODE){throw 'Profiler UI compile failed'}
 & (Join-Path $OutputDirectory 'ProfilerUiTests.exe')

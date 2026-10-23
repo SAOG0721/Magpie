@@ -1,4 +1,5 @@
 #include "../src/Magpie.Core/ProfilerHistory.h"
+#include "../src/Magpie.Core/PresentationFrameRate.h"
 #include "../src/Magpie.Core/include/OverlayWindowGeometry.h"
 #include <imgui.h>
 #include <imgui_internal.h>
@@ -17,6 +18,16 @@ using namespace std::chrono;
 using namespace Magpie;
 
 struct EffectsProfilerSnapshot { ProfilerHistory history; bool gpuAvailable = true; };
+struct MockRenderer {
+    PresentationProfilerSnapshot output;
+    int reads=0;
+    PresentationProfilerSnapshot PresentationProfile(ProfilerHistory::Time) {++reads;return output;}
+};
+struct ScalingWindow {
+    MockRenderer renderer;
+    static ScalingWindow& Get() {static ScalingWindow s;return s;}
+    MockRenderer& Renderer() {return renderer;}
+};
 struct Options { std::unordered_map<std::string, OverlayWindowOption> windows{{"profiler", {2,1,60,0.5f}}}; };
 struct Input { bool canceled = false; bool FrameInputCanceled() const { return canceled; } };
 struct StrHelper { template<class... T> static std::string Concat(T&&... t) { std::string s; (s.append(t),...); return s; } };
@@ -31,10 +42,7 @@ public:
     const std::string& _GetResourceString(const wchar_t* key) { return resources[language].at(key); }
     float _dpiScale = 1;
     std::array<float,3> _profilerGraphMax{};
-    struct _ProfilerOutputSample { ProfilerHistory::Time begin{},end{}; float fps=0; bool known=false; };
-    std::array<_ProfilerOutputSample,12> _profilerOutputs{};
-    ProfilerHistory::Time _profilerStartedAt{};
-    bool _profilerHasOutput=true, _profilerOutputSubmitted=false;
+    PresentationProfilerSnapshot _profilerOutputProfile{};
     Options testOptions;
     Options* _overlayOptions = &testOptions;
     Input _imguiImpl;
@@ -95,9 +103,16 @@ static void CheckPanel(OverlayDrawer& ui) {
         profile.history.Frame(sample); profile.history.Effects(sample,i==580 ? 28.0 : 2.0);
     }
     profile.history.Observe(steady_clock::now());
+    auto& renderer=ScalingWindow::Get().Renderer();
+    renderer.reads=0;
+    ProfilerHistory output;output.Reset(start);
+    for(int i=0;i<1200;++i) output.Frame(start+microseconds(i*8333));
+    output.Observe(steady_clock::now());
+    renderer.output={output.Read(steady_clock::now()),ContentFrameCountSource::Reported,true,true};
     ui.graphDrawCalls=0;
     PanelFrame(ui,profile,viewport); PanelFrame(ui,profile,viewport);
     assert(ui.graphDrawCalls==0); // Opening the profiler must not draw any graph.
+    assert(renderer.reads==0); // Folded graphs must not even build an output plot.
     Near(ui._profilerWindowRect.width,310*dpi); Near(ui._profilerWindowRect.height,360*dpi);
     assert(!ui._profilerWindowLayoutDirty);
 
@@ -108,14 +123,17 @@ static void CheckPanel(OverlayDrawer& ui) {
     };
     click(ui.graphHeader.GetCenter());
     assert(ui.graphToggled && ui.graphDrawCalls==3);
+    assert(renderer.reads==1);
     Near(ui._profilerWindowRect.height,360*dpi); // Expand uses scroll, not auto-resize.
     PanelFrame(ui,profile,viewport);
     assert(ui.graphDrawCalls==6);
     click(ui.graphHeader.GetCenter());
     assert(ui.graphToggled);
     const int before=ui.graphDrawCalls;
+    const int reads=renderer.reads;
     PanelFrame(ui,profile,viewport);
     assert(ui.graphDrawCalls==before);
+    assert(renderer.reads==reads);
 
     // Exercise ImGui's actual bottom-right grip, not an injected window size.
     const auto original=ui._profilerWindowRect;
@@ -131,6 +149,10 @@ static void CheckPanel(OverlayDrawer& ui) {
     const auto preference=saved;
     ui._profilerWindowLayoutDirty=false;
     const auto resized=ui._profilerWindowRect;
+    // SDK batch counts may show output FPS, but must explicitly lack intervals.
+    renderer.output.source=ContentFrameCountSource::Submitted;
+    renderer.output.individualTimestamps=false;
+    for(auto& point:renderer.output.plot.points) point.interval={};
     click(ui.graphHeader.GetCenter());
     Near(ui._profilerWindowRect.width,resized.width); Near(ui._profilerWindowRect.height,resized.height);
     assert(!ui._profilerWindowLayoutDirty);
@@ -173,9 +195,10 @@ int main() try {
         ImGui::GetStyle().ScaleAllSizes(dpi);
         OverlayDrawer ui; ui._dpiScale=dpi; ui.language=language;
         const ProfilerHistory::Time start(100s);
-        ui._profilerStartedAt=start;
-        ui._profilerOutputs[0]={start+9s,start+10s,120,true};
-        ui._profilerOutputs[1]={start+8s,start+9s,240,false};
+        ProfilerHistory output;output.Reset(start);
+        for(int i=0;i<1200;++i) output.Frame(start+microseconds(i*8333));
+        output.Observe(start+10s);
+        ui._profilerOutputProfile={output.Read(start+10s),ContentFrameCountSource::Reported,true,true};
         ProfilerHistory history; history.Reset(start);
         for(int i=0;i<600;++i){
             auto t=start+microseconds(i*16667);
@@ -208,7 +231,10 @@ int main() try {
             }
             // Content is allowed to scroll vertically, never horizontally.
             const auto* window=ImGui::GetCurrentWindow();
-            if(frame>0) assert(window->ScrollMax.x < 1.0f);
+            // The first vertical scrollbar uses last frame's wider content.
+            // Check actual layout immediately, then stabilized scroll bounds.
+            assert(window->DC.CursorMaxPos.x <= window->WorkRect.Max.x+1.0f);
+            if(frame>1) assert(window->ScrollMax.x < 1.0f);
             ImGui::End(); ImGui::Render();
             auto* data=ImGui::GetDrawData(); assert(data && data->TotalVtxCount>0);
             for(const auto* list : data->CmdLists) for(const auto& v : list->VtxBuffer)

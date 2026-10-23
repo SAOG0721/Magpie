@@ -31,7 +31,8 @@ public:
 	bool IsProfiling() const noexcept;
 
 	void SetPassCount(ID3D11Device* d3dDevice, uint32_t passCount, bool partial = false) noexcept;
-	void OnFrame(ID3D11Device* device, uint64_t captureSequence, uint64_t resourceGeneration) noexcept;
+	void OnFrame(ID3D11Device* device, uint64_t captureSequence, uint64_t resourceGeneration,
+		bool isNewCaptureFrame) noexcept;
 	void SetSuspended(ID3D11Device* device, bool suspended) noexcept;
 
 	void OnBeginEffects(ID3D11DeviceContext* d3dDC) noexcept;

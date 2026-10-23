@@ -21,6 +21,10 @@ public:
 	) noexcept override;
 
 	bool EndFrame(bool waitForGpu = false) noexcept override;
+	ContentFrameCount LastContentFrameCount() const noexcept override {
+		return { _lastPresentedFrameCount, ContentFrameCountSource::Reported,
+			_lastPresentedFrameCount == 1u ? std::optional(_lastSubmissionTime) : std::nullopt };
+	}
 	void SetReflexController(ReflexController* controller) noexcept override;
 	void SetReflexFrame(uint64_t frameId, uint64_t presentId, bool generated) noexcept override;
 	void BeginReflexRender() noexcept override;
