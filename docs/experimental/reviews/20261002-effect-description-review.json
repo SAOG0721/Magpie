@@ -5518,7 +5518,7 @@
           "src/Magpie.Core/HdrEffectBoundary.cpp": "75f166cd9c3c9cddf931b499f445f76c353d51000d1df36894f819a01809a8eb",
           "src/Magpie.Core/NativeEffectBackendFactory.cpp": "9e36abc63a3dac84357d2e020f25342257d83b51669b97e9053d73f15adfebc4",
           "src/Magpie.Core/GroupBHdrRoutes.cpp": "970281df968a0f92276e60c09afd76e0171bb87d57db8fe2bdecc58d595656b3",
-          "src/Magpie.Core/DLSSSRUpscaler.cpp": "6b6045efdaaba6acfa78a530edc76ce165c032f54e2340344af7f2817203e341"
+          "src/Magpie.Core/DLSSSRUpscaler.cpp": "2ddd49182da6d979a3c3eb935de0e6dce268013be1ffd615c69470b16fd8b06d"
         },
         "evidenceBaseline": "cbe2c2cb + UWP fullscreen, HDR overlay, DLSSNR guidance and effect-description integration; copy contracts rechecked",
         "settingsRevision": "2026-10-22 SR K / FG Auto-A-B-C / NR 5-200ms; native acceptance tracked separately"

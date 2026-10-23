@@ -183,11 +183,21 @@ bool DLSSSRUpscaler::Initialize(
 	}
 	_parameters = parameters;
 
-	// Auto leaves the runtime's hint untouched. Presets do not change the
-	// Balanced quality mode, output size or captured-frame guidance contract.
+	// The runtime can select a quality mode from the actual scaling ratio,
+	// even when creation requests Balanced. Apply explicit presets to every
+	// mode so the selected hint follows that routing. Auto leaves hints unset.
 	if (_settings.renderPreset != 0) {
-		NVSDK_NGX_Parameter_SetI(parameters, NVSDK_NGX_Parameter_DLSS_Hint_Render_Preset_Balanced,
-			NgxRenderPreset(_settings.renderPreset));
+		const int renderPreset = NgxRenderPreset(_settings.renderPreset);
+		for (const char* hint : {
+			NVSDK_NGX_Parameter_DLSS_Hint_Render_Preset_DLAA,
+			NVSDK_NGX_Parameter_DLSS_Hint_Render_Preset_Quality,
+			NVSDK_NGX_Parameter_DLSS_Hint_Render_Preset_Balanced,
+			NVSDK_NGX_Parameter_DLSS_Hint_Render_Preset_Performance,
+			NVSDK_NGX_Parameter_DLSS_Hint_Render_Preset_UltraPerformance,
+			NVSDK_NGX_Parameter_DLSS_Hint_Render_Preset_UltraQuality
+		}) {
+			NVSDK_NGX_Parameter_SetI(parameters, hint, renderPreset);
+		}
 	}
 	Logger::Get().Info(fmt::format("DLSS SR requestedPreset={} hintSubmitted={} actualPreset=unknown",
 		DLSSSRPresetName(_settings.renderPreset), _settings.renderPreset != 0));

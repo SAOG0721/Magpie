@@ -233,3 +233,14 @@
 - [x] 新默认社区 DLSSNR 310.9.16 在 RTX 5070 Ti／617.42 上完成独立 SDR／FP16 单 Pass 运行验证，见[证据](../reviews/20261022-community-dlssnr-default-smoke.md)。未扩展为其他型号、画质或性能验收。
 - [x] 准备完整中英[0.6.11 Release Notes](../../RELEASE_NOTES_v0.6.11-experimental.md)与包内说明，公开入口按线上已发布状态同步至 0.6.10；0.6.11 标记待审核。构建程序版本使用 0.6.11，`version.json` 在 Draft 阶段只指向已公开的 0.6.10。
 - 构建、附件逐项核验、远端提交／标签与 Draft 状态的最终收据保存于仓库外 `release/v0.6.11-experimental/`，不将本段准备状态写成已公开发布。
+
+## 16. 取消发布后：SR 预设路由修复
+
+用户随后取消发布，要求调查模型切换；未执行 GitHub push、标签或 Draft 创建。上一节为当时的准备计划，已完成的本地构建不代表已分发。用户进一步实测 FG 切换至 C 后 GPU 占用下降，确认 FG 可用，本次修复范围仅为 SR。
+
+- [x] 定位 SR：实际比例使用的质量档可能不同于创建时请求的 Balanced，旧代码仅提交 Balanced hint，导致选择 L 后仍执行默认 K（另一比例下默认 M）。UI 保存与重启缩放传参正确。
+- [x] 在 `fix/dlss-sr-preset-quality-routing` 将显式预设写入全部六个质量档 hint；Auto、默认 K、输出尺寸和 FG 保持原样。
+- [x] 直接编译生产源码，在 RTX 5070 Ti / 617.42 / SR 310.7.0.0 上运行 12 个隔离原生场景、72 帧。用户尺寸和 0.5 比例下 K/L/M 指示均正确，场景像素随模型变化；Auto 的六帧全图与旧代码逐像素一致。参数回归和 165 效果目录检查通过。见[修复及验证记录](../reviews/20261023-dlss-sr-preset-quality-routing.md)。
+- [ ] 如后续授权部署，再验收完整 Magpie / 播放器中的 SR 切换。本次未部署；发布继续取消。
+
+前文 FG 全局 Base Profile 记录仅表示当时读到的全局设置，不能单独代表 Magpie 应用 profile 合并后的有效设置；隔离探针结果也不替代用户本次完整应用实测。不据此继续修改 FG。
