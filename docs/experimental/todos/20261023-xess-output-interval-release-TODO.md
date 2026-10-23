@@ -12,9 +12,11 @@ XeSSFGPresenter 仅返回 SDK 的汇总 `framesPresented`，没有给分析器�
 
 - [x] 完成真实输出事件接入及受保护的原生 2× 观测；保留既有 SDK 调度行为。
 - [x] 验证异步样本传递、丢样、失败提交、开关、重建及运行库恢复；18 组 ImGui 布局与历史回归通过。实际 Magpie 闲置和跨效果链测试随完整构建继续。
-- [ ] 实际 GPU 验证 2×／3×／4× 及分析器历史数据，运行相关回归。
+- [x] 实际 GPU 验证 2×／3×／4× 及分析器历史数据：8 轮 SDK 上下文、两轮五场景 Magpie 运行通过，三种 XeSS 倍率每轮均有三组实际间隔被消费者接收；GPU／FG 回归通过。
 - [x] 汇总相对 0.6.10 的功能，补齐完整中英文发布说明与已知限制。
-- [ ] 从冻结提交构建 0.6.11，验证 PRI、主包、可选附件和哈希；备份覆盖正式目录。
-- [ ] 准备 RELEASE_BODY、分发清单、校验值和维护者检查步骤；停止在 Draft 创建前。
+- [x] 从冻结提交 `4fc74a19` 构建 0.6.11：246 个文件、3,981 条三语言资源、两个内嵌目录、EXE/PDB 和可选附件通过校验；19:06 备份覆盖正式目录。
+- [x] 准备 RELEASE_BODY、分发清单、校验值、Draft 参数和维护者检查步骤；已停止在 Draft 创建前，没有远端写入。
 
 发布沿用 `v0.6.11-experimental` / `Magpie Experimental v0.6.11` / `Magpie-Experimental-x64.zip`。本轮不推送、不创建远端标签、Draft 或上传附件，也不更新公开更新入口；后续流程按 `docs/experimental/RELEASE-WORKFLOW.md`。
+
+结果见 [修复、验证与发布准备记录](../reviews/20261023-xess-output-interval-release-preparation.md)。用户检查是下一阶段；未授权自动继续 Draft 或发布。
