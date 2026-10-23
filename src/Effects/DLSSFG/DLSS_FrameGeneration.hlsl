@@ -6,6 +6,14 @@
 //!SORT_NAME DLSS FG_Experimental
 
 //!PARAMETER
+//!LABEL Frame Multiplier
+//!DEFAULT 2
+//!MIN 2
+//!MAX 4
+//!STEP 1
+int multiplier;
+
+//!PARAMETER
 //!LABEL Render Preset
 //!DEFAULT 0
 //!OPTION 0 Auto (Default)
@@ -13,14 +21,6 @@
 //!OPTION 2 B
 //!OPTION 3 C
 int renderPreset;
-
-//!PARAMETER
-//!LABEL Frame Multiplier
-//!DEFAULT 2
-//!MIN 2
-//!MAX 4
-//!STEP 1
-int multiplier;
 
 //!PARAMETER
 //!LABEL Optical Flow Method

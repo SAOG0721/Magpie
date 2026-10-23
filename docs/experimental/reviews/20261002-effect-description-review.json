@@ -5549,13 +5549,23 @@
       "level": "advanced",
       "source": {
         "path": "src/Effects/DLSSFG/DLSS_FrameGeneration.hlsl",
-        "sha256": "1023e26af51dcdef07136de9882535ce2170e4d0e6c66cc9cb2ebae24aaac5ed",
+        "sha256": "da8b5b51d5b149d30971c35b87b86daa939d8902cf52213102adc5a40259f4b3",
         "output": {
           "WIDTH": "INPUT_WIDTH",
           "HEIGHT": "INPUT_HEIGHT"
         },
         "passCount": 1,
         "parameters": [
+          {
+            "name": "multiplier",
+            "type": "int",
+            "label": "Frame Multiplier",
+            "default": "2",
+            "min": "2",
+            "max": "4",
+            "step": "1",
+            "options": []
+          },
           {
             "name": "renderPreset",
             "type": "int",
@@ -5567,16 +5577,6 @@
               "2 B",
               "3 C"
             ]
-          },
-          {
-            "name": "multiplier",
-            "type": "int",
-            "label": "Frame Multiplier",
-            "default": "2",
-            "min": "2",
-            "max": "4",
-            "step": "1",
-            "options": []
           },
           {
             "name": "opticalFlowMethod",
