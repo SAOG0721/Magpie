@@ -10,6 +10,9 @@ text = (root / 'src/Magpie.Core/OverlayDrawer.cpp').read_text(encoding='utf-8-si
 start = text.index('void OverlayDrawer::_DrawProfilerGraph(')
 end = text.index('\nbool OverlayDrawer::_DrawProfiler(', start)
 graph = text[start:end]
+graph = graph.replace('static constexpr const wchar_t* LABELS[]', '++graphDrawCalls;\n\tstatic constexpr const wchar_t* LABELS[]')
+graph = graph.replace('const bool toggled = ImGui::IsItemToggledOpen();',
+                      'const bool toggled = ImGui::IsItemToggledOpen();\n\tgraphHeader = ImRect(ImGui::GetItemRectMin(), ImGui::GetItemRectMax());')
 start = text.index('\t// 开发者选项', end)
 end = text.index('\n#ifdef MP_DEBUG_INFO_ON_OVERLAY', start)
 developer = 'bool OverlayDrawer::Developer(bool developerMode, bool multiPass, bool& showPasses) {\n'
@@ -21,7 +24,7 @@ lines = ['static const std::array<std::map<std::wstring,std::string>,3> resource
 for language in ['zh-Hans','zh-Hant','en-US']:
     xml = ET.parse(root / f'src/Magpie/Resources.language-{language}.resw').getroot()
     values = {n.get('name').replace('.', '/'):n.findtext('value') for n in xml.findall('data')}
-    keys = [key for key in values if key.startswith('Overlay_Profiler_') or key == 'Home_Advanced_DeveloperOptions/Header']
+    keys = [key for key in values if key.startswith('Overlay_Profiler') or key == 'Home_Advanced_DeveloperOptions/Header']
     lines.append('{')
     for key in keys:
         lines.append('{L' + json.dumps(key, ensure_ascii=False) + ',' + json.dumps(values[key], ensure_ascii=False) + '},')

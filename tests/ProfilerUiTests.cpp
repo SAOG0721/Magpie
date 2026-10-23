@@ -1,4 +1,5 @@
 #include "../src/Magpie.Core/ProfilerHistory.h"
+#include "../src/Magpie.Core/include/OverlayWindowGeometry.h"
 #include <imgui.h>
 #include <imgui_internal.h>
 #define FMT_HEADER_ONLY
@@ -10,13 +11,22 @@
 #include <string>
 #include <vector>
 #include <ranges>
+#include <unordered_map>
 #include "ProfilerUiResources.inc"
 using namespace std::chrono;
 using namespace Magpie;
 
+struct EffectsProfilerSnapshot { ProfilerHistory history; bool gpuAvailable = true; };
+struct Options { std::unordered_map<std::string, OverlayWindowOption> windows{{"profiler", {2,1,60,0.5f}}}; };
+struct Input { bool canceled = false; bool FrameInputCanceled() const { return canceled; } };
+struct StrHelper { template<class... T> static std::string Concat(T&&... t) { std::string s; (s.append(t),...); return s; } };
+static const char* PROFILER_WINDOW_ID = "profiler";
+
 class OverlayDrawer {
 public:
     void _DrawProfilerGraph(const ProfilerHistory::Plot&, int, bool) noexcept;
+    bool _BeginProfilerWindow() noexcept;
+    bool _DrawProfilerGraphs(const EffectsProfilerSnapshot&) noexcept;
     bool Developer(bool, bool, bool&);
     const std::string& _GetResourceString(const wchar_t* key) { return resources[language].at(key); }
     float _dpiScale = 1;
@@ -25,6 +35,16 @@ public:
     std::array<_ProfilerOutputSample,12> _profilerOutputs{};
     ProfilerHistory::Time _profilerStartedAt{};
     bool _profilerHasOutput=true, _profilerOutputSubmitted=false;
+    Options testOptions;
+    Options* _overlayOptions = &testOptions;
+    Input _imguiImpl;
+    bool _isProfilerVisible = true;
+    bool _profilerWindowLayoutInitialized = false, _profilerWindowLayoutDirty = false;
+    ImVec2 _profilerViewport{};
+    OverlayWindowRect _profilerWindowRect{};
+    int graphDrawCalls = 0;
+    ImRect graphHeader;
+    bool graphToggled = false;
     int language = 0;
 };
 #include "ProfilerUiProduction.inc"
@@ -34,6 +54,107 @@ static void Frame() {
     io.DisplaySize = {1600,1200};
     io.DeltaTime = 0.5f;
     ImGui::NewFrame();
+}
+
+static void Near(float actual, float expected) { assert(std::abs(actual-expected)<1.1f); }
+
+static void PanelFrame(OverlayDrawer& ui, const EffectsProfilerSnapshot& profile,
+    ImVec2 viewport, ImVec2 mouse = {-100,-100}, bool down = false, int collapse = -1) {
+    auto& io = ImGui::GetIO();
+    io.DisplaySize = viewport; io.DeltaTime = 1.0f / 60;
+    io.AddMousePosEvent(mouse.x,mouse.y); io.AddMouseButtonEvent(0,down);
+    ImGui::NewFrame();
+    if(collapse >= 0) ImGui::SetNextWindowCollapsed(collapse!=0);
+    if(ui._BeginProfilerWindow()) ui.graphToggled=ui._DrawProfilerGraphs(profile);
+    const auto* window=ImGui::GetCurrentWindow();
+    assert(!(window->Flags & (ImGuiWindowFlags_AlwaysAutoResize|ImGuiWindowFlags_NoResize)));
+    // ScrollMax uses last frame's content size when a scrollbar first appears.
+    // Measure this frame's real layout extent instead.
+    const float overflow=window->DC.CursorMaxPos.x-window->WorkRect.Max.x;
+    if(overflow>1.0f) std::fprintf(stderr,
+        "Overflow language=%d dpi=%.2f viewport=%.0fx%.0f window=%.0fx%.0f content=%.1f overflow=%.1f graphs=%d\n",
+        ui.language,ui._dpiScale,viewport.x,viewport.y,window->Size.x,window->Size.y,
+        window->ContentSize.x,overflow,ui.graphDrawCalls);
+    assert(overflow<=1.0f);
+    ImGui::End(); ImGui::Render();
+    const auto& r=ui._profilerWindowRect;
+    assert(r.x>=0 && r.y>=0 && r.width>0 && r.height>0);
+    assert(r.x+r.width<=viewport.x+1 && r.y+r.height<=viewport.y+1);
+    for(const auto* list : ImGui::GetDrawData()->CmdLists) for(const auto& v : list->VtxBuffer)
+        assert(std::isfinite(v.pos.x) && std::isfinite(v.pos.y));
+}
+
+static void CheckPanel(OverlayDrawer& ui) {
+    const float dpi=ui._dpiScale;
+    const ImVec2 viewport{1600*dpi,1200*dpi};
+    EffectsProfilerSnapshot profile;
+    const auto start=steady_clock::now()-10s;
+    profile.history.Reset(start);
+    for(int i=0;i<600;++i) {
+        const auto sample=start+microseconds(i*16667);
+        profile.history.Frame(sample); profile.history.Effects(sample,i==580 ? 28.0 : 2.0);
+    }
+    profile.history.Observe(steady_clock::now());
+    ui.graphDrawCalls=0;
+    PanelFrame(ui,profile,viewport); PanelFrame(ui,profile,viewport);
+    assert(ui.graphDrawCalls==0); // Opening the profiler must not draw any graph.
+    Near(ui._profilerWindowRect.width,310*dpi); Near(ui._profilerWindowRect.height,360*dpi);
+    assert(!ui._profilerWindowLayoutDirty);
+
+    auto click=[&](ImVec2 point) {
+        PanelFrame(ui,profile,viewport,point);
+        PanelFrame(ui,profile,viewport,point,true);
+        PanelFrame(ui,profile,viewport,point,false);
+    };
+    click(ui.graphHeader.GetCenter());
+    assert(ui.graphToggled && ui.graphDrawCalls==3);
+    Near(ui._profilerWindowRect.height,360*dpi); // Expand uses scroll, not auto-resize.
+    PanelFrame(ui,profile,viewport);
+    assert(ui.graphDrawCalls==6);
+    click(ui.graphHeader.GetCenter());
+    assert(ui.graphToggled);
+    const int before=ui.graphDrawCalls;
+    PanelFrame(ui,profile,viewport);
+    assert(ui.graphDrawCalls==before);
+
+    // Exercise ImGui's actual bottom-right grip, not an injected window size.
+    const auto original=ui._profilerWindowRect;
+    const ImVec2 grip{original.x+original.width-3*dpi,original.y+original.height-3*dpi};
+    const ImVec2 enlarged{grip.x+140*dpi,grip.y+120*dpi};
+    PanelFrame(ui,profile,viewport,grip);
+    PanelFrame(ui,profile,viewport,grip,true);
+    PanelFrame(ui,profile,viewport,enlarged,true);
+    PanelFrame(ui,profile,viewport,enlarged,false);
+    assert(ui._profilerWindowLayoutDirty);
+    auto& saved=ui.testOptions.windows.at("profiler");
+    assert(saved.width>400 && saved.height>450);
+    const auto preference=saved;
+    ui._profilerWindowLayoutDirty=false;
+    const auto resized=ui._profilerWindowRect;
+    click(ui.graphHeader.GetCenter());
+    Near(ui._profilerWindowRect.width,resized.width); Near(ui._profilerWindowRect.height,resized.height);
+    assert(!ui._profilerWindowLayoutDirty);
+    PanelFrame(ui,profile,viewport,{-100,-100},false,1);
+    Near(saved.height,preference.height);
+    PanelFrame(ui,profile,viewport,{-100,-100},false,0);
+
+    // Temporary constraints preserve preferred size and anchoring.
+    PanelFrame(ui,profile,{280*dpi,200*dpi}); PanelFrame(ui,profile,{280*dpi,200*dpi});
+    assert(!ui._profilerWindowLayoutDirty);
+    Near(saved.width,preference.width); Near(saved.height,preference.height);
+    PanelFrame(ui,profile,viewport); PanelFrame(ui,profile,viewport);
+    Near(ui._profilerWindowRect.width,resized.width); Near(ui._profilerWindowRect.height,resized.height);
+    Near(ui._profilerWindowRect.x,resized.x); Near(ui._profilerWindowRect.y,resized.y);
+
+    // Reopening restores user size; a DPI change scales DIPs, not saved pixels.
+    ui._profilerWindowLayoutInitialized=false;
+    PanelFrame(ui,profile,viewport);
+    Near(ui._profilerWindowRect.width,preference.width*dpi);
+    ui._dpiScale=dpi*1.25f; ui._profilerWindowLayoutInitialized=false;
+    PanelFrame(ui,profile,{2000*dpi,1500*dpi});
+    Near(ui._profilerWindowRect.width,preference.width*ui._dpiScale);
+    Near(ui._profilerWindowRect.height,preference.height*ui._dpiScale);
+    assert(!ui._profilerWindowLayoutDirty);
 }
 
 int main() try {
@@ -93,9 +214,10 @@ int main() try {
             for(const auto* list : data->CmdLists) for(const auto& v : list->VtxBuffer)
                 assert(std::isfinite(v.pos.x) && std::isfinite(v.pos.y));
         }
+        CheckPanel(ui);
         ImGui::DestroyContext(); ++cases;
     }
-    std::printf("Production ImGui profiler: %d language/theme/DPI layouts; empty/disabled/collapsed developer state and graph geometry passed.\n",cases);
+    std::printf("Production ImGui profiler: %d language/theme/DPI layouts; developer state, graphs folded/open/closed, real grip resize, persistence, viewport and DPI restoration passed.\n",cases);
 } catch(const std::exception& error) {
     std::fprintf(stderr,"Profiler UI test failed: %s\n",error.what());
     return 1;

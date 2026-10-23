@@ -117,6 +117,7 @@ void OverlayDrawer::Draw(
 		ImGui::GetIO().FontGlobalScale *= ratio;
 		_dpiScale = dpiScale;
 		_effectParametersWindowLayoutInitialized = false;
+		_profilerWindowLayoutInitialized = false;
 	}
 	if (!AnyVisibleWindow()) {
 		_lastComparisonStatusAlpha = 0.0f;
@@ -173,11 +174,12 @@ void OverlayDrawer::Draw(
 		_SetParameterPanelState(ParameterPanelState::Closed);
 		_isEffectParametersVisible = _parameterPanelState != ParameterPanelState::Closed;
 	}
-	if (_effectParametersWindowLayoutDirty && !ImGui::IsAnyMouseDown()) {
+	if ((_effectParametersWindowLayoutDirty || _profilerWindowLayoutDirty) && !ImGui::IsAnyMouseDown()) {
 		const ScalingWindow& scalingWindow = ScalingWindow::Get();
 		const ScalingOptions& options = scalingWindow.Options();
 		if (options.save) options.save(options, scalingWindow.Handle());
 		_effectParametersWindowLayoutDirty = false;
+		_profilerWindowLayoutDirty = false;
 	}
 	_isEffectParameterInputActive = _isEffectParametersVisible && ImGui::IsAnyItemActive();
 	const float comparisonAlpha = _CalcComparisonStatusAlpha();
@@ -2266,6 +2268,78 @@ void OverlayDrawer::_DrawProfilerGraph(const ProfilerHistory::Plot& plot, int me
 	ImGui::PopID();
 }
 
+bool OverlayDrawer::_BeginProfilerWindow() noexcept {
+	const ImVec2 displaySize = ImGui::GetIO().DisplaySize;
+	const float viewportMargin = 16.0f * _dpiScale;
+	const ImVec2 maxWindowSize{
+		std::max(1.0f, displaySize.x - viewportMargin),
+		std::max(1.0f, displaySize.y - viewportMargin)
+	};
+	const ImVec2 minWindowSize{
+		std::min(PROFILER_MIN_WIDTH * _dpiScale, maxWindowSize.x),
+		std::min(PROFILER_MIN_HEIGHT * _dpiScale, maxWindowSize.y)
+	};
+	ImGui::SetNextWindowSizeConstraints(minWindowSize, maxWindowSize);
+	OverlayWindowOption& windowOption = _overlayOptions->windows.at(PROFILER_WINDOW_ID);
+	const bool restoreLayout = !_profilerWindowLayoutInitialized ||
+		_profilerViewport.x != displaySize.x || _profilerViewport.y != displaySize.y;
+	if (restoreLayout) {
+		const auto rect = RestoreProfilerWindow(windowOption, displaySize.x, displaySize.y, _dpiScale);
+		ImGui::SetNextWindowSize({ rect.width, rect.height });
+		ImGui::SetNextWindowPos({ rect.x, rect.y });
+		_profilerWindowLayoutInitialized = true;
+		_profilerViewport = displaySize;
+	}
+
+	const std::string title = StrHelper::Concat(_GetResourceString(L"Overlay_Profiler"), "##", PROFILER_WINDOW_ID);
+	ImGui::PushStyleColor(ImGuiCol_ResizeGrip, ImVec4(0.55f, 0.55f, 0.55f, 0.28f));
+	ImGui::PushStyleColor(ImGuiCol_ResizeGripHovered, ImVec4(0.35f, 0.67f, 0.95f, 0.72f));
+	ImGui::PushStyleColor(ImGuiCol_ResizeGripActive, ImVec4(0.35f, 0.67f, 0.95f, 1.0f));
+	const bool expanded = ImGui::Begin(title.c_str(), &_isProfilerVisible);
+	ImGui::PopStyleColor(3);
+	ImGuiWindow* window = ImGui::GetCurrentWindow();
+	const OverlayWindowRect rect{
+		std::clamp(window->Pos.x, 0.0f, std::max(0.0f, displaySize.x - window->SizeFull.x)),
+		std::clamp(window->Pos.y, 0.0f, std::max(0.0f, displaySize.y - window->SizeFull.y)),
+		window->SizeFull.x, window->SizeFull.y
+	};
+	ImGui::SetWindowPos(window, { rect.x, rect.y });
+	if (!restoreLayout && !_imguiImpl.FrameInputCanceled() &&
+		(ImGui::IsMouseDown(ImGuiMouseButton_Left) || ImGui::IsMouseReleased(ImGuiMouseButton_Left))) {
+		const auto& previous = _profilerWindowRect;
+		const bool moved = rect.x != previous.x || rect.y != previous.y;
+		const bool resizedX = rect.width != previous.width;
+		const bool resizedY = rect.height != previous.height;
+		if (moved || resizedX || resizedY) {
+			RememberOverlayWindowPosition(windowOption, rect, displaySize.x, displaySize.y, _dpiScale);
+			if (resizedX) windowOption.width = rect.width / _dpiScale;
+			if (resizedY) windowOption.height = rect.height / _dpiScale;
+			_profilerWindowLayoutDirty = true;
+		}
+	}
+	_profilerWindowRect = rect;
+	return expanded;
+}
+
+bool OverlayDrawer::_DrawProfilerGraphs(const EffectsProfilerSnapshot& profile) noexcept {
+	ImGui::Spacing();
+	const bool expanded = ImGui::TreeNodeEx("profilerGraphs", ImGuiTreeNodeFlags_SpanAvailWidth,
+		"%s", _GetResourceString(L"Overlay_Profiler_Graphs").c_str());
+	const bool toggled = ImGui::IsItemToggledOpen();
+	if (expanded) {
+		ImGui::TextDisabled("-10 s");
+		ImGui::SameLine(ImGui::GetWindowContentRegionMax().x - ImGui::CalcTextSize("0 s").x);
+		ImGui::TextDisabled("0 s");
+		const auto plot = profile.history.Read(steady_clock::now());
+		if (plot.suspended) ImGui::TextUnformatted(_GetResourceString(L"Overlay_Profiler_Paused").c_str());
+		_DrawProfilerGraph(plot, 0, profile.history.Active());
+		_DrawProfilerGraph(plot, 1, profile.history.Active());
+		_DrawProfilerGraph(plot, 2, profile.gpuAvailable);
+		ImGui::TreePop();
+	}
+	return toggled;
+}
+
 bool OverlayDrawer::_DrawProfiler(const EffectsProfilerSnapshot& profile, uint32_t fps, int& itemId) noexcept {
 	_lastProfilerDrawTime = steady_clock::now();
 	const auto& effectTimings = profile.passTimings;
@@ -2327,14 +2401,7 @@ bool OverlayDrawer::_DrawProfiler(const EffectsProfilerSnapshot& profile, uint32
 		}
 	}
 
-	{
-		const float windowWidth = 310 * _dpiScale;
-		ImGui::SetNextWindowSizeConstraints(ImVec2(windowWidth, 0.0f), ImVec2(windowWidth, 500 * _dpiScale));
-	}
-
-	std::string profilerStr =
-		StrHelper::Concat(_GetResourceString(L"Overlay_Profiler"), "##", PROFILER_WINDOW_ID);
-	if (!ImGui::Begin(profilerStr.c_str(), &_isProfilerVisible, ImGuiWindowFlags_AlwaysAutoResize)) {
+	if (!_BeginProfilerWindow()) {
 		ImGui::End();
 		return needRedraw;
 	}
@@ -2459,20 +2526,11 @@ bool OverlayDrawer::_DrawProfiler(const EffectsProfilerSnapshot& profile, uint32
 	// 效果渲染用时
 	const std::string& timingsStr = _GetResourceString(L"Overlay_Profiler_Timings");
 	if (ImGui::CollapsingHeader(timingsStr.c_str(), ImGuiTreeNodeFlags_DefaultOpen)) {
-		ImGui::TextDisabled("-10 s");
-		ImGui::SameLine(ImGui::GetWindowContentRegionMax().x - ImGui::CalcTextSize("0 s").x);
-		ImGui::TextDisabled("0 s");
-		const auto plot = profile.history.Read(steady_clock::now());
-		if (plot.suspended) ImGui::TextUnformatted(_GetResourceString(L"Overlay_Profiler_Paused").c_str());
-		_DrawProfilerGraph(plot, 0, profile.history.Active());
-		_DrawProfilerGraph(plot, 1, profile.history.Active());
-		_DrawProfilerGraph(plot, 2, profile.gpuAvailable);
 		if (!profile.gpuAvailable) ImGui::TextDisabled("%s", _GetResourceString(L"Overlay_Profiler_TimingUnavailable").c_str());
 		if (profile.partial) {
 			ImGui::TextDisabled("%s", _GetResourceString(L"Overlay_Profiler_PartialTiming").c_str());
 			if (ImGui::IsItemHovered()) ImGui::SetTooltip("%s", _GetResourceString(L"Overlay_Profiler_PartialTimingHelp").c_str());
 		}
-		ImGui::Separator();
 		if (hasUnmeasuredFG) ImGui::TextWrapped("%s", _GetResourceString(L"Overlay_FG_UnmeasuredTiming").c_str());
 		float effectsTotalTime = 0.0f;
 		for (const _EffectDrawInfo& drawInfo : effectDrawInfos) {
@@ -2673,6 +2731,7 @@ bool OverlayDrawer::_DrawProfiler(const EffectsProfilerSnapshot& profile, uint32
 				ImGui::EndTable();
 			}
 		}
+		if (_DrawProfilerGraphs(profile)) needRedraw = true;
 	}
 
 	ImGui::End();

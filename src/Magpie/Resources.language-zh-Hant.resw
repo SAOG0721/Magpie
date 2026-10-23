@@ -2216,7 +2216,7 @@
   <data name="Overlay_Profiler_GraphEffects" xml:space="preserve"><value>效果器耗時</value></data>
   <data name="Overlay_Profiler_GraphFPSHelp" xml:space="preserve"><value>喜鵲後端處理幀率，不含補幀輸出；約 1 秒滾動視窗。同一擷取幀的再次處理也計入，不能作為遊戲原生幀率。</value></data>
   <data name="Overlay_Profiler_GraphIntervalHelp" xml:space="preserve"><value>相鄰處理事件的實際間隔。曲線為每 100 毫秒內的平均值，細線保留峰值；不是 1000/FPS 或顯示器掃描間隔。</value></data>
-  <data name="Overlay_Profiler_GraphEffectsHelp" xml:space="preserve"><value>每個有效樣本的已測效果器總耗時，包含零工作樣本。下方各效果器明細為各效果實際執行時的平均值，統計分母可能不同。</value></data>
+  <data name="Overlay_Profiler_GraphEffectsHelp" xml:space="preserve"><value>每個有效樣本的已測效果器總耗時，包含零工作樣本。上方各效果器明細為各效果實際執行時的平均值，統計分母可能不同。</value></data>
   <data name="Overlay_Profiler_PartialTiming" xml:space="preserve"><value>部分統計</value></data>
   <data name="Overlay_Profiler_PartialTimingHelp" xml:space="preserve"><value>只統計 D3D11 效果區間。跨 D3D12/CUDA 的工作可能未被完整涵蓋，或包含佇列間等待；不代表所有效果器的純 GPU 耗時。補幀代理的輸入複製與 SDK 內部補幀仍分開。</value></data>
   <data name="Overlay_Profiler_WaitingSamples" xml:space="preserve"><value>等待資料</value></data>
@@ -2226,4 +2226,5 @@
   <data name="Overlay_Profiler_Warming" xml:space="preserve"><value>取樣暖機</value></data>
   <data name="Overlay_Profiler_OutputLine" xml:space="preserve"><value>輸出幀率（補幀後）</value></data>
   <data name="Overlay_Profiler_SubmittedLine" xml:space="preserve"><value>提交幀率（補幀後）</value></data>
+  <data name="Overlay_Profiler_Graphs" xml:space="preserve"><value>圖表</value></data>
 </root>

@@ -223,10 +223,10 @@ void ImGuiImpl::NewFrame(
 		}
 
 		const char* windowId = GetWindowIDFromName(window->Name);
-		// This resizable panel restores both position and size before Begin and
-		// records only user edits there, so viewport clamping cannot erase its
+		// These resizable panels restore both position and size before Begin and
+		// record only user edits there, so viewport clamping cannot erase their
 		// preferred size or edge anchoring.
-		if (std::string_view(windowId) == "effectParameters") {
+		if (std::string_view(windowId) == "effectParameters" || std::string_view(windowId) == "profiler") {
 			continue;
 		}
 		if (auto it = windowOptions.find(windowId); it != windowOptions.end()) {

@@ -151,6 +151,8 @@ private:
 	void _DrawToolbarDockHints(const ToolbarGeometry& geometry) noexcept;
 
 	bool _DrawProfiler(const EffectsProfilerSnapshot& profile, uint32_t fps, int& itemId) noexcept;
+	bool _BeginProfilerWindow() noexcept;
+	bool _DrawProfilerGraphs(const EffectsProfilerSnapshot& profile) noexcept;
 	void _DrawProfilerGraph(const ProfilerHistory::Plot& plot, int metric, bool available) noexcept;
 	bool _DrawEffectParameters(int& itemId) noexcept;
 	void _InitEffectParameterValues() noexcept;
@@ -188,6 +190,10 @@ private:
 	ProfilerHistory::Time _profilerStartedAt{}, _profilerOutputEnd{};
 	bool _profilerHasOutput = false, _profilerOutputSubmitted = false;
 	bool _profilerTimingKnown = false;
+	bool _profilerWindowLayoutInitialized = false;
+	bool _profilerWindowLayoutDirty = false;
+	ImVec2 _profilerViewport{};
+	OverlayWindowRect _profilerWindowRect{};
 	// (总计时间, 帧数)
 	SmallVector<std::pair<float, uint32_t>, 0> _effectTimingsStatistics;
 	SmallVector<float> _lastestAvgEffectTimings;

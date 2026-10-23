@@ -30,8 +30,9 @@ struct OverlayWindowRect {
 	float x, y, width, height;
 };
 
-inline OverlayWindowRect RestoreEffectParametersWindow(
-	OverlayWindowOption option, float viewportWidth, float viewportHeight, float dpiScale
+inline OverlayWindowRect RestoreOverlayWindow(
+	OverlayWindowOption option, float viewportWidth, float viewportHeight, float dpiScale,
+	float defaultWidth, float defaultHeight, float minimumWidth, float minimumHeight
 ) noexcept {
 	SanitizeOverlayWindowOption(option);
 	auto restoreAxis = [dpiScale](uint16_t area, float pos, float preferred,
@@ -44,11 +45,28 @@ inline OverlayWindowRect RestoreEffectParametersWindow(
 		origin = std::clamp(origin, 0.0f, std::max(0.0f, viewport - size));
 	};
 	OverlayWindowRect rect{};
-	restoreAxis(option.hArea, option.hPos, option.width, 420.0f, 360.0f,
+	restoreAxis(option.hArea, option.hPos, option.width, defaultWidth, minimumWidth,
 		viewportWidth, rect.x, rect.width);
-	restoreAxis(option.vArea, option.vPos, option.height, 600.0f, 400.0f,
+	restoreAxis(option.vArea, option.vPos, option.height, defaultHeight, minimumHeight,
 		viewportHeight, rect.y, rect.height);
 	return rect;
+}
+
+inline OverlayWindowRect RestoreEffectParametersWindow(
+	OverlayWindowOption option, float viewportWidth, float viewportHeight, float dpiScale
+) noexcept {
+	return RestoreOverlayWindow(option, viewportWidth, viewportHeight, dpiScale,
+		420.0f, 600.0f, 360.0f, 400.0f);
+}
+
+inline constexpr float PROFILER_MIN_WIDTH = 310.0f;
+inline constexpr float PROFILER_MIN_HEIGHT = 220.0f;
+
+inline OverlayWindowRect RestoreProfilerWindow(
+	OverlayWindowOption option, float viewportWidth, float viewportHeight, float dpiScale
+) noexcept {
+	return RestoreOverlayWindow(option, viewportWidth, viewportHeight, dpiScale,
+		310.0f, 360.0f, PROFILER_MIN_WIDTH, PROFILER_MIN_HEIGHT);
 }
 
 inline void RememberOverlayWindowPosition(
