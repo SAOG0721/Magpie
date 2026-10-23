@@ -61,6 +61,9 @@ public:
 	virtual ContentFrameCount LastContentFrameCount() const noexcept {
 		return { _lastPresentedFrameCount, ContentFrameCountSource::Reported };
 	}
+	// Async SDK output timestamps are consumed independently of batch counts.
+	virtual void SetProfilerEnabled(bool) noexcept {}
+	virtual PresentationIntervals TakePresentationIntervals() noexcept { return {}; }
 
 	// Supplies motion that belongs to the next real base frame. Presenters that
 	// do not consume frame guidance intentionally ignore this call.

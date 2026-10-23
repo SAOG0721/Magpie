@@ -113,8 +113,41 @@ public:
         std::lock_guard lock(leaseMutex);
         _failure = "context lease busy/poisoned, or invalid multiplier";
         if (_held || leased || poisoned || multiplier < 2 || multiplier > 4) return false;
-        if (!compatibility) { leased = _held = true; return true; }
-        if (multiplier == 2) return false;
+        if (compatibility && multiplier == 2) return false;
+        _patched = _observed = false;
+        // Native 2x keeps working with an unknown SDK. Observation is optional,
+        // and must never enable the compatibility/pacing patches on that path.
+        if (!_Install(compatibility, multiplier, createEntry) && (compatibility || poisoned)) return false;
+        Pacing::outputProfiler.Reset(false);
+        leased = _held = true;
+        return true;
+    }
+    bool Release(bool workersStopped) noexcept {
+        std::lock_guard lock(leaseMutex);
+        if (!_held) return true;
+        bool ok = workersStopped && Pacing::activeCallbacks.load(std::memory_order_acquire) == 0;
+        if (ok && _observed) {
+            ok = RestorePatches(_Patches(), _backend);
+            if (ok) Pacing::g_enabled = false;
+        }
+        Pacing::outputProfiler.Reset(false);
+        poisoned |= !ok;
+        _held = false;
+        leased = false;
+        return ok;
+    }
+    bool Patched() const noexcept { return _patched; }
+    bool ObservesOutput() const noexcept { return _observed; }
+    const char* Failure() const noexcept { return _failure; }
+    void Reset() noexcept {
+        Pacing::sourcePeriodNs.store(0, std::memory_order_relaxed);
+        Pacing::resetEpoch.fetch_add(1, std::memory_order_release);
+    }
+private:
+    std::span<Patch> _Patches() noexcept {
+        return _patched ? std::span(installed) : std::span(installed).subspan(5, 1);
+    }
+    bool _Install(bool compatibility, uint32_t multiplier, const void* createEntry) noexcept {
         _failure = "loaded libxess_fg.dll file identity/hash is not in the compatibility allowlist";
         HMODULE module = GetModuleHandleW(L"libxess_fg.dll");
         if (!module || !KnownFile(module)) return false;
@@ -155,7 +188,8 @@ public:
         Pacing::g_ringSnapshot = reinterpret_cast<Pacing::RingSnapshotFn>(base+Pacing::RingSnapshotFnRva);
         Pacing::g_tsNative = reinterpret_cast<Pacing::TimestampFn>(base+Pacing::TimestampFnRva);
         installed = MakePatches(multiplier-1);
-        const auto result = InstallPatches(installed, _backend);
+        _patched = compatibility;
+        const auto result = InstallPatches(_Patches(), _backend);
         if (result != PatchResult::Success) {
             poisoned = result == PatchResult::Poisoned;
             _failure = result == PatchResult::Rejected ? "original patch bytes or page protection did not match" :
@@ -168,33 +202,13 @@ public:
         Pacing::outputCalls = 0; Pacing::schedulerCalls = 0; Pacing::extraWaitNs = 0;
         Pacing::diagnosticMedianNs = 0; Pacing::diagnosticUnitNs = 0;
         Pacing::diagnosticDeadlineShiftNs = 0;
-        Pacing::g_enabled = true;
-        leased = _held = _patched = true;
+        Pacing::g_enabled = compatibility;
+        _observed = true;
         _failure = "";
         return true;
     }
-    bool Release(bool workersStopped) noexcept {
-        std::lock_guard lock(leaseMutex);
-        if (!_held) return true;
-        bool ok = workersStopped && Pacing::activeCallbacks.load(std::memory_order_acquire) == 0;
-        if (ok && _patched) {
-            ok = RestorePatches(installed, _backend);
-            if (ok) Pacing::g_enabled = false;
-        }
-        poisoned |= !ok;
-        _held = false;
-        leased = false;
-        return ok;
-    }
-    bool Patched() const noexcept { return _patched; }
-    const char* Failure() const noexcept { return _failure; }
-    void Reset() noexcept {
-        Pacing::sourcePeriodNs.store(0, std::memory_order_relaxed);
-        Pacing::resetEpoch.fetch_add(1, std::memory_order_release);
-    }
-private:
     ImageBackend _backend{};
-    bool _held = false, _patched = false;
+    bool _held = false, _patched = false, _observed = false;
     const char* _failure = "";
 };
 }

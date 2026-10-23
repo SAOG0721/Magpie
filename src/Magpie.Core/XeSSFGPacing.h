@@ -9,6 +9,7 @@
 #include <cstring>
 #include <array>
 #include <algorithm>
+#include "PresentationIntervals.h"
 namespace Magpie::XeSSFGCompatibility::Pacing
 {
 
@@ -47,6 +48,7 @@ constexpr int32_t SampleCount = 15;
 inline uint8_t* g_base = nullptr;
 inline PresentFn g_native = nullptr;
 inline bool g_enabled = false;
+inline PresentationIntervalQueue outputProfiler;
 inline std::atomic<uint32_t> activeCallbacks{0};
 struct CallbackScope {
     CallbackScope() noexcept { activeCallbacks.fetch_add(1, std::memory_order_acq_rel); }
@@ -329,6 +331,8 @@ inline void TryPace(void* ctx, void* arg5, void* arg6, uint64_t arg7, bool isLas
 inline int64_t Detour(void* ctx, uint32_t a2, uint32_t a3, uint64_t a4, void* arg5, void* arg6, uint64_t arg7) noexcept
 {
     CallbackScope callback;
+    if (!g_enabled && !outputProfiler.Active())
+        return g_native(ctx, a2, a3, a4, arg5, arg6, arg7);
     if (g_enabled)
     {
         EnterContext(ctx);
@@ -343,7 +347,9 @@ inline int64_t Detour(void* ctx, uint32_t a2, uint32_t a3, uint64_t a4, void* ar
     outputCalls.fetch_add(1, std::memory_order_relaxed);
     LARGE_INTEGER before{}, after{};
     QueryPerformanceCounter(&before);
+    const auto submission = outputProfiler.Begin();
     const auto result = g_native(ctx, a2, a3, a4, arg5, arg6, arg7);
+    outputProfiler.Complete(submission, static_cast<HRESULT>(result) == S_OK);
     QueryPerformanceCounter(&after);
     RecordOutput(before.QuadPart, after.QuadPart, result);
     return result;

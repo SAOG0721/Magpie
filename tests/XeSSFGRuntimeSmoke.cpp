@@ -10,6 +10,7 @@
 #include <chrono>
 #include "../src/Magpie.Core/XeSSFGTiming.h"
 #include "../src/Magpie.Core/XeSSFGCompatibility.h"
+#include "../src/Magpie.Core/PresentationFrameRate.h"
 #pragma comment(lib,"d3d12.lib")
 #pragma comment(lib,"dxgi.lib")
 #pragma comment(lib,"user32.lib")
@@ -64,6 +65,13 @@ int wmain(int argc,wchar_t** argv) {
         {3u,true}, {4u,true}, {2u,true}, {4u,true}, {2u,true}}) {
         Lease lease;
         assert(lease.Acquire(multiplier>2,multiplier,reinterpret_cast<const void*>(xefgSwapChainD3D12CreateContext)));
+        assert(lease.ObservesOutput());
+        assert(lease.Patched() == (multiplier > 2));
+        Pacing::outputProfiler.SetActive(true);
+        Magpie::PresentationFrameRate outputRate;
+        outputRate.StartProfile();
+        size_t observedIntervals = 0;
+        auto activeSince=std::chrono::steady_clock::now();
         // Diagnostic control only, before any SDK context/callback exists.
         // Production always uses the complete compatibility + pacing path.
         if(multiplier>2) Pacing::g_enabled=pacing;
@@ -152,6 +160,8 @@ int wmain(int argc,wchar_t** argv) {
         Magpie::XeSSFGTiming timing;
         double previousExtraWaitMs=0;
         for(uint32_t frame=1;frame<=60;++frame) {
+            if(frame==21)Pacing::outputProfiler.SetActive(false);
+            if(frame==26){activeSince=std::chrono::steady_clock::now();Pacing::outputProfiler.SetActive(true);}
             MSG msg{};while(PeekMessageW(&msg,nullptr,0,0,PM_REMOVE)) {TranslateMessage(&msg);DispatchMessageW(&msg);}
             xellSleep(xell,frame);
             xellAddMarkerData(xell,frame,XELL_INPUT_SAMPLE);
@@ -212,10 +222,32 @@ int wmain(int argc,wchar_t** argv) {
             result=xefgSwapChainGetLastPresentStatus(context,&status);
             if(result<0 || status.frameGenResult<0) std::cout<<"frame="<<frame<<" status="<<int(result)<<" FG="<<int(status.frameGenResult)<<std::endl;
             assert(result>=0 && status.frameGenResult>=0);
+            outputRate.Record(status.framesPresented,1);
+            auto intervals=Pacing::outputProfiler.Take();
+            if(frame>=21&&frame<=25)assert(intervals.count==0);
+            for(size_t i=0;i<intervals.count;++i)assert(intervals.samples[i].begin>=activeSince);
+            observedIntervals+=intervals.count;
+            outputRate.RecordIntervals(intervals);
             if((frame-1)%20>=5) {
                 ++measuredSubmissions;successfulFrames+=status.framesPresented;fullBursts+=status.framesPresented==multiplier;
             }
         }
+        // SDK output runs asynchronously. Observe actual callback timestamps,
+        // including the final queued burst, rather than deriving an interval.
+        const auto observationEnd = std::chrono::steady_clock::now()+std::chrono::milliseconds(100);
+        while (std::chrono::steady_clock::now()<observationEnd) {
+            auto intervals=Pacing::outputProfiler.Take();
+            observedIntervals+=intervals.count;
+            outputRate.RecordIntervals(intervals);
+            Sleep(1);
+        }
+        const auto outputPlot=outputRate.Profile();
+        size_t plottedIntervals=0;
+        for(const auto& point:outputPlot.plot.points)plottedIntervals+=point.interval.count;
+        std::cout<<"native output observation: calls="<<Pacing::outputCalls.load()<<" queuedIntervals="<<observedIntervals
+            <<" plottedIntervals="<<plottedIntervals<<" lastResult="<<Pacing::outputRecords[(Pacing::outputPosition+511)%512].result<<std::endl;
+        assert(observedIntervals>=successfulFrames && plottedIntervals>0 && outputPlot.individualTimestamps);
+        Pacing::outputProfiler.SetActive(false);
         std::cout<<"post-warmup SDK frames="<<successfulFrames<<"/"<<measuredSubmissions
             <<" fullBursts="<<fullBursts<<" timingResets="<<timingResets<<std::endl;
         assert(fullBursts==measuredSubmissions && successfulFrames==measuredSubmissions*multiplier);

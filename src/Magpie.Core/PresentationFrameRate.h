@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <optional>
 #include "ProfilerHistory.h"
+#include "PresentationIntervals.h"
 
 namespace Magpie {
 
@@ -98,13 +99,25 @@ public:
 		_individualTimestamps = false;
 		_lastIndividualTimestamp.reset();
 	}
+	bool Profiling() const noexcept { return _profiling; }
+	void RecordIntervals(const PresentationIntervals& intervals, Clock::time_point now = Clock::now()) noexcept {
+		if (!_profiling || _history.Suspended()) return;
+		for (size_t i = 0; i < intervals.count; ++i) {
+			const auto& sample = intervals.samples[i];
+			if (sample.begin < _profileStarted || sample.end > now || sample.end <= sample.begin ||
+				(_lastIntervalEnd && sample.end <= *_lastIntervalEnd)) continue;
+			_history.Interval(sample.begin, sample.end);
+			_lastIntervalEnd = sample.end;
+			_individualTimestamps = true;
+		}
+	}
 	// Called on the frontend with the backend's coherent profiler snapshot.
 	// A UI generation transition may drop early output samples, but cannot mix
 	// old sequence/chain data into the newly displayed input/output comparison.
 	void SynchronizeProfile(uint64_t generation, bool suspended,
 		Clock::time_point now = Clock::now()) noexcept {
 		if (!_profiling) return;
-		if (_profileGeneration && *_profileGeneration != generation) _ResetProfile(now);
+		if ((_profileGeneration && *_profileGeneration != generation) || (_history.Suspended() && !suspended)) _ResetProfile(now);
 		_profileGeneration = generation;
 		_history.Suspend(suspended, now);
 		if (suspended) _lastIndividualTimestamp.reset();
@@ -122,6 +135,7 @@ private:
 		_profileStarted = now;
 		_lastIndividualTimestamp.reset();
 		_individualTimestamps = false;
+		_lastIntervalEnd.reset();
 	}
 	void _Update(Clock::time_point now) noexcept {
 		if (!_started) { _start = now; _started = true; return; }
@@ -146,6 +160,7 @@ private:
 	ProfilerHistory _history;
 	Clock::time_point _profileStarted{};
 	std::optional<Clock::time_point> _lastIndividualTimestamp;
+	std::optional<Clock::time_point> _lastIntervalEnd;
 	std::optional<uint64_t> _profileGeneration;
 	ContentFrameCountSource _profileSource = ContentFrameCountSource::Reported;
 	bool _profiling = false, _individualTimestamps = false;

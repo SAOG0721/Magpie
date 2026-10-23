@@ -6,7 +6,9 @@ Magpie Experimental v0.6.11 x64
 便携配置：程序目录内的 config\v4e\config.json。保留旧程序和原配置，以便回退。
 
 0.6.11 使用要点
+性能分析默认显示各效果器耗时及总计，手动展开“图表”查看捕获／输出帧率和帧间隔、效果器总耗时。拖动右下角可调整浮窗大小并记忆。XeSS 2×～4×使用真实输出事件间隔；无法观测的后端显示缺测。
 在效果组页面的效果器参数中选择 DLSS SR／FG 模型预设。SR 默认 K，A–F 为 CNN，J/K 为 Transformer 1代，L/M 为 Transformer 2代；FG 默认自动，可选 A/B/C。修改模型后重新开始缩放。
+FG 的 A 为标准，C 为性能模式；B 的 UI 重建在当前接入中不生效。
 DLSSNR 抗闪烁响应时间为 5–200 ms，步进 5 ms，默认 80 ms；关闭抗闪烁时隐藏并保留数值。下一有效捕获帧生效，较大值更稳定、响应更慢。
 主包默认携带 310.9.16 社区兼容 DLSSNR；可选包原样保留 NVIDIA 原版 RTX 50 和社区兼容 RTX 20/30/40 两个选项。
 截图可选输入＋输出、仅输出（默认）或仅输入；暂停时通过保留画面保存快照。
@@ -24,7 +26,9 @@ Normal settings: %LOCALAPPDATA%\Magpie\config\v4e\config.json. If v4e is absent,
 Portable settings: config\v4e\config.json under the program folder. Keep the previous program and settings for rollback.
 
 0.6.11 essentials
+The profiler shows effect timings and their total by default. Expand Charts to compare capture/output FPS and frame intervals, plus total measured effect time. Resize with the lower-right grip; size is retained. XeSS 2x–4x uses actual output-event intervals; unavailable observations remain explicitly missing.
 Choose DLSS SR/FG model presets in each effect's parameter settings on the Scaling modes page. SR defaults to K: A–F are CNN, J/K are Transformer 1, and L/M are Transformer 2. FG defaults to Auto with A/B/C choices. Restart scaling after changing a model preset.
+FG preset A is Standard and C is Performance Mode. Preset B's UI Recomposition has no effect in the current integration.
 DLSSNR anti-flicker response time ranges from 5 to 200 ms in 5-ms steps, defaulting to 80 ms. Turning anti-flicker Off hides the control and retains its value. Changes apply on the next valid captured frame; higher values favor stability with slower adaptation.
 The main package includes the 310.9.16 community compatibility DLSSNR. The unchanged optional ZIP contains the NVIDIA original for RTX 50 and the community version for RTX 20/30/40.
 Screenshots offer input + output, output only (default), or input only, with snapshots of retained content while paused.

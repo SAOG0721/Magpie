@@ -135,6 +135,8 @@ struct XeSSFGPresenter::Impl {
 	uint64_t sdkMotionSamples = 0;
 	bool frameGenerationEnabled = false;
 	bool idlePresentation = false, idleGenerationSuspended = false;
+	bool profilerEnabled = false;
+	bool outputTimingLogged = false;
 	bool limiterEnabled = true;
 	bool fatal = false;
 	std::chrono::steady_clock::time_point capacityWaitStarted{};
@@ -169,6 +171,7 @@ static bool WaitForQueue(XeSSFGPresenter::Impl& impl) noexcept {
 }
 
 XeSSFGPresenter::Impl::~Impl() {
+	if (compatibility.ObservesOutput()) XeSSFGCompatibility::Pacing::outputProfiler.SetActive(false);
 	bool stopped = true;
 	if (queue12 && fence12) {
 		stopped = WaitForQueue(*this);
@@ -560,6 +563,9 @@ bool XeSSFGPresenter::_Initialize(HWND hwndAttach) noexcept {
 		return false;
 	}
 	Logger::Get().Info(compatibility ? "XeSSFG: verified 1.3.1.78 compatibility and pacing active (experimental)" : "XeSSFG: native runtime path");
+	Logger::Get().Info(impl->compatibility.ObservesOutput() ?
+		"XeSSFG per-output timing: verified provider observation available" :
+		"XeSSFG per-output timing unavailable for this runtime; native operation preserved");
 	xefg_swapchain_result_t result = xefgSwapChainD3D12CreateContext(
 		impl->device12.get(), &impl->xefg);
 	if (!XeFGSucceeded(result)) {
@@ -766,6 +772,8 @@ bool XeSSFGPresenter::SetBaseFrameRateLimit(double baseFPS) noexcept {
 void XeSSFGPresenter::SetSourceTiming(uint64_t frameId, uint64_t sequence,
 	uint64_t generation, int64_t timestamp100ns) noexcept {
 	if (!_impl) return;
+	if (sequence != _impl->sourceSample.sequence || generation != _impl->sourceSample.generation)
+		XeSSFGCompatibility::Pacing::outputProfiler.Reset(false);
 	if (frameId != _impl->sourceSample.frameId || generation != _impl->sourceSample.generation) {
 		const double now = std::chrono::duration<double, std::milli>(
 			std::chrono::steady_clock::now().time_since_epoch()).count();
@@ -791,6 +799,7 @@ bool XeSSFGPresenter::_BeginFrame(winrt::com_ptr<ID3D11Texture2D>& frameTex,
 		return false;
 	}
 	Impl& impl = *_impl;
+	if (idle) XeSSFGCompatibility::Pacing::outputProfiler.SetActive(false);
 	if (impl.frameGenerationEnabled && idle != impl.idleGenerationSuspended) {
 		// Toggle only on entering/leaving idle, never on every cached present.
 		_WaitForGpu();
@@ -835,6 +844,29 @@ bool XeSSFGPresenter::_BeginFrame(winrt::com_ptr<ID3D11Texture2D>& frameTex,
 }
 
 bool XeSSFGPresenter::HasFatalError() const noexcept { return _impl && _impl->fatal; }
+void XeSSFGPresenter::SetProfilerEnabled(bool enabled) noexcept {
+	if (!_impl) return;
+	if (enabled != _impl->profilerEnabled) _impl->outputTimingLogged = false;
+	_impl->profilerEnabled = enabled;
+	XeSSFGCompatibility::Pacing::outputProfiler.SetActive(enabled && _impl->compatibility.ObservesOutput() &&
+		!_impl->idlePresentation && !_impl->idleGenerationSuspended);
+}
+PresentationIntervals XeSSFGPresenter::TakePresentationIntervals() noexcept {
+	if (!_impl || !_impl->profilerEnabled || !_impl->compatibility.ObservesOutput()) return {};
+	auto intervals = XeSSFGCompatibility::Pacing::outputProfiler.Take();
+	if (intervals.count && !_impl->outputTimingLogged) {
+		double total = 0, peak = 0;
+		for (size_t i = 0; i < intervals.count; ++i) {
+			const auto& sample = intervals.samples[i];
+			const double ms = std::chrono::duration<double, std::milli>(sample.end - sample.begin).count();
+			total += ms; peak = std::max(peak, ms);
+		}
+		Logger::Get().Info(fmt::format("XeSSFG profiler output intervals: samples={} meanMs={:.3f} peakMs={:.3f} (native submissions)",
+			intervals.count, total / static_cast<double>(intervals.count), peak));
+		_impl->outputTimingLogged = true;
+	}
+	return intervals;
+}
 const PresenterFailure* XeSSFGPresenter::GetFailure() const noexcept { return _impl ? &_impl->failure : nullptr; }
 
 bool XeSSFGPresenter::WaitForFrameCapacity(DWORD timeout) noexcept {
@@ -1028,6 +1060,7 @@ bool XeSSFGPresenter::EndFrame(bool waitForGpu) noexcept {
 	const auto presentStart = std::chrono::steady_clock::now();
 	const auto tracePresent = FrameTrace::Tick();
 	const auto extraBefore = XeSSFGCompatibility::Pacing::extraWaitNs.load(std::memory_order_relaxed);
+	SetProfilerEnabled(impl.profilerEnabled);
 	hr = _PresentWithVRR(impl.swapChain.get(), false);
 	impl.presentMs = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - presentStart).count();
 	impl.extraWaitMs = static_cast<double>(XeSSFGCompatibility::Pacing::extraWaitNs.load(std::memory_order_relaxed) - extraBefore) / 1000000.0;
@@ -1128,6 +1161,7 @@ bool XeSSFGPresenter::OnResize() noexcept {
 		return true;
 	}
 
+	XeSSFGCompatibility::Pacing::outputProfiler.SetActive(false);
 	xefgSwapChainSetEnabled(impl.xefg, false);
 	impl.frameGenerationEnabled = false;
 	impl.timing.Reset();
@@ -1209,6 +1243,8 @@ bool XeSSFGPresenter::BeginFrame(
 bool XeSSFGPresenter::BeginIdleFrame(winrt::com_ptr<ID3D11Texture2D>&, winrt::com_ptr<ID3D11RenderTargetView>&, POINT&) noexcept { return false; }
 bool XeSSFGPresenter::_BeginFrame(winrt::com_ptr<ID3D11Texture2D>&, winrt::com_ptr<ID3D11RenderTargetView>&, POINT&, bool) noexcept { return false; }
 bool XeSSFGPresenter::EndFrame(bool) noexcept { return false; }
+void XeSSFGPresenter::SetProfilerEnabled(bool) noexcept {}
+PresentationIntervals XeSSFGPresenter::TakePresentationIntervals() noexcept { return {}; }
 bool XeSSFGPresenter::SetBaseFrameRateLimit(double) noexcept { return false; }
 bool XeSSFGPresenter::HasFatalError() const noexcept { return false; }
 const PresenterFailure* XeSSFGPresenter::GetFailure() const noexcept { return nullptr; }

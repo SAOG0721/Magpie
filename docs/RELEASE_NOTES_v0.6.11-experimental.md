@@ -1,10 +1,18 @@
 # Magpie Experimental v0.6.11
 
-本版更新 DLSS 补帧运行库，新增 DLSS SR／FG 模型预设和 DLSSNR 抗闪烁响应时间，修正暂停画面的截图处理，并统一截图文件命名。
+本版新增可调整大小的性能分析浮窗和捕获／输出图表，补齐 XeSS FG 输出帧间隔；更新 DLSS 补帧运行库，新增 DLSS SR／FG 模型预设和 DLSSNR 抗闪烁响应时间，修正暂停截图并统一截图命名。
 
 ## 功能更新
 
 ### Magpie 本体易用性更新
+
+#### 性能分析浮窗
+
+- 默认显示各效果器耗时及总耗时，手动展开二级“图表”后查看最近 10 秒变化。没有实际内容时隐藏“开发者选项”。
+- **帧率、帧间隔**分别显示“捕获／输出”两条曲线；**效果器耗时**保持单图。捕获按当前去重规则接收的有效新帧统计，输出包含补帧，排除光标、界面刷新和旧画面的空闲重放。
+- 帧间隔使用真实事件时间戳，保留均值和峰值，不从 FPS 或补帧倍率倒算。修复随附运行库下 **XeSS FG 2×／3×／4× 输出帧间隔缺测**；没有可用逐帧数据的后端或运行库仍明确显示缺测。
+- 输出数据描述内容提交／后端报告，不代表显示器实际扫描帧率。效果器计时不包含所有原生 SDK 内部工作时，会保留“部分统计”说明。
+- 浮窗右下角支持拖动调整大小，记忆尺寸和位置；展开图表不强制放大窗口，内容可纵向滚动。默认折叠图表，按需查看。
 
 #### 暂停截图与文件命名
 
@@ -21,11 +29,13 @@
 - 新增 **自动、A–F（CNN）、J／K（Transformer 1代）、L／M（Transformer 2代）**。
 - **默认 K**。新建效果和旧配置缺少该字段时使用 K，已有明确保存的有效选择保留；“自动”与 K 是不同选项。
 - 修改后重新开始缩放生效。
+- 修复部分质量模式没有使用所选 SR 预设的问题，使预设在各质量模式下正确传递。
 
 #### DLSS FG 运行库与预设
 
 - 将 `dlssg_for_sm86` 更新至 **0.4.0**，配套 `nvngx_dlssg.dll` 更新至 **310.9.16.0**。
 - 新增 **自动（默认）、A、B、C** 预设。旧配置缺少该字段时使用自动，已有有效选择保留；修改后重新开始缩放生效。
+- 预设位于倍率和光流选项之间；补充 **A（标准）**、**C（性能模式）**说明。B 标为 **UI 重建 - 不生效**，当前接入不提供该 UI 重建功能。
 
 #### DLSSNR 抗闪烁响应时间
 
@@ -39,6 +49,11 @@
 - 主包默认携带 **310.9.16 社区兼容版** `nvngx_dlssnr.dll`，供 RTX 20／30／40 系列使用。
 - 可选包保留 **NVIDIA 原版 310.9.16（RTX 50 系列）**与同版**社区兼容版（RTX 20／30／40 系列）**两个选项，沿用已提供的两选项 ZIP；不再提供 SF-v2 选项。
 - 社区兼容版并非 NVIDIA 原版。各型号的兼容性、画质与性能仍取决于实际运行结果。
+
+## 已知限制
+
+- XeSS 输出帧间隔的本机验证覆盖随附运行库及 NVIDIA GPU；其他显卡、HDR／VRR 和长期游戏体验仍需实际检查。未知运行库的原生路径保留功能，无法安全观测时显示缺测。
+- 部分 RTSS Reflex 标记设置可能在 DLSS／XeSS 跨效果链切换时触发崩溃。受影响时可先退出 RTSS 对照；本机采用仅关闭 Magpie 专用 `ReflexSetLatencyMarker` 的规避设置后通过复测。主包不会自动修改 RTSS 配置。
 
 ## 应该下载哪个文件？
 
@@ -61,11 +76,19 @@
 
 # Magpie Experimental v0.6.11 User Guide
 
-This release updates the DLSS frame-generation runtime, adds DLSS SR / FG model presets and an adjustable DLSSNR anti-flicker response time, corrects paused-picture screenshot handling, and standardizes screenshot filenames.
+This release adds a resizable performance profiler with capture/output charts and XeSS FG output intervals. It also updates the DLSS frame-generation runtime, adds DLSS SR / FG model presets and an adjustable DLSSNR anti-flicker response time, fixes paused screenshots, and standardizes screenshot filenames.
 
 ## Feature updates
 
 ### Magpie usability updates
+
+#### Performance profiler
+
+- Show individual effect timings and their total by default. Manually expand the secondary **Charts** section to view the last 10 seconds. Hide **Developer options** when it has no content.
+- Show separate **Capture / Output** curves for both **Frame rate** and **Frame interval**, with one **Effect timings** chart. Capture counts new frames accepted by the current duplicate-detection policy. Output includes generated frames and excludes cursor, UI and idle replays of old content.
+- Measure intervals from real event timestamps, retaining mean and peak values, without deriving them from FPS or a generation multiplier. Fix missing output intervals for **XeSS FG 2× / 3× / 4× with the bundled runtime**. Backends or runtimes without usable per-frame observations continue to show missing data explicitly.
+- Output represents content submissions or backend-reported counts, not physical display scanout. Retain the **Partial timing** notice when measured effect timings do not cover all native SDK work.
+- Drag the lower-right grip to resize the window; retain its size and position. Expanding charts does not force a larger window, and content can scroll vertically. Charts start collapsed for optional viewing.
 
 #### Paused screenshots and filenames
 
@@ -82,11 +105,13 @@ All new parameters are available through **the parameter button on the right of 
 - Add **Auto, A–F (CNN), J / K (Transformer 1), and L / M (Transformer 2)**.
 - **Default to K** for new effects and older configurations without this field. Retain existing explicitly saved valid choices; Auto and K are separate options.
 - Restart scaling to apply a change.
+- Fix selected SR presets not being applied in some quality modes, so the requested preset is passed correctly across quality modes.
 
 #### DLSS FG runtime and presets
 
 - Update `dlssg_for_sm86` to **0.4.0** with the matching **310.9.16.0** `nvngx_dlssg.dll`.
 - Add **Auto (default), A, B and C** presets. Older configurations without this field use Auto, while existing valid choices remain. Restart scaling to apply a change.
+- Place the preset between multiplier and optical-flow controls, with **A (Standard)** and **C (Performance Mode)** descriptions. Label B as **UI Recomposition - No Effect**; the current integration does not provide that UI recomposition feature.
 
 #### DLSSNR anti-flicker response time
 
@@ -100,6 +125,11 @@ All new parameters are available through **the parameter button on the right of 
 - The main package now includes the **310.9.16 community compatibility** `nvngx_dlssnr.dll` for RTX 20 / 30 / 40 series.
 - The optional package retains two choices: **NVIDIA original 310.9.16 (RTX 50 series)** and the **community compatibility version (RTX 20 / 30 / 40 series)**, using the previously supplied two-option ZIP. The SF-v2 option is no longer included.
 - The community version is not the original NVIDIA binary. Compatibility, image quality and performance on individual GPU models still depend on actual operation.
+
+## Known limitations
+
+- Local XeSS output-interval validation covers the bundled runtime on an NVIDIA GPU. Other GPUs, HDR / VRR and long gaming sessions still require practical checks. Native operation is retained with unknown runtimes, with missing intervals shown when safe observation is unavailable.
+- Some RTSS Reflex marker settings can trigger a crash during transitions between DLSS and XeSS effect chains. Affected users can first compare with RTSS exited. Local retesting passed after disabling only the Magpie-specific `ReflexSetLatencyMarker`; the package does not automatically modify RTSS settings.
 
 ## Which file should I download?
 

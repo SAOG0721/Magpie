@@ -83,6 +83,16 @@ public:
 
     void BreakIntervals() noexcept { _lastFrame.reset(); }
 
+    // An asynchronous presenter can deliver measured intervals separately from
+    // its aggregate frame counts. Keep both endpoints and do not add a frame.
+    void Interval(Time begin, Time end) noexcept {
+        if (!_active || _suspended || begin < _started || end <= begin) return;
+        const int64_t tick = Tick(end);
+        if (_latestTick - tick >= int64_t(Capacity)) return;
+        Advance(end);
+        At(tick).interval.Add(std::chrono::duration<double, std::milli>(end - begin).count());
+    }
+
     void Observe(Time now) noexcept {
         if (_active) Advance(now);
     }

@@ -188,11 +188,17 @@ static void Runtime(const wchar_t* path) {
         auto original=MakePatches(multiplier-1);
         for(auto& p:original) assert(backend.Preflight(p));
         assert(duplicate.Acquire(false,2,entry));
+        assert(duplicate.ObservesOutput() && !duplicate.Patched() && !Pacing::g_enabled);
+        for(size_t i=0;i<original.size();++i)if(i!=5)assert(backend.Preflight(original[i]));
         assert(duplicate.Release(true));
+        for(auto& p:original)assert(backend.Preflight(p));
     }
     Lease unknown;
     assert(!unknown.Acquire(true,4,reinterpret_cast<const void*>(&Runtime)));
     assert(!unknown.Acquire(true,5,entry));
+    assert(unknown.Acquire(false,2,reinterpret_cast<const void*>(&Runtime)));
+    assert(!unknown.ObservesOutput() && !unknown.Patched());
+    assert(unknown.Release(true));
     Lease uncertain;
     assert(uncertain.Acquire(false,2,entry));
     assert(!uncertain.Release(false));

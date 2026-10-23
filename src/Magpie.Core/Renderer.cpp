@@ -702,6 +702,7 @@ void Renderer::ClearOverlayStates() noexcept {
 
 void Renderer::StartProfile() noexcept {
 	_presentationRate.StartProfile();
+	_presenter->SetProfilerEnabled(true);
 	_backendThreadDispatcher.TryEnqueue([this] {
 		uint32_t passCount = 0;
 		for (const EffectDesc* desc : _activeEffectDescs) {
@@ -714,6 +715,7 @@ void Renderer::StartProfile() noexcept {
 }
 
 void Renderer::StopProfile() noexcept {
+	_presenter->SetProfilerEnabled(false);
 	_presentationRate.StopProfile();
 	_backendThreadDispatcher.TryEnqueue([this] {
 		_effectsProfiler.Stop();
@@ -1281,6 +1283,8 @@ bool Renderer::_SubmitFrontendFrame() noexcept {
 		if (!generatedFrame && (!count || *count > 0)) _lastCountedRealFrameId = _frontendCaptureFrameId;
 	}
 	bool overlayColorChanged = false;
+	if (_presentationRate.Profiling())
+		_presentationRate.RecordIntervals(_presenter->TakePresentationIntervals());
 	if (submitted) {
 		if (!stableBaseOnly && _frontendPresentedBaseTexture) {
 			const bool hdrOutput = ScalingWindow::Get().Options().IsHdrCompatibilityEnabled();
@@ -1344,8 +1348,11 @@ void Renderer::_DrawOverlay(ID3D11Texture2D* target, const HdrFrameMetadata& fra
 		}
 	}
 	const auto profile = _effectsProfiler.GetSnapshot();
+	_presenter->SetProfilerEnabled(_presentationRate.Profiling() && profile.history.Active() && !profile.history.Suspended());
 	if (profile.history.Active())
 		_presentationRate.SynchronizeProfile(profile.generation, profile.history.Suspended());
+	if (_presentationRate.Profiling())
+		_presentationRate.RecordIntervals(_presenter->TakePresentationIntervals());
 	_overlayDrawer.Draw(_stepTimer.FPS(), profile, drawOffset,
 		ResolveOverlayWhiteScale(hdrOutput, desc.Format, frame, _overlayMonitorSdrWhiteNits));
 }

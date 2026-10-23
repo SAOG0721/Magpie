@@ -19,7 +19,62 @@ struct Gate {
     }
 };
 
+static void AsyncIntervals(){
+    PresentationIntervalQueue queue;
+    assert(!queue.Active() && queue.Begin(base).serial==0);
+    queue.SetActive(true);
+    const auto emit=[&](auto time,bool success=true){auto s=queue.Begin(time);queue.Complete(s,success);};
+    emit(base);emit(base+8ms);emit(base+20ms);
+    auto batch=queue.Take();
+    assert(batch.count==2 && batch.samples[0].end-batch.samples[0].begin==8ms &&
+        batch.samples[1].end-batch.samples[1].begin==12ms);
+    assert(queue.Take().count==0);
+    // Failed output and missing callback are gaps, never long fake intervals.
+    emit(base+30ms,false);emit(base+40ms);emit(base+45ms);
+    [[maybe_unused]] auto missing=queue.Begin(base+50ms);
+    emit(base+60ms);emit(base+67ms);
+    batch=queue.Take();
+    assert(batch.count==2 && batch.samples[0].end-batch.samples[0].begin==5ms &&
+        batch.samples[1].end-batch.samples[1].begin==7ms);
+    const auto stale=queue.Begin(base+70ms);
+    queue.SetActive(false);queue.SetActive(true);
+    queue.Complete(stale,true);emit(base+1s);emit(base+1009ms);
+    batch=queue.Take();assert(batch.count==1 && batch.samples[0].end-batch.samples[0].begin==9ms);
+    // Completing two producers out of order must not connect across them.
+    auto first=queue.Begin(base+1010ms),second=queue.Begin(base+1020ms);
+    queue.Complete(second,true);queue.Complete(first,true);emit(base+1030ms);
+    assert(queue.Take().count==0);
+    queue.Reset(true);
+    for(int i=0;i<=1000;++i)emit(base+2s+milliseconds(i*2));
+    batch=queue.Take();assert(batch.count==64);
+    for(size_t i=0;i<batch.count;++i)assert(batch.samples[i].end-batch.samples[i].begin==2ms);
+
+    PresentationFrameRate rate;rate.StartProfile(base);
+    rate.Record(2,1,base+20ms);
+    PresentationIntervals actual;actual.count=2;
+    actual.samples[0]={base,base+8ms};actual.samples[1]={base+8ms,base+20ms};
+    rate.RecordIntervals(actual,base+20ms);
+    rate.RecordIntervals(actual,base+20ms); // Re-reading does not duplicate samples or FPS.
+    auto plot=rate.Profile(base+20ms);
+    assert(plot.individualTimestamps && IntervalCount(plot.plot)==2 && Near(plot.plot.points.back().fps,100));
+    rate.Record(std::nullopt,1,base+30ms);
+    assert(!rate.Profile(base+30ms).plot.points.back().fpsValid && IntervalCount(rate.Profile(base+30ms).plot)==2);
+    rate.SynchronizeProfile(1,true,base+40ms);
+    rate.RecordIntervals(actual,base+40ms);
+    rate.SynchronizeProfile(1,false,base+1s);
+    rate.RecordIntervals(actual,base+1s);
+    assert(IntervalCount(rate.Profile(base+1s).plot)==0);
+    actual.count=1;actual.samples[0]={base+1s,base+1010ms};
+    rate.RecordIntervals(actual,base+1010ms);
+    assert(IntervalCount(rate.Profile(base+1010ms).plot)==1);
+    rate.SynchronizeProfile(2,false,base+2s);rate.RecordIntervals(actual,base+2s);
+    assert(IntervalCount(rate.Profile(base+2s).plot)==0);
+    rate.StopProfile();rate.RecordIntervals(actual,base+3s);
+    assert(!rate.Profile(base+3s).active);
+}
+
 int main(){
+    AsyncIntervals();
     ProfilerHistory capture;capture.Reset(base);
     PresentationFrameRate output;output.StartProfile(base);
     for(int i=0;i<360;++i){

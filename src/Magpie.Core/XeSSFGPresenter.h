@@ -32,6 +32,8 @@ public:
 	bool BeginIdleFrame(winrt::com_ptr<ID3D11Texture2D>& frameTex,
 		winrt::com_ptr<ID3D11RenderTargetView>& frameRtv, POINT& drawOffset) noexcept override;
 	bool EndFrame(bool waitForGpu = false) noexcept override;
+	void SetProfilerEnabled(bool enabled) noexcept override;
+	PresentationIntervals TakePresentationIntervals() noexcept override;
 	bool SetBaseFrameRateLimit(double baseFPS) noexcept override;
 	bool HasFatalError() const noexcept override;
 	const PresenterFailure* GetFailure() const noexcept override;
