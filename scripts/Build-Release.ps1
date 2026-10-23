@@ -21,8 +21,6 @@ $ErrorActionPreference = "Stop"
 Set-StrictMode -Version Latest
 
 $sourceRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot ".."))
-$workspaceRoot = Split-Path $sourceRoot -Parent
-$releaseRoot = [System.IO.Path]::GetFullPath((Join-Path $workspaceRoot "release"))
 
 $featureOptions = [ordered]@{}
 $buildOptionsPath = Join-Path $sourceRoot "src\BuildOptions.props"
@@ -169,6 +167,16 @@ function Invoke-Git([string[]]$Arguments) {
     return ($value | Out-String).Trim()
 }
 
+# Linked worktrees share the primary checkout's .git directory. Their own
+# parent directories are not the workspace root.
+$commonGitDirectory = Invoke-Git @("rev-parse", "--path-format=absolute", "--git-common-dir")
+if (!$commonGitDirectory) {
+    throw "Cannot resolve the shared Git directory for $sourceRoot. Run from a Git checkout."
+}
+$primarySourceRoot = Split-Path ([System.IO.Path]::GetFullPath($commonGitDirectory)) -Parent
+$workspaceRoot = Split-Path $primarySourceRoot -Parent
+$releaseRoot = [System.IO.Path]::GetFullPath((Join-Path $workspaceRoot "release"))
+
 $commit = Invoke-Git @("rev-parse", "HEAD")
 $shortCommit = Invoke-Git @("rev-parse", "--short=12", "HEAD")
 $commitTimeText = Invoke-Git @("show", "-s", "--format=%cI", "HEAD")
@@ -223,6 +231,11 @@ if (!$stagingDir.StartsWith($releaseContainer + [System.IO.Path]::DirectorySepar
         [System.StringComparison]::OrdinalIgnoreCase)) {
     throw "Release path escaped the release directory."
 }
+
+Write-Host "Source directory:  $sourceRoot"
+Write-Host "Workspace root:    $workspaceRoot"
+Write-Host "Release directory: $stagingDir"
+Write-Host "Release ZIP:       $zipPath"
 
 function Stop-RunningMagpie {
     $running = Get-Process -Name "Magpie" -ErrorAction SilentlyContinue
