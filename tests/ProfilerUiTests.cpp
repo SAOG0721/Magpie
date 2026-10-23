@@ -45,7 +45,7 @@ int main() try {
         ranges.AddRanges(io.Fonts->GetGlyphRangesDefault());
         for(const auto& [key,value] : resources[language]) ranges.AddText(value.c_str());
         ImVector<ImWchar> glyphs; ranges.BuildRanges(&glyphs);
-        assert(io.Fonts->AddFontFromFileTTF("C:/Windows/Fonts/msyh.ttc",14*dpi,nullptr,glyphs.Data));
+        assert(io.Fonts->AddFontFromFileTTF("C:/Windows/Fonts/msyh.ttc",18*dpi,nullptr,glyphs.Data));
         unsigned char* pixels; int w,h; io.Fonts->GetTexDataAsRGBA32(&pixels,&w,&h);
         io.Fonts->SetTexID((ImTextureID)1);
         if(dark) ImGui::StyleColorsDark(); else ImGui::StyleColorsLight();
