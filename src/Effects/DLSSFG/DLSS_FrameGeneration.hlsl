@@ -17,9 +17,9 @@ int multiplier;
 //!LABEL Render Preset
 //!DEFAULT 0
 //!OPTION 0 Auto (Default)
-//!OPTION 1 A
+//!OPTION 1 A (Standard)
 //!OPTION 2 B (UI Recomposition - No Effect)
-//!OPTION 3 C
+//!OPTION 3 C (Performance Mode)
 int renderPreset;
 
 //!PARAMETER

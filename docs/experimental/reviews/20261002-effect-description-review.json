@@ -5549,7 +5549,7 @@
       "level": "advanced",
       "source": {
         "path": "src/Effects/DLSSFG/DLSS_FrameGeneration.hlsl",
-        "sha256": "03a457e7d175b58ee4e28c8cfae2f8df50dafdf6c2c867ae7fa1f8e1d791ecdc",
+        "sha256": "d32c6c9939d3c582ac3df8c07c111c2df79761af81e654c0c38bd2ed39ea986c",
         "output": {
           "WIDTH": "INPUT_WIDTH",
           "HEIGHT": "INPUT_HEIGHT"
@@ -5573,9 +5573,9 @@
             "default": "0",
             "options": [
               "0 Auto (Default)",
-              "1 A",
+              "1 A (Standard)",
               "2 B (UI Recomposition - No Effect)",
-              "3 C"
+              "3 C (Performance Mode)"
             ]
           },
           {
