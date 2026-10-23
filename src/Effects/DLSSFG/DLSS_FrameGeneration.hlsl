@@ -18,7 +18,7 @@ int multiplier;
 //!DEFAULT 0
 //!OPTION 0 Auto (Default)
 //!OPTION 1 A
-//!OPTION 2 B
+//!OPTION 2 B (UI Recomposition - No Effect)
 //!OPTION 3 C
 int renderPreset;
 

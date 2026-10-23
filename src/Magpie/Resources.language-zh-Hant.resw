@@ -2209,6 +2209,6 @@
   <data name="EffectParam_DLSSFG_DLSS_FrameGeneration_renderPreset_Label" xml:space="preserve"><value>模型預設</value></data>
   <data name="EffectParam_DLSSFG_DLSS_FrameGeneration_renderPreset_Option_0" xml:space="preserve"><value>自動（預設）</value></data>
   <data name="EffectParam_DLSSFG_DLSS_FrameGeneration_renderPreset_Option_1" xml:space="preserve"><value>A</value></data>
-  <data name="EffectParam_DLSSFG_DLSS_FrameGeneration_renderPreset_Option_2" xml:space="preserve"><value>B</value></data>
+  <data name="EffectParam_DLSSFG_DLSS_FrameGeneration_renderPreset_Option_2" xml:space="preserve"><value>B（UI 重建 - 不生效）</value></data>
   <data name="EffectParam_DLSSFG_DLSS_FrameGeneration_renderPreset_Option_3" xml:space="preserve"><value>C</value></data>
 </root>
