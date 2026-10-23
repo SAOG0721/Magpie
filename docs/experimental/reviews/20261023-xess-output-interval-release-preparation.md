@@ -1,5 +1,13 @@
 # XeSS 输出帧间隔修复与 0.6.11 发布准备
 
+## 2026-10-23 后续：用户说明整理与 Draft
+
+按用户后续授权，合并重复的下载／升级说明，完整中英文 Release Notes 改为面向用户的功能和使用说明。正文提交为 `364951abad60b32e264ad63e7c40fdced4b0296d`，源码、包内说明和 GitHub 正文一致；程序仍来自 `4fc74a196993c883ce2f01e96e8ed8d81f1490e6`，全部非文档文件哈希不变。
+
+[GitHub Draft](https://github.com/SAOG0721/Magpie/releases/tag/untagged-c23927d0f93baaa5e319) 已创建，状态为 Draft + Pre-release，三个附件的远端大小与 SHA-256 均匹配。主包重新打包后为 609,286,271 字节，SHA-256 为 `f24333239bb6f4f1b09eac996c71d2ada74f34e950547a18fae80633a440bc84`；两个可选附件保持原值。最新证据为发布目录中的 `GITHUB-DRAFT-VERIFICATION.json` 和工作区 `.tools/create-draft-0611-20261023/`。
+
+源码已推送至 `experimental` 与 `release/0.6.11-preparation`；未公开发布，公开更新入口保持 0.6.10。下一步是用户审核 Draft。下文保留此前部署准备阶段的历史记录。
+
 2026-10-23。产品构建提交 `4fc74a196993c883ce2f01e96e8ed8d81f1490e6`；北京时间 19:06 完成备份覆盖，版本保持 0.6.11。发布文件已准备，停止在创建或更新 GitHub Draft 之前，等待用户检查。[TODO](../todos/20261023-xess-output-interval-release-TODO.md)。
 
 ## 原因与修复

@@ -5,9 +5,9 @@
 
 ## 0.6.11 待审核分发 / Distribution under review
 
-[完整中英更新说明](../RELEASE_NOTES_v0.6.11-experimental.md)汇总 0.6.10 之后的变化。分发候选整合性能分析浮窗与双曲线、XeSS 输出间隔、DLSS 参数、SM86 0.4.0、默认社区 DLSSNR、暂停截图和时间戳命名。[本轮 TODO](todos/20261023-xess-output-interval-release-TODO.md)要求完成本地验证、部署和发布材料准备，在创建或更新 Draft 前停止等待用户检查。
+[完整中英更新说明](../RELEASE_NOTES_v0.6.11-experimental.md)汇总 0.6.10 之后的变化。分发候选整合性能分析浮窗与双曲线、XeSS 输出间隔、DLSS 参数、SM86 0.4.0、默认社区 DLSSNR、暂停截图和时间戳命名。本地验证、部署和发布材料已完成；按用户后续授权创建的 [GitHub Draft](https://github.com/SAOG0721/Magpie/releases/tag/untagged-c23927d0f93baaa5e319) 已上传三个附件并核验，保持 Draft + Pre-release，等待审核。[本轮 TODO](todos/20261023-xess-output-interval-release-TODO.md)。
 
-The 0.6.11 candidate integrates the resizable profiler and capture/output charts, XeSS output intervals, DLSS controls, SM86 0.4.0, the default community DLSSNR runtime, paused screenshots and timestamped filenames. This revision prepares local source and assets for review, stopping before creating or updating a Draft.
+The 0.6.11 candidate integrates the resizable profiler and capture/output charts, XeSS output intervals, DLSS controls, SM86 0.4.0, the default community DLSSNR runtime, paused screenshots and timestamped filenames. The [GitHub Draft](https://github.com/SAOG0721/Magpie/releases/tag/untagged-c23927d0f93baaa5e319) contains the user-facing bilingual notes and three verified assets. It remains an unpublished Draft + Pre-release awaiting review.
 
 - [错误状态与操作引导规范](../ERROR-REPORTING-GUIDELINES.md)：修改错误状态、提示或恢复入口时按需使用。
 - [DLSSNR 状态与恢复](../DLSSNR-TROUBLESHOOTING.md)：检测结果、处理入口及恢复确认。

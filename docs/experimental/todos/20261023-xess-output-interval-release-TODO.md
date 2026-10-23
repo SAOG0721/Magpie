@@ -1,5 +1,7 @@
 # XeSS 输出帧间隔修复与 0.6.11 发布准备
 
+后续状态（2026-10-23）：用户已授权创建 Draft；用户说明、下载段落和包内文档已同步，三个附件远端核验通过。[Draft 待审核](https://github.com/SAOG0721/Magpie/releases/tag/untagged-c23927d0f93baaa5e319)，尚未公开发布。以下保留原始准备范围及完成记录。
+
 用户要求定位、修复并部署到 0.6.11，收尾开发并准备正式发布，在创建 Draft 前停止等待检查。沿用不使用 Computer Use；保留用户配置和现有 RTSS `ReflexSetLatencyMarker=0`。
 
 ## 已确认原因与实现边界
