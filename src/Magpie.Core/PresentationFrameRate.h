@@ -20,6 +20,7 @@ struct PresentationRateSnapshot {
 	uint32_t idleSubmissions = 0;
 	uint32_t generated = 0;
 	ContentFrameCountSource source = ContentFrameCountSource::Reported;
+	std::chrono::steady_clock::time_point windowStart{}, windowEnd{};
 };
 
 // Frontend-thread counters. Content excludes overlay/idle replays and configured
@@ -63,7 +64,7 @@ private:
 		if (elapsed < 1.0) return;
 		_snapshot = { uint32_t(std::llround(_total / elapsed)),
 			uint32_t(std::llround(_real / elapsed)), _known,
-			uint32_t(std::llround(_idle / elapsed)), uint32_t(std::llround(_generated / elapsed)), _source };
+			uint32_t(std::llround(_idle / elapsed)), uint32_t(std::llround(_generated / elapsed)), _source, _start, now };
 		_start = now;
 		_total = _real = _idle = _generated = 0;
 		_known = true;

@@ -706,7 +706,9 @@ void Renderer::StartProfile() noexcept {
 		for (const EffectDesc* desc : _activeEffectDescs) {
 			passCount += (uint32_t)desc->passes.size();
 		}
-		_effectsProfiler.Start(_backendResources.GetD3DDevice(), passCount);
+		_effectsProfiler.Start(_backendResources.GetD3DDevice(), passCount,
+			_hasFrameGeneration || std::ranges::any_of(_nativeEffectBackends, [](const auto& backend) { return bool(backend); }));
+		_effectsProfiler.SetSuspended(_backendResources.GetD3DDevice(), _frameSource->IsCaptureInterrupted());
 	});
 }
 
@@ -1339,7 +1341,7 @@ void Renderer::_DrawOverlay(ID3D11Texture2D* target, const HdrFrameMetadata& fra
 			_overlayMonitorSdrWhiteNits = Win32Helper::GetMonitorSdrWhiteNits(monitor);
 		}
 	}
-	_overlayDrawer.Draw(_stepTimer.FPS(), _effectsProfiler.GetTimings(), drawOffset,
+	_overlayDrawer.Draw(_stepTimer.FPS(), _effectsProfiler.GetSnapshot(), drawOffset,
 		ResolveOverlayWhiteScale(hdrOutput, desc.Format, frame, _overlayMonitorSdrWhiteNits));
 }
 
@@ -2693,7 +2695,8 @@ ID3D11Texture2D* Renderer::_ResizeEffects() noexcept {
 			if (_effectsProfiler.IsProfiling()) {
 				uint32_t passes = 0;
 				for (auto* desc : _activeEffectDescs) passes += uint32_t(desc->passes.size());
-				_effectsProfiler.SetPassCount(_backendResources.GetD3DDevice(), passes);
+				_effectsProfiler.SetPassCount(_backendResources.GetD3DDevice(), passes,
+					_hasFrameGeneration || std::ranges::any_of(_nativeEffectBackends, [](const auto& backend) { return bool(backend); }));
 			}
 		}
 		return result;
@@ -2817,14 +2820,15 @@ ID3D11Texture2D* Renderer::_ResizeEffects() noexcept {
 	if (changed) {
 		_UpdateActiveEffectDescs();
 		_overlayDrawer.UpdateAfterActiveEffectsChanged();
-
-		if (_effectsProfiler.IsProfiling()) {
-			uint32_t passCount = 0;
-			for (const EffectDesc* desc : _activeEffectDescs) {
-				passCount += (uint32_t)desc->passes.size();
-			}
-			_effectsProfiler.SetPassCount(_backendResources.GetD3DDevice(), passCount);
+	}
+	// Resize changes the measurement domain even when the pass count is stable.
+	if (_effectsProfiler.IsProfiling()) {
+		uint32_t passCount = 0;
+		for (const EffectDesc* desc : _activeEffectDescs) {
+			passCount += (uint32_t)desc->passes.size();
 		}
+		_effectsProfiler.SetPassCount(_backendResources.GetD3DDevice(), passCount,
+			_hasFrameGeneration || std::ranges::any_of(_nativeEffectBackends, [](const auto& backend) { return bool(backend); }));
 	}
 	_UpdateHdrEffectBoundaryContexts();
 
@@ -3520,6 +3524,8 @@ void Renderer::_BackendThreadProc() noexcept {
 		if (_sessionLifetime->IsStopping()) continue;
 		_stepTimer.CaptureStarting();
 		const FrameSourceState frameSourceState = _frameSource->Update();
+		_effectsProfiler.SetSuspended(_backendResources.GetD3DDevice(), _frameSource->IsCaptureInterrupted());
+		_effectsProfiler.Poll(_backendResources.GetD3DDC());
 		_captureAllowsIdle.store(frameSourceState != FrameSourceState::Error &&
 			!_frameSource->IsCaptureInterrupted(), std::memory_order_release);
 		// A rejected GPU comparison is a completed attempt. Polls without GPU
@@ -3897,6 +3903,7 @@ void Renderer::_BackendRender(
 	_activeResourceGeneration.store(_frameSource->ResourceGeneration(), std::memory_order_release);
 	FrameTrace::Scope traceRender(FrameTrace::Event::BackendRender, isNewCaptureFrame);
 	_stepTimer.PrepareForRender();
+	_effectsProfiler.OnFrame(_backendResources.GetD3DDevice(), _frameSource->CaptureSequence(), _frameSource->ResourceGeneration());
 	if (isNewCaptureFrame) {
 		const auto captureTime = std::chrono::steady_clock::now();
 		const uint64_t sequence = _frameSource->CaptureSequence();
@@ -4014,7 +4021,7 @@ void Renderer::_BackendRender(
 			FrameTrace::Mark(FrameTrace::Event::EffectReuse, i, inputRevision);
 			VRRPerformance::Record(VRRPerformance::Event::EffectReuse);
 			// Keep the profiler's pass slots aligned without executing image work.
-			for (size_t p = 0; p < desc.passes.size(); ++p) _effectsProfiler.OnEndPass(d3dDC);
+			for (size_t p = 0; p < desc.passes.size(); ++p) _effectsProfiler.OnEndPass(d3dDC, false);
 			inputRevision = frameState.OutputRevision();
 			inputHistoryRevision = frameState.OutputHistoryRevision();
 			continue;
@@ -4175,7 +4182,7 @@ void Renderer::_BackendRender(
 	if (_nvidiaVfxFrameGenerator) {
 		_vfxUpstreamHistoryRevision = inputHistoryRevision;
 		for (size_t i = preEnd; i < _effectDrawers.size(); ++i)
-			for (size_t p = 0; p < _activeEffectDescs[i]->passes.size(); ++p) _effectsProfiler.OnEndPass(d3dDC);
+			for (size_t p = 0; p < _activeEffectDescs[i]->passes.size(); ++p) _effectsProfiler.OnEndPass(d3dDC, false);
 		effectsOutput = _vfxSourceTexture.get();
 	}
 	_effectsProfiler.OnEndEffects(d3dDC);

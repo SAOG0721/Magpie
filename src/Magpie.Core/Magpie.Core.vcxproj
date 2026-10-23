@@ -84,6 +84,7 @@
     <ClInclude Include="EffectDrawer.h" />
     <ClInclude Include="EffectHelper.h" />
     <ClInclude Include="EffectsProfiler.h" />
+    <ClInclude Include="ProfilerHistory.h" />
     <ClInclude Include="ExclModeHelper.h" />
     <ClInclude Include="FrameSourceBase.h" />
     <ClInclude Include="FrameTrace.h" />

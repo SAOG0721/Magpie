@@ -4,14 +4,22 @@
 
 namespace Magpie {
 
-void EffectsProfiler::Start(ID3D11Device* d3dDevice, uint32_t passCount) noexcept {
+void EffectsProfiler::Start(ID3D11Device* d3dDevice, uint32_t passCount, bool partial) noexcept {
 	if (IsProfiling()) return;
+	_enabled = true;
+	_partial = partial;
+	_requestedPassCount = passCount;
+	_contextSet = false;
+	++_generation;
+	_history.Reset(ProfilerHistory::Clock::now());
+	_PublishHistory(ProfilerHistory::Clock::now(), true);
 	if (!passCount) {
 		_Disable("Effects profiler: no passes", E_INVALIDARG);
 		return;
 	}
 	for (QuerySlot& slot : _slots) {
 		slot.passes.resize(passCount);
+		slot.executed.resize(passCount);
 		D3D11_QUERY_DESC desc{ .Query = D3D11_QUERY_TIMESTAMP_DISJOINT };
 		HRESULT hr = d3dDevice->CreateQuery(&desc, slot.disjoint.put());
 		if (FAILED(hr)) {
@@ -33,6 +41,7 @@ void EffectsProfiler::Start(ID3D11Device* d3dDevice, uint32_t passCount) noexcep
 		}
 	}
 	_passCount = passCount;
+	_PublishHistory(ProfilerHistory::Clock::now(), true);
 	Logger::Get().Info(fmt::format("Effects profiler started: passes={} querySlots={}",
 		passCount, _slots.size()));
 }
@@ -40,42 +49,80 @@ void EffectsProfiler::Start(ID3D11Device* d3dDevice, uint32_t passCount) noexcep
 void EffectsProfiler::Stop() noexcept {
 	if (_passCount) Logger::Get().Info(fmt::format(
 		"Effects profiler stopped: skippedSamples={} pending={}", _skippedSamples, _pendingCount));
+	_ClearQueries();
+	_enabled = false;
+	_history = {};
+	++_generation;
+	auto lock = _timingsLock.lock_exclusive();
+	_snapshot = {};
+	_snapshot.generation = _generation;
+}
+
+void EffectsProfiler::_ClearQueries() noexcept {
 	_slots = {};
 	_passCount = _readSlot = _writeSlot = _pendingCount = _curPass = 0;
 	_skippedSamples = 0;
 	_recording = false;
-	auto lock = _timingsLock.lock_exclusive();
-	_timings.clear();
 }
 
 bool EffectsProfiler::IsProfiling() const noexcept {
-	return _passCount != 0;
+	return _enabled;
 }
 
-void EffectsProfiler::SetPassCount(ID3D11Device* d3dDevice, uint32_t passCount) noexcept {
-	if (!IsProfiling() || passCount == _passCount) return;
+void EffectsProfiler::SetPassCount(ID3D11Device* d3dDevice, uint32_t passCount, bool partial) noexcept {
+	if (!IsProfiling()) return;
 	// Called between frames. Retire old queries rather than resize pending slots
 	// whose timestamps still describe the previous effect chain.
 	Stop();
-	Start(d3dDevice, passCount);
+	Start(d3dDevice, passCount, partial);
+}
+
+void EffectsProfiler::OnFrame(ID3D11Device* device, uint64_t captureSequence, uint64_t resourceGeneration) noexcept {
+	if (!_enabled) return;
+	if (_contextSet && (_captureSequence != captureSequence || _resourceGeneration != resourceGeneration))
+		SetPassCount(device, _requestedPassCount, _partial);
+	_contextSet = true;
+	_captureSequence = captureSequence;
+	_resourceGeneration = resourceGeneration;
+	_frameTime = ProfilerHistory::Clock::now();
+	_history.Frame(_frameTime);
+	_PublishHistory(_frameTime);
+}
+
+void EffectsProfiler::SetSuspended(ID3D11Device* device, bool suspended) noexcept {
+	if (!_enabled || suspended == _history.Suspended()) return;
+	if (!suspended) SetPassCount(device, _requestedPassCount, _partial);
+	_history.Suspend(suspended, ProfilerHistory::Clock::now());
+	_PublishHistory(ProfilerHistory::Clock::now(), true);
+}
+
+void EffectsProfiler::_PublishHistory(ProfilerHistory::Time now, bool force) noexcept {
+	if (!force && now - _lastPublished < ProfilerHistory::BucketDuration) return;
+	_lastPublished = now;
+	auto lock = _timingsLock.lock_exclusive();
+	_snapshot.history = _history;
+	_snapshot.generation = _generation;
+	_snapshot.partial = _partial;
+	_snapshot.gpuAvailable = _passCount != 0;
 }
 
 void EffectsProfiler::OnBeginEffects(ID3D11DeviceContext* d3dDC) noexcept {
 	QueryTimings(d3dDC);
-	if (!IsProfiling()) return;
+	if (!_passCount) return;
 	if (_pendingCount == _slots.size()) {
 		if (++_skippedSamples == 1) Logger::Get().Info(
 			"Effects profiler query slots busy; skipping samples while effects continue");
 		return;
 	}
 	QuerySlot& slot = _slots[_writeSlot];
+	slot.frameTime = _frameTime;
 	d3dDC->Begin(slot.disjoint.get());
 	d3dDC->End(slot.start.get());
 	_recording = true;
 	_curPass = 0;
 }
 
-void EffectsProfiler::OnEndPass(ID3D11DeviceContext* d3dDC) noexcept {
+void EffectsProfiler::OnEndPass(ID3D11DeviceContext* d3dDC, bool executed) noexcept {
 	if (!_recording) return;
 	QuerySlot& slot = _slots[_writeSlot];
 	if (_curPass >= _passCount) {
@@ -83,6 +130,7 @@ void EffectsProfiler::OnEndPass(ID3D11DeviceContext* d3dDC) noexcept {
 		_Disable("Effects profiler: more passes than expected", E_UNEXPECTED);
 		return;
 	}
+	slot.executed[_curPass] = executed;
 	d3dDC->End(slot.passes[_curPass++].get());
 }
 
@@ -105,7 +153,12 @@ void EffectsProfiler::OnEndEffects(ID3D11DeviceContext* d3dDC) noexcept {
 void EffectsProfiler::_Disable(const char* operation, HRESULT hr) noexcept {
 	Logger::Get().ComError(operation, hr);
 	Logger::Get().Warn("Effects GPU timing disabled for this profiling session; effects continue");
-	Stop();
+	_ClearQueries();
+	{
+		auto lock = _timingsLock.lock_exclusive();
+		_snapshot.passTimings.clear();
+	}
+	_PublishHistory(ProfilerHistory::Clock::now(), true);
 }
 
 bool EffectsProfiler::_ReadQuery(ID3D11DeviceContext* d3dDC, ID3D11Query* query,
@@ -138,6 +191,7 @@ void EffectsProfiler::QueryTimings(ID3D11DeviceContext* d3dDC) noexcept {
 			SmallVector<float> timings;
 			timings.resize(_passCount);
 			const double toMs = 1000.0 / double(disjoint.Frequency);
+			double total = 0;
 			for (uint32_t i = 0; i < _passCount; ++i) {
 				uint64_t timestamp = 0;
 				if (!_ReadQuery(d3dDC, slot.passes[i].get(), &timestamp, sizeof(timestamp), slot.submitted)) return;
@@ -145,12 +199,16 @@ void EffectsProfiler::QueryTimings(ID3D11DeviceContext* d3dDC) noexcept {
 					_Disable("Effects profiler: non-monotonic timestamp", E_UNEXPECTED);
 					return;
 				}
-				timings[i] = float(double(timestamp - previous) * toMs);
+				timings[i] = slot.executed[i] ? float(double(timestamp - previous) * toMs) : 0.0f;
+				total += timings[i];
 				previous = timestamp;
 			}
-			// All GPU queries and validation are outside the frontend lock.
+			_history.Effects(slot.frameTime, total);
+			_PublishHistory(ProfilerHistory::Clock::now());
+			// All GPU queries and aggregation are outside the frontend lock.
 			auto lock = _timingsLock.lock_exclusive();
-			_timings = std::move(timings);
+			_snapshot.passTimings = std::move(timings);
+			_snapshot.sampleTime = slot.frameTime;
 		}
 		// Completed disjoint samples are invalid but their slots can be reused.
 		--_pendingCount;
@@ -158,10 +216,24 @@ void EffectsProfiler::QueryTimings(ID3D11DeviceContext* d3dDC) noexcept {
 	}
 }
 
-SmallVector<float> EffectsProfiler::GetTimings() noexcept {
+void EffectsProfiler::Poll(ID3D11DeviceContext* d3dDC) noexcept {
+	if (!_enabled) return;
+	QueryTimings(d3dDC);
+	const auto now = ProfilerHistory::Clock::now();
+	_history.Observe(now);
+	_PublishHistory(now);
+}
+
+EffectsProfilerSnapshot EffectsProfiler::GetSnapshot() noexcept {
 	auto lock = _timingsLock.lock_exclusive();
-	SmallVector<float> result = std::move(_timings);
-	_timings.clear();
+	EffectsProfilerSnapshot result;
+	result.passTimings = std::move(_snapshot.passTimings);
+	_snapshot.passTimings.clear();
+	result.history = _snapshot.history;
+	result.sampleTime = _snapshot.sampleTime;
+	result.generation = _snapshot.generation;
+	result.gpuAvailable = _snapshot.gpuAvailable;
+	result.partial = _snapshot.partial;
 	return result;
 }
 

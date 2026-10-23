@@ -107,7 +107,7 @@
           "src/Magpie.Core/ScalingRuntime.cpp": "b6ebadc2ed6fb6314fbc2d99bff2cbda480b06ed26f4a44a0b052ec1d41ef356",
           "src/Magpie.Core/NvidiaVfxRuntime.cpp": "2d3f620c5a564f84dd6d819ecc8b9a9a36e4c22f53da40bea5e6f9e0afb916b8",
           "src/Magpie.Core/HdrEffectBoundary.cpp": "75f166cd9c3c9cddf931b499f445f76c353d51000d1df36894f819a01809a8eb",
-          "src/Magpie.Core/Renderer.cpp": "423c2cea1bbe6a146aa48cd035698e1d556ca7f074e28627ee3eae6beb283886"
+          "src/Magpie.Core/Renderer.cpp": "64c31a56b1633d95e060eace1d5364d315c1a3a24cd3a53765e091ec2a6cb439"
         },
         "evidenceBaseline": "cbe2c2cb + UWP fullscreen, HDR overlay, DLSSNR guidance and effect-description integration; copy contracts rechecked"
       },
@@ -227,7 +227,7 @@
           "src/Magpie.Core/include/HdrComponents.h": "79d19e95eb13769c7ba58a92809b5441376ef2d2a02554621e15f59af8250ed2",
           "src/Magpie.Core/NvidiaVfxRuntime.cpp": "2d3f620c5a564f84dd6d819ecc8b9a9a36e4c22f53da40bea5e6f9e0afb916b8",
           "src/Magpie.Core/HdrEffectBoundary.cpp": "75f166cd9c3c9cddf931b499f445f76c353d51000d1df36894f819a01809a8eb",
-          "src/Magpie.Core/Renderer.cpp": "423c2cea1bbe6a146aa48cd035698e1d556ca7f074e28627ee3eae6beb283886"
+          "src/Magpie.Core/Renderer.cpp": "64c31a56b1633d95e060eace1d5364d315c1a3a24cd3a53765e091ec2a6cb439"
         },
         "evidenceBaseline": "cbe2c2cb + UWP fullscreen, HDR overlay, DLSSNR guidance and effect-description integration; copy contracts rechecked"
       },
@@ -316,7 +316,7 @@
           "src/Magpie.Core/include/NvidiaVfxParameters.h": "d7e192c7447ab2da701a70cee6075a09c6dc89af926cdc66ad844a9f0a4df6ac",
           "src/Magpie.Core/NvidiaVfxRuntime.cpp": "2d3f620c5a564f84dd6d819ecc8b9a9a36e4c22f53da40bea5e6f9e0afb916b8",
           "src/Magpie.Core/HdrEffectBoundary.cpp": "75f166cd9c3c9cddf931b499f445f76c353d51000d1df36894f819a01809a8eb",
-          "src/Magpie.Core/Renderer.cpp": "423c2cea1bbe6a146aa48cd035698e1d556ca7f074e28627ee3eae6beb283886"
+          "src/Magpie.Core/Renderer.cpp": "64c31a56b1633d95e060eace1d5364d315c1a3a24cd3a53765e091ec2a6cb439"
         },
         "evidenceBaseline": "cbe2c2cb + UWP fullscreen, HDR overlay, DLSSNR guidance and effect-description integration; copy contracts rechecked"
       }
@@ -421,7 +421,7 @@
           "src/Magpie.Core/NvidiaVfxFrameGenerator.cpp": "801a58fbd0d468087f04f099f7c78283414227e420d247dda7cd5fdf5b6d284b",
           "src/Magpie.Core/include/NvidiaVfxExecutionPlan.h": "fefa7a5209c35e481f2921d768b660b534ac08803dbef66beef56a71fbef0e0a",
           "src/Magpie.Core/include/NvidiaVfxParameters.h": "d7e192c7447ab2da701a70cee6075a09c6dc89af926cdc66ad844a9f0a4df6ac",
-          "src/Magpie.Core/Renderer.cpp": "423c2cea1bbe6a146aa48cd035698e1d556ca7f074e28627ee3eae6beb283886",
+          "src/Magpie.Core/Renderer.cpp": "64c31a56b1633d95e060eace1d5364d315c1a3a24cd3a53765e091ec2a6cb439",
           "src/Magpie.Core/NvidiaVfxRuntime.cpp": "2d3f620c5a564f84dd6d819ecc8b9a9a36e4c22f53da40bea5e6f9e0afb916b8",
           "src/Magpie.Core/HdrEffectBoundary.cpp": "75f166cd9c3c9cddf931b499f445f76c353d51000d1df36894f819a01809a8eb"
         },

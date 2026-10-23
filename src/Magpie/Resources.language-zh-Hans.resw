@@ -2377,4 +2377,19 @@
   <data name="EffectParam_DLSSFG_DLSS_FrameGeneration_renderPreset_Option_1" xml:space="preserve"><value>A（标准）</value></data>
   <data name="EffectParam_DLSSFG_DLSS_FrameGeneration_renderPreset_Option_2" xml:space="preserve"><value>B（UI 重建 - 不生效）</value></data>
   <data name="EffectParam_DLSSFG_DLSS_FrameGeneration_renderPreset_Option_3" xml:space="preserve"><value>C（性能模式）</value></data>
+  <data name="Overlay_Profiler_GraphFPS" xml:space="preserve"><value>帧率</value></data>
+  <data name="Overlay_Profiler_GraphInterval" xml:space="preserve"><value>帧间隔</value></data>
+  <data name="Overlay_Profiler_GraphEffects" xml:space="preserve"><value>效果器耗时</value></data>
+  <data name="Overlay_Profiler_GraphFPSHelp" xml:space="preserve"><value>喜鹊后端处理帧率，不含补帧输出；约 1 秒滚动窗口。相同捕获帧的再次处理也计入，不能作为游戏原生帧率。</value></data>
+  <data name="Overlay_Profiler_GraphIntervalHelp" xml:space="preserve"><value>相邻处理事件的实际间隔。曲线为每 100 毫秒内的均值，细线保留峰值；不是 1000/FPS 或显示器扫描间隔。</value></data>
+  <data name="Overlay_Profiler_GraphEffectsHelp" xml:space="preserve"><value>每个有效样本的已测效果器总耗时，包含零工作样本。下方逐效果器明细为各效果实际执行时的均值，统计分母可能不同。</value></data>
+  <data name="Overlay_Profiler_PartialTiming" xml:space="preserve"><value>部分统计</value></data>
+  <data name="Overlay_Profiler_PartialTimingHelp" xml:space="preserve"><value>只统计 D3D11 效果区间。跨 D3D12/CUDA 的工作可能未被完整覆盖，或包含队列间等待；不代表所有效果器的纯 GPU 耗时。补帧代理的输入复制与 SDK 内部补帧仍分开。</value></data>
+  <data name="Overlay_Profiler_WaitingSamples" xml:space="preserve"><value>等待数据</value></data>
+  <data name="Overlay_Profiler_TimingUnavailable" xml:space="preserve"><value>计时不可用</value></data>
+  <data name="Overlay_Profiler_MeanPeak" xml:space="preserve"><value>均值 / 峰值</value></data>
+  <data name="Overlay_Profiler_Paused" xml:space="preserve"><value>捕获已暂停</value></data>
+  <data name="Overlay_Profiler_Warming" xml:space="preserve"><value>采样预热</value></data>
+  <data name="Overlay_Profiler_OutputLine" xml:space="preserve"><value>输出帧率（补帧后）</value></data>
+  <data name="Overlay_Profiler_SubmittedLine" xml:space="preserve"><value>提交帧率（补帧后）</value></data>
 </root>

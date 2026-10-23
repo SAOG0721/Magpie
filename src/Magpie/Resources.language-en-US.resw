@@ -2377,4 +2377,19 @@
   <data name="EffectParam_DLSSFG_DLSS_FrameGeneration_renderPreset_Option_1" xml:space="preserve"><value>A (Standard)</value></data>
   <data name="EffectParam_DLSSFG_DLSS_FrameGeneration_renderPreset_Option_2" xml:space="preserve"><value>B (UI Recomposition - No Effect)</value></data>
   <data name="EffectParam_DLSSFG_DLSS_FrameGeneration_renderPreset_Option_3" xml:space="preserve"><value>C (Performance Mode)</value></data>
+  <data name="Overlay_Profiler_GraphFPS" xml:space="preserve"><value>Frame rate</value></data>
+  <data name="Overlay_Profiler_GraphInterval" xml:space="preserve"><value>Frame interval</value></data>
+  <data name="Overlay_Profiler_GraphEffects" xml:space="preserve"><value>Effect time</value></data>
+  <data name="Overlay_Profiler_GraphFPSHelp" xml:space="preserve"><value>Magpie backend processing rate, excluding generated output; approximately a 1-second rolling window. Reprocessing the same captured frame also counts. This is not the game's native frame rate.</value></data>
+  <data name="Overlay_Profiler_GraphIntervalHelp" xml:space="preserve"><value>Actual time between processing events. The line shows each 100 ms bucket's mean, with thin peak markers. This is not 1000/FPS or display scanout timing.</value></data>
+  <data name="Overlay_Profiler_GraphEffectsHelp" xml:space="preserve"><value>Measured effect total per valid sample, including samples with no effect work. The effect breakdown below averages each effect's executions, so its denominator may differ.</value></data>
+  <data name="Overlay_Profiler_PartialTiming" xml:space="preserve"><value>Partial measurement</value></data>
+  <data name="Overlay_Profiler_PartialTimingHelp" xml:space="preserve"><value>Measures D3D11 effect intervals. D3D12/CUDA work may not be fully covered or may include cross-queue waits; this is not every effect's pure GPU duration. Proxy input copies do not measure SDK frame generation.</value></data>
+  <data name="Overlay_Profiler_WaitingSamples" xml:space="preserve"><value>Waiting for samples</value></data>
+  <data name="Overlay_Profiler_TimingUnavailable" xml:space="preserve"><value>Timing unavailable</value></data>
+  <data name="Overlay_Profiler_MeanPeak" xml:space="preserve"><value>Mean / peak</value></data>
+  <data name="Overlay_Profiler_Paused" xml:space="preserve"><value>Capture paused</value></data>
+  <data name="Overlay_Profiler_Warming" xml:space="preserve"><value>Warming up</value></data>
+  <data name="Overlay_Profiler_OutputLine" xml:space="preserve"><value>Output FPS (with FG)</value></data>
+  <data name="Overlay_Profiler_SubmittedLine" xml:space="preserve"><value>Submitted FPS (with FG)</value></data>
 </root>

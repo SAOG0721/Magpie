@@ -113,6 +113,9 @@ int main() {
 	stats.Record(std::nullopt, 1, start);
 	for (int i = 1; i <= 30; ++i) stats.RecordIdleSubmission(start + std::chrono::milliseconds(i * 20));
 	const auto rate = stats.Get(start + 1s);
+	Check(rate.windowStart == start && rate.windowEnd == start + 1s &&
+		stats.Get(start + 1500ms).windowEnd == rate.windowEnd,
+		"UI reads reuse the measured window rather than inventing output samples");
 	Check(rate.real == 1 && rate.idleSubmissions == 30 && !rate.totalKnown, "idle cannot inflate input/generated rate or fill unknown output");
 	Check(stats.WaitingForContent(start + 1s), "idle replay does not refresh content activity");
 	const auto empty = stats.Get(start + 2s);
