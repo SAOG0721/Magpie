@@ -37,3 +37,11 @@
 本地完整证据位于工作树 `.tools/20261023-sr-quality-routing/`：`build.ps1` / `build.json` / `production.map`、`run.py` / `results.json`、`analyze.py` / `comparisons.json`、`indicators.png`，以及 `runs/` 下各场景的六帧 PNG 和日志。旧代码对照程序及此前单变量诊断保留在相邻工作树 `1022-paused-screenshots/.tools/sr-preset-diagnostic/`。
 
 修复源码的 UTF-8/LF SHA-256：`2ddd49182da6d979a3c3eb935de0e6dce268013be1ffd615c69470b16fd8b06d`。
+
+## 后续授权：覆盖部署 0.6.11
+
+用户随后要求覆盖目前的 0.6.11 正式版。已从提交 `05f243e38809b596de83ab91dd5270b4b7aeffe5` 完整构建 Release x64，版本保持 `0.6.11`，覆盖既有 `worktrees/release/v0.6.11-experimental/Magpie-Experimental-x64` 及其 ZIP。246 个运行文件和 ZIP 条目逐项校验通过；与旧正式版实际不同的运行文件只有 `Magpie.exe` 和 `build-manifest.json`。SR/FG/NR DLL 与其他运行文件保持相同，社区 NR 和可选包身份已核验。
+
+原程序目录、原 ZIP、全部配置及开始菜单快捷方式已备份到工作区 `.tools/deploy-0611-sr-fix-20261023/backup`。覆盖前后配置逐文件哈希相同；现有开始菜单 `Magpie.lnk` 从 beta1 切换至上述正式版。部署时程序已退出，本次没有启动；未执行远端发布。完整应用内的模型切换仍由用户实际使用验收。
+
+部署收据：`worktrees/release/v0.6.11-experimental/deployment-state.json`；构建、核验脚本与日志：工作区 `.tools/deploy-0611-sr-fix-20261023/`。新 ZIP 为 606,205,112 字节，SHA-256：`2B646A75C11FA60E917F19798EA14501A77ACEE700504F06F213C14613F979D3`。
