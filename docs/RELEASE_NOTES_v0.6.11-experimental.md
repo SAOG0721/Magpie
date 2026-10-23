@@ -51,10 +51,10 @@
 
 ### 可选附件
 
-| 附件 | 用途 |
-| --- | --- |
+| 附件                     | 用途                                                                                                                                                                                  |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `DLSSNR-DLL-Options.zip` | 提供 RTX 50 使用的 NVIDIA 原版 310.9.16，以及 RTX 20／30／40 使用的社区兼容版。主包已包含社区兼容版。切换前退出 Magpie 并备份原 DLL，将所选 `nvngx_dlssnr.dll` 放到 `Magpie.exe` 旁。 |
-| `NGX_OTA_Switch.bat` | 管理 NVIDIA NGX OTA 更新，需要管理员权限；选择 Restore default 恢复默认设置。常规安装无需使用。 |
+| `NGX_OTA_Switch.bat`     | 管理 NVIDIA NGX OTA 更新，需要管理员权限；选择 Restore default 恢复默认设置。常规安装无需使用。                                                                                       |
 
 ---
 
@@ -111,7 +111,7 @@ Extract the entire ZIP into a new folder and run `Magpie.exe`. Before upgrading,
 
 ### Optional assets
 
-| Asset | Purpose |
-| --- | --- |
+| Asset                    | Purpose                                                                                                                                                                                                                                                              |
+| ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `DLSSNR-DLL-Options.zip` | Contains NVIDIA original 310.9.16 for RTX 50 and the community version for RTX 20 / 30 / 40. The main package already includes the community version. To switch, exit Magpie, back up the current DLL and place the selected `nvngx_dlssnr.dll` beside `Magpie.exe`. |
-| `NGX_OTA_Switch.bat` | Manage NVIDIA NGX OTA updates with administrator privileges. Choose Restore default to restore the default setting. Normal installation does not require this tool. |
+| `NGX_OTA_Switch.bat`     | Manage NVIDIA NGX OTA updates with administrator privileges. Choose Restore default to restore the default setting. Normal installation does not require this tool.                                                                                                  |
