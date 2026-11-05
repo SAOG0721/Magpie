@@ -26,6 +26,8 @@ def descriptor(path, name, function):
 
 code = descriptor("src/Effects/DLSS/DLSS_SR.hlsl", "renderPreset", "SrPresetDescriptor")
 code += descriptor("src/Effects/DLSSNR/DLSSNR_AI_Filter.hlsl", "antiFlickerTimeMs", "NrTimeDescriptor")
+code += descriptor("src/Effects/DLSSNR/DLSSNR_AI_Filter.hlsl", "processingMode", "NrModeDescriptor")
+code += descriptor("src/Effects/DLSSNR/DLSSNR_AI_Filter.hlsl", "sparseUpdateInterval", "NrIntervalDescriptor")
 (out / "dlss_parameter_descriptors.h").write_text(code, encoding="utf-8")
 
 factory = (repo / "src/Magpie.Core/NativeEffectBackendFactory.cpp").read_text(encoding="utf-8-sig")

@@ -10,6 +10,8 @@
 #include "Win32Helper.h"
 #include <dwmapi.h>
 #include <Windows.Graphics.DirectX.Direct3D11.interop.h>
+#include <array>
+#include <mutex>
 
 namespace winrt {
 using namespace Windows::Graphics;
@@ -29,6 +31,42 @@ struct GraphicsCaptureFrameSource::FrameReadySignal {
 	bool traceEnabled = false;
 	std::atomic<int64_t> firstNotification = 0;
 	std::atomic<uint64_t> notifications = 0;
+	struct Notification { int64_t tick = 0; uint64_t serial = 0; };
+	// Only diagnostic timestamps cross the callback/owner boundary. The source
+	// and immediate context remain owner-only. Overflow is explicit, never
+	// silently mistaken for a complete delivery timeline.
+	std::mutex notificationMutex;
+	std::array<Notification, 1024> recentNotifications;
+	size_t notificationCount = 0;
+	uint64_t notificationSerial = 0, droppedNotifications = 0;
+	bool notificationsClosed = false;
+	void TraceNotification(int64_t tick) noexcept {
+		std::lock_guard lock(notificationMutex);
+		if (notificationsClosed) return;
+		const auto serial = ++notificationSerial;
+		if (notificationCount < recentNotifications.size()) recentNotifications[notificationCount++] = {tick, serial};
+		else ++droppedNotifications;
+	}
+	void DrainNotifications(uint64_t generation, bool close = false) noexcept {
+		if (!traceEnabled) return;
+		std::array<Notification, 1024> batch;
+		size_t count = 0;
+		uint64_t dropped = 0;
+		{
+			std::lock_guard lock(notificationMutex);
+			count = std::exchange(notificationCount, 0);
+			std::copy_n(recentNotifications.begin(), count, batch.begin());
+			dropped = std::exchange(droppedNotifications, 0);
+			notificationsClosed |= close;
+		}
+		for (size_t i = 0; i < count; ++i) {
+			const auto& sample = batch[i];
+			// Frame zero: this is a delivery event, not an accepted-capture ID.
+			FrameTrace::Record(FrameTrace::Event::WgcNotification, sample.tick, sample.tick,
+				0, sample.serial, generation);
+		}
+		if (dropped) FrameTrace::Mark(FrameTrace::Event::WgcNotificationOverflow, dropped, generation);
+	}
 #endif
 };
 
@@ -90,6 +128,19 @@ bool GraphicsCaptureFrameSource::_Initialize() noexcept {
 		return false;
 	}
 
+	// Freeze the choice once per scaling session. A cursor-triggered restart
+	// reapplies it without rereading the environment or retrying a failed zero.
+	wchar_t intervalOverride[8]{};
+	const DWORD overrideLength = GetEnvironmentVariableW(L"MAGPIE_WGC_MIN_UPDATE_INTERVAL_US",
+		intervalOverride, DWORD(std::size(intervalOverride)));
+	const std::wstring_view overrideValue = overrideLength < std::size(intervalOverride)
+		? std::wstring_view(intervalOverride, overrideLength) : L"invalid";
+	_minUpdateIntervalPolicy.Configure(ScalingWindow::Get().Options().isVRREnabled,
+		Win32Helper::GetOSVersion() >= Version(10, 0, 26200), overrideValue);
+	if (_minUpdateIntervalPolicy.InvalidOverride()) {
+		Logger::Get().Warn("MAGPIE_WGC_MIN_UPDATE_INTERVAL_US accepts only 0 or 1000; ignoring invalid override");
+	}
+
 	Logger::Get().Info("GraphicsCaptureFrameSource 初始化完成");
 	return true;
 }
@@ -136,6 +187,7 @@ FrameSourceState GraphicsCaptureFrameSource::_Update() noexcept {
 		const auto notifications = _frameReady->notifications.exchange(0);
 		if (notification) FrameTrace::Record(FrameTrace::Event::WgcNotificationWait,
 			notification, FrameTrace::Tick(), FrameTrace::Frame(), notifications);
+		_frameReady->DrainNotifications(_captureSessionGeneration);
 #endif
 		winrt::Direct3D11CaptureFrame frame = _captureFramePool.TryGetNextFrame();
 		if (frame) {
@@ -448,6 +500,64 @@ bool GraphicsCaptureFrameSource::_TryCreateGraphicsCaptureItem(IGraphicsCaptureI
 	return true;
 }
 
+void GraphicsCaptureFrameSource::_ApplyMinUpdateInterval() {
+	if (!winrt::ApiInformation::IsPropertyPresent(
+		winrt::name_of<winrt::GraphicsCaptureSession>(), L"MinUpdateInterval")) {
+		Logger::Get().Info(fmt::format(
+			"WGC MinUpdateInterval: session={} supported=false requested100ns={} policy={}",
+			_captureSessionGeneration, _minUpdateIntervalPolicy.Requested100ns(), _minUpdateIntervalPolicy.Reason()));
+		return;
+	}
+
+	if (_minUpdateIntervalPolicy.Interval100ns() == 0) {
+		const char* operation = "setter";
+		try {
+			_captureSession.MinUpdateInterval(0ms);
+			operation = "getter";
+			const int64_t readback = _captureSession.MinUpdateInterval().count();
+			if (readback == 0) {
+				Logger::Get().Info(fmt::format(
+					"WGC MinUpdateInterval: session={} requested100ns=0 applied100ns=0 readback100ns=0 fallback=false policy={}",
+					_captureSessionGeneration, _minUpdateIntervalPolicy.Reason()));
+				return;
+			}
+			Logger::Get().Warn(fmt::format(
+				"WGC MinUpdateInterval zero readback mismatch: session={} readback100ns={}; falling back to 1ms for this scaling session",
+				_captureSessionGeneration, readback));
+		} catch (const winrt::hresult_error& e) {
+			Logger::Get().Warn(fmt::format(
+				"WGC MinUpdateInterval zero {} failed: session={} HRESULT=0x{:08X}; falling back to 1ms for this scaling session",
+				operation, _captureSessionGeneration, uint32_t(e.code())));
+		}
+		_minUpdateIntervalPolicy.FallBackToCompatibility();
+	}
+
+	// Retain the explicit 1ms compatibility setter used for affected 24H2
+	// systems. Setter failure still follows the existing capture-start error.
+	_captureSession.MinUpdateInterval(1ms);
+	try {
+		const int64_t readback = _captureSession.MinUpdateInterval().count();
+		if (readback != WgcMinUpdateIntervalPolicy::Compatibility100ns) {
+			Logger::Get().Warn(fmt::format(
+				"WGC MinUpdateInterval compatibility readback mismatch: session={} requested100ns={} readback100ns={}",
+				_captureSessionGeneration, WgcMinUpdateIntervalPolicy::Compatibility100ns, readback));
+		}
+		Logger::Get().Info(fmt::format(
+			"WGC MinUpdateInterval: session={} requested100ns={} applied100ns={} readback100ns={} fallback={} policy={}",
+			_captureSessionGeneration, _minUpdateIntervalPolicy.Requested100ns(),
+			WgcMinUpdateIntervalPolicy::Compatibility100ns, readback,
+			_minUpdateIntervalPolicy.FellBack(), _minUpdateIntervalPolicy.Reason()));
+	} catch (const winrt::hresult_error& e) {
+		// Readback is diagnostic for the unchanged compatibility path. An older
+		// system that accepted 1ms must not acquire a new startup failure here.
+		Logger::Get().Warn(fmt::format(
+			"WGC MinUpdateInterval: session={} requested100ns={} applied100ns={} readback=unverified HRESULT=0x{:08X} fallback={} policy={}",
+			_captureSessionGeneration, _minUpdateIntervalPolicy.Requested100ns(),
+			WgcMinUpdateIntervalPolicy::Compatibility100ns, uint32_t(e.code()),
+			_minUpdateIntervalPolicy.FellBack(), _minUpdateIntervalPolicy.Reason()));
+	}
+}
+
 bool GraphicsCaptureFrameSource::_StartCapture(const char* reason) noexcept {
 	FrameTrace::Scope traceStart(FrameTrace::Event::WgcStart);
 	if (_targetLifetime && _targetLifetime->IsClosed()) {
@@ -496,6 +606,7 @@ bool GraphicsCaptureFrameSource::_StartCapture(const char* reason) noexcept {
 					int64_t empty = 0;
 					signal->firstNotification.compare_exchange_strong(empty, now.QuadPart);
 					signal->notifications.fetch_add(1);
+					signal->TraceNotification(now.QuadPart);
 				}
 #endif
 				SetEvent(signal->event.get());
@@ -519,13 +630,7 @@ bool GraphicsCaptureFrameSource::_StartCapture(const char* reason) noexcept {
 			_captureSession.IsBorderRequired(false);
 		}
 
-		// Win11 24H2 中必须设置 MinUpdateInterval 才能使捕获帧率超过 60FPS
-		if (winrt::ApiInformation::IsPropertyPresent(
-			winrt::name_of<winrt::GraphicsCaptureSession>(),
-			L"MinUpdateInterval"
-		)) {
-			_captureSession.MinUpdateInterval(1ms);
-		}
+		_ApplyMinUpdateInterval();
 
 		_captureSession.StartCapture();
 	} catch (const winrt::hresult_error& e) {
@@ -560,6 +665,9 @@ bool GraphicsCaptureFrameSource::_StopCapture() noexcept {
 	}
 	close(std::exchange(_captureSession, nullptr), "WGC close capture session");
 	close(std::move(pool), "WGC close frame pool");
+#ifdef MP_ENABLE_FRAME_TRACE
+	if (_frameReady) _frameReady->DrainNotifications(_captureSessionGeneration, true);
+#endif
 	_frameReady.reset();
 	return success;
 }

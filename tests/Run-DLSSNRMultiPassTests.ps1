@@ -13,7 +13,7 @@ $source = [regex]::Replace($source, '(?m)^#include .*\r?\n', '')
 $source | Set-Content -LiteralPath (Join-Path $output 'DLSSNRMultiPassUnderTest.h') -Encoding utf8
 & python "$repo/tests/prepare_dlssnr_multipass_test.py" $output
 if ($LASTEXITCODE) { throw 'DLSSNR Multi Pass metadata/fixture checks failed.' }
-foreach ($test in @('DlssNrStatusTests', 'DLSSNRMultiPassTests', 'DLSSNRSettingsTests', 'DLSSNRSessionTests', 'DLSSNRChainCacheTests', 'DLSSNRLiveParametersTests', 'DLSSNRGuidanceTests')) {
+foreach ($test in @('DlssNrStatusTests', 'DLSSNRMultiPassTests', 'DLSSNRSettingsTests', 'DLSSNRSessionTests', 'DLSSNRChainCacheTests', 'DLSSNRLiveParametersTests', 'DLSSNRGuidanceTests', 'DLSSNRPerformanceStateTests')) {
     & cl.exe /nologo /std:c++20 /EHsc /utf-8 /MT /O2 /W4 "/I$output" "/I$repo/src/Magpie.Core/include" "/I$repo/src/Magpie.Core" "$repo/tests/$test.cpp" "/Fe:$output/$test.exe" "/Fo:$output/$test.obj"
     if ($LASTEXITCODE) { throw "DLSSNR test compilation failed: $test" }
     & "$output/$test.exe"

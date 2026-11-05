@@ -85,6 +85,8 @@ const ImWchar* OverlayHelper::GetGlyphRangesChineseSimplifiedOfficial() noexcept
 		0x0020, 0x00FF, // Basic Latin + Latin Supplement
 		0x2000, 0x206F, // General Punctuation
 		0x2192, 0x2192, // Right arrow used by localized hints
+		0x7119, 0x7119, // 焙: LUT export help
+		0x9608, 0x9608, // 阈: adjustment thresholds
 		0x3000, 0x30FF, // CJK Symbols and Punctuations, Hiragana, Katakana
 		0x31F0, 0x31FF, // Katakana Phonetic Extensions
 		0xFF00, 0xFFEF  // Half-width characters
@@ -183,6 +185,10 @@ const ImWchar* OverlayHelper::GetGlyphRangesChineseTraditionalOfficial() noexcep
 		0x0020, 0x00FF, // Basic Latin + Latin Supplement
 		0x2000, 0x206F, // General Punctuation
 		0x2192, 0x2192, // Right arrow used by localized hints
+		0x5225, 0x5225, // 別: adjustment help
+        0x64F7, 0x64F7, // 擷: capture-age help
+		0x8277, 0x8277, // 艷: vibrance help
+		0x95BE, 0x95BE, // 閾: adjustment thresholds
 		0x3000, 0x30FF, // CJK Symbols and Punctuations, Hiragana, Katakana
 		0x31F0, 0x31FF, // Katakana Phonetic Extensions
 		0xFF00, 0xFFEF  // Half-width characters

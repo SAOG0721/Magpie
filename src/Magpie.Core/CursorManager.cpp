@@ -101,19 +101,7 @@ CursorManager::CursorManager() :
 
 CursorManager::~CursorManager() noexcept {
 	BeginShutdown();
-	_ShowSystemCursor(true, true);
-	_RestoreClipCursor();
-
-	if (_isUnderCapture) {
-		POINT cursorPos;
-		if (GetCursorPos(&cursorPos)) {
-			_StopCapture(cursorPos, true);
-			_ReliableSetCursorPos(cursorPos);
-		} else {
-			Logger::Get().Win32Error("GetCursorPos 失败");
-			_RestoreClipCursor();
-		}
-	}
+	ReleasePendingCursorReposition();
 }
 
 void CursorManager::Update() noexcept {
@@ -308,31 +296,270 @@ void CursorManager::_RestoreCursorSpeed() noexcept {
 // 间后再次查询会发现光标位置又回到了设置之前。这可能是因为 OS 异步处理硬件输入队列，
 // SetCursorPos 时队列中仍有旧事件尚未处理。
 // 
-// 这个函数使用 ClipCursor 将光标限制在目标位置一段时间，等待系统将输入队列处理完毕。
-void CursorManager::_ReliableSetCursorPos(POINT pos) const noexcept {
-	RECT originClipRect;
-	GetClipCursor(&originClipRect);
+// Hold the point clip for the same 8 ms without stopping presentation or input
+// dispatch. The timer owns no input state: completion checks the retained session
+// before touching this, and every restore first verifies that our point clip is
+// still installed. A successor request or another application's clip wins.
+void CursorManager::_ReliableSetCursorPos(POINT pos) noexcept {
+	if (_lifetime->IsStopping()) return;
+	FrameTrace::Scope traceRequest(FrameTrace::Event::CursorRepositionRequest, _cursorRepositionId + 1, _isUnderCapture);
+	if (_cursorReposition) _nextCursorReposition = pos;
+	_FinishCursorReposition(FrameTrace::CursorRepositionReason::Superseded);
+	if (_cursorReposition) return; // A failed USER32 restore will be retried.
+	_nextCursorReposition.reset();
 
-	RECT newClipRect{ pos.x,pos.y,pos.x + 1,pos.y + 1 };
-	ClipCursor(&newClipRect);
-
-	// 等待一段时间，不能太短
-	Sleep(8);
-
-	// 还原原始光标限制区域
-	ClipCursor(&originClipRect);
-
-	// 有的窗口（比如 Magpie 主窗口）捕获光标后光标形状有时不会主动更新，发送 WM_SETCURSOR
-	// 强制更新。
-	if (_isUnderCapture) {
-		const HWND hwndSrc = ScalingWindow::Get().SrcTracker().Handle();
-
-		HWND hwndChild;
-		int16_t ht = Win32Helper::AdvancedWindowHitTest(hwndSrc, pos, 10, &hwndChild);
-		// wParam 传顶层窗口还是子窗口文档没说明，但测试表明必须传入顶层窗口句柄才能起作用
-		PostMessage(hwndChild, WM_SETCURSOR,
-			(WPARAM)hwndSrc, MAKELPARAM(ht, WM_MOUSEMOVE));
+	const uint64_t id = ++_cursorRepositionId;
+	RECT originClip{};
+	if (!GetClipCursor(&originClip)) {
+		FrameTrace::Mark(FrameTrace::Event::CursorRepositionCancel, id,
+			int64_t(FrameTrace::CursorRepositionReason::ClipQueryFailed));
+		SetCursorPos(pos.x, pos.y);
+		_RefreshCursorShapeAsync(id, pos);
+		return;
 	}
+
+	winrt::DispatcherQueueTimer timer{ nullptr };
+	try {
+		// Establish the cleanup progress source before acquiring a point clip.
+		// Tick runs on this dispatcher, so it cannot enter before this call
+		// returns to the message pump and the request has been installed.
+		timer = _CreateCursorRepositionTimer(id);
+	} catch (...) {
+		FrameTrace::Mark(FrameTrace::Event::CursorRepositionCancel, id,
+			int64_t(FrameTrace::CursorRepositionReason::TimerUnavailable));
+		SetCursorPos(pos.x, pos.y);
+		_RefreshCursorShapeAsync(id, pos);
+		return;
+	}
+
+	const RECT pointClip{ pos.x, pos.y, pos.x + 1, pos.y + 1 };
+	if (!ClipCursor(&pointClip)) {
+		try { timer.Stop(); } catch (...) {}
+		FrameTrace::Mark(FrameTrace::Event::CursorRepositionCancel, id,
+			int64_t(FrameTrace::CursorRepositionReason::ClipSetFailed));
+		SetCursorPos(pos.x, pos.y);
+		_RefreshCursorShapeAsync(id, pos);
+		return;
+	}
+
+	_cursorReposition.emplace(CursorReposition{
+		.id = id, .pos = pos, .pointClip = pointClip, .restoreClip = originClip,
+		.restoreManaged = _lastClip.left != std::numeric_limits<LONG>::max() && originClip == _lastRealClip,
+		.deadline = std::chrono::steady_clock::now() + 8ms,
+		.traceStart = FrameTrace::Tick(), .traceFrame = FrameTrace::Frame(), .timer = std::move(timer)
+	});
+}
+
+winrt::DispatcherQueueTimer CursorManager::_CreateCursorRepositionTimer(uint64_t id) {
+	auto timer = ScalingWindow::Dispatcher().CreateTimer();
+	timer.Interval(8ms);
+	// Retry transient USER32 errors while active; shutdown hands the request to
+	// ScalingWindow's explicit retirement progress path instead of this callback.
+	timer.IsRepeating(true);
+	timer.Tick([this, lifetime = _lifetime, id](auto const&, auto const&) {
+		if (!lifetime->IsCurrent(ScalingWindow::RunId())) return;
+		auto& window = ScalingWindow::Get();
+		if (!window || window.TryGetCursorManager() != this) return;
+		_CompleteCursorReposition(id);
+	});
+	try { timer.Start(); }
+	catch (...) { try { timer.Stop(); } catch (...) {} throw; }
+	return timer;
+}
+
+bool CursorManager::ReleasePendingCursorReposition() noexcept {
+	++_cursorRepositionId; // Also invalidates a shape query already in flight.
+	_nextCursorReposition.reset();
+	_nextCursorShape.reset();
+	if (!_FinishCursorRepositionForShutdown()) return false;
+	if (_cursorShutdownInputReleased) return true;
+	_ShowSystemCursor(true, true);
+	_RestoreClipCursor();
+	if (_isUnderCapture) {
+		POINT cursorPos{};
+		if (GetCursorPos(&cursorPos)) {
+			_StopCapture(cursorPos, true);
+			if (!_ReliableSetCursorPosOnDestroy(cursorPos)) return false;
+		} else {
+			Logger::Get().Win32Error("GetCursorPos 失败");
+			_RestoreClipCursor();
+		}
+	}
+	_cursorShutdownInputReleased = true;
+	return true;
+}
+
+bool CursorManager::_FinishCursorRepositionForShutdown() noexcept {
+	if (!_cursorReposition) return true;
+	if (std::chrono::steady_clock::now() < _nextCursorCleanupAttempt) return false;
+	// Bounded, non-sleeping recovery after the owner cut. A failure retains both
+	// the request and the CursorManager through CompletePendingDestroy; the runtime
+	// services that retirement path even when no cursor Update/render occurs.
+	constexpr uint32_t MAX_CLEANUP_ATTEMPTS = 4;
+	for (uint32_t attempt = 0; attempt < MAX_CLEANUP_ATTEMPTS && _cursorReposition; ++attempt) {
+		_FinishCursorReposition(FrameTrace::CursorRepositionReason::Shutdown);
+	}
+	if (!_cursorReposition) {
+		_nextCursorCleanupAttempt = {};
+		_cursorCleanupFailureReported = false;
+		return true;
+	}
+	try { if (_cursorReposition->timer) _cursorReposition->timer.Stop(); } catch (...) {}
+	_nextCursorCleanupAttempt = std::chrono::steady_clock::now() + 100ms;
+	if (!_cursorCleanupFailureReported) {
+		Logger::Get().Error("Cursor clip cleanup failed; retain retirement input state and retry after 100 ms");
+		_cursorCleanupFailureReported = true;
+	}
+	return false;
+}
+
+bool CursorManager::_FinishCursorReposition(FrameTrace::CursorRepositionReason reason) noexcept {
+	if (!_cursorReposition) return true;
+	auto& request = *_cursorReposition;
+	RECT currentClip{};
+	if (!GetClipCursor(&currentClip)) {
+		FrameTrace::Mark(FrameTrace::Event::CursorRepositionWait, request.id,
+			int64_t(FrameTrace::CursorRepositionReason::ClipQueryFailed));
+		return false;
+	}
+	const bool owned = currentClip == request.pointClip;
+	if (owned && !ClipCursor(request.restoreDefault ? nullptr : &request.restoreClip)) {
+		FrameTrace::Mark(FrameTrace::Event::CursorRepositionWait, request.id,
+			int64_t(FrameTrace::CursorRepositionReason::ClipSetFailed));
+		return false;
+	}
+	if (owned && request.restoreManaged) {
+		_lastClip = request.restoreClip;
+		GetClipCursor(&_lastRealClip);
+	} else {
+		_lastClip = { std::numeric_limits<LONG>::max() };
+	}
+	if (!owned) {
+		reason = FrameTrace::CursorRepositionReason::ExternalClip;
+		_nextCursorReposition.reset();
+	}
+	FrameTrace::Record(FrameTrace::Event::CursorRepositionWait, request.traceStart, FrameTrace::Tick(),
+		request.traceFrame, request.id, int64_t(reason));
+	FrameTrace::Mark(reason == FrameTrace::CursorRepositionReason::Completed ?
+		FrameTrace::Event::CursorRepositionComplete : FrameTrace::Event::CursorRepositionCancel,
+		request.id, int64_t(reason));
+	try {
+		if (request.timer) request.timer.Stop();
+	} catch (...) {} // A queued callback is harmless after resetting the request.
+	_cursorReposition.reset();
+	return owned;
+}
+
+void CursorManager::_CompleteCursorReposition(uint64_t id) noexcept {
+	if (!_cursorReposition || _cursorReposition->id != id || _lifetime->IsStopping()) return;
+	if (std::chrono::steady_clock::now() < _cursorReposition->deadline) {
+		// The timer was started before acquiring the point clip. An unusually
+		// prompt first tick must still preserve the full hold without adding a
+		// second 8 ms interval.
+		try { if (_cursorReposition->timer) _cursorReposition->timer.Interval(1ms); } catch (...) {}
+		return;
+	}
+	const POINT pos = _cursorReposition->pos;
+	if (_FinishCursorReposition(FrameTrace::CursorRepositionReason::Completed)) {
+		if (_nextCursorReposition) {
+			const POINT next = *_nextCursorReposition;
+			_nextCursorReposition.reset();
+			_ReliableSetCursorPos(next);
+		} else {
+			_RefreshCursorShapeAsync(id, pos);
+		}
+	}
+}
+
+bool CursorManager::_DeferClipCursor(const RECT* clipRect) noexcept {
+	if (!_cursorReposition) return false;
+	_CompleteCursorReposition(_cursorReposition->id);
+	if (!_cursorReposition) return false;
+	RECT currentClip{};
+	if (!GetClipCursor(&currentClip)) return true;
+	if (currentClip != _cursorReposition->pointClip) {
+		_FinishCursorReposition(FrameTrace::CursorRepositionReason::ExternalClip);
+		return _cursorReposition.has_value();
+	}
+	if (clipRect) {
+		_cursorReposition->restoreClip = *clipRect;
+		_cursorReposition->restoreDefault = false;
+		_cursorReposition->restoreManaged = true;
+	} else if (_cursorReposition->restoreManaged) {
+		_cursorReposition->restoreDefault = true;
+		_cursorReposition->restoreManaged = false;
+	}
+	return true;
+}
+
+winrt::fire_and_forget CursorManager::_RefreshCursorShapeAsync(uint64_t id, POINT pos) noexcept {
+	const auto lifetime = _lifetime;
+	if (!lifetime->IsCurrent(ScalingWindow::RunId()) || !_isUnderCapture) co_return;
+	if (_isCursorShapeInFlight) {
+		_nextCursorShape = CursorShapeRequest{ id, pos };
+		co_return;
+	}
+	_nextCursorShape.reset();
+	_isCursorShapeInFlight = true;
+	const auto dispatcher = ScalingWindow::Dispatcher();
+	for (;;) {
+		const HWND hwndSrc = ScalingWindow::Get().SrcTracker().Handle();
+		const int64_t traceStart = FrameTrace::Tick();
+		const uint64_t traceFrame = FrameTrace::Frame();
+		FrameTrace::Mark(FrameTrace::Event::CursorShapeRequest, id);
+		co_await winrt::resume_background();
+		HWND hwndChild = nullptr;
+		const int16_t area = Win32Helper::AdvancedWindowHitTest(hwndSrc, pos, 10, &hwndChild);
+		if (lifetime->IsStopping()) co_return;
+		try {
+			co_await dispatcher;
+		} catch (...) {
+			co_return;
+		}
+		if (!lifetime->IsCurrent(ScalingWindow::RunId())) co_return;
+		auto& window = ScalingWindow::Get();
+		if (!window || window.TryGetCursorManager() != this) co_return;
+		FrameTrace::Record(FrameTrace::Event::CursorShapeComplete, traceStart, FrameTrace::Tick(),
+			traceFrame, id, area);
+		POINT currentPos{};
+		auto reason = FrameTrace::CursorRepositionReason::Completed;
+		if (id != _cursorRepositionId) reason = FrameTrace::CursorRepositionReason::Superseded;
+		else if (!_isUnderCapture) reason = FrameTrace::CursorRepositionReason::CaptureEnded;
+		else if (window.SrcTracker().Handle() != hwndSrc || !IsWindow(hwndSrc) || !IsWindow(hwndChild) ||
+			(hwndChild != hwndSrc && !IsChild(hwndSrc, hwndChild)))
+			reason = FrameTrace::CursorRepositionReason::SourceChanged;
+		else if (!GetCursorPos(&currentPos) || currentPos != pos)
+			reason = FrameTrace::CursorRepositionReason::CursorMoved;
+		if (reason == FrameTrace::CursorRepositionReason::Completed) {
+			// Keep the source top-level handle in wParam, but address the child
+			// selected by the hit test, as required by affected source windows.
+			PostMessage(hwndChild, WM_SETCURSOR, (WPARAM)hwndSrc, MAKELPARAM(area, WM_MOUSEMOVE));
+		} else {
+			FrameTrace::Mark(FrameTrace::Event::CursorShapeCancel, id, int64_t(reason));
+		}
+		if (!_nextCursorShape || !_isUnderCapture) break;
+		id = _nextCursorShape->id;
+		pos = _nextCursorShape->pos;
+		_nextCursorShape.reset();
+	}
+	_isCursorShapeInFlight = false;
+}
+
+bool CursorManager::_ReliableSetCursorPosOnDestroy(POINT pos) noexcept {
+	RECT originClip{};
+	if (!GetClipCursor(&originClip)) { SetCursorPos(pos.x, pos.y); return true; }
+	RECT pointClip{ pos.x, pos.y, pos.x + 1, pos.y + 1 };
+	if (!ClipCursor(&pointClip)) { SetCursorPos(pos.x, pos.y); return true; }
+	// This final coordinate restoration also owns a point clip. Register it in
+	// the same retained state before waiting, so a failed restore cannot be lost
+	// when the manager would otherwise be destroyed.
+	_cursorReposition.emplace(CursorReposition{
+		.id = ++_cursorRepositionId, .pos = pos, .pointClip = pointClip, .restoreClip = originClip,
+		.restoreManaged = false, .deadline = std::chrono::steady_clock::now() + 8ms,
+		.traceStart = FrameTrace::Tick(), .traceFrame = FrameTrace::Frame()
+	});
+	Sleep(8); // No active presentation path; finish restoring coordinates before destruction.
+	return _FinishCursorRepositionForShutdown();
 }
 
 winrt::fire_and_forget CursorManager::_SrcHitTestAsync(POINT screenPos) noexcept {
@@ -506,6 +733,7 @@ bool CursorManager::_UpdateParameterCursor() noexcept {
 	// This must precede the unconditional 3D-game confinement branch.
 	if (_isUnderCapture && hasPoint) {
 		_StopCapture(point, true);
+		_FinishCursorReposition(FrameTrace::CursorRepositionReason::ParameterInput);
 		ClipCursor(nullptr);
 		_ReliableSetCursorPos(point);
 	}
@@ -569,8 +797,8 @@ void CursorManager::_UpdateCursorState() noexcept {
 	}
 
 	if (_isCapturedOnOverlay) {
-		// 光标被叠加层捕获时将光标限制在输出区域内
-		_SetClipCursor(destRect);
+		// Parameter controls can extend into the output surface's letterboxing.
+		_SetClipCursor(ScalingWindow::Get().RendererRect());
 		return;
 	}
 
@@ -625,6 +853,9 @@ void CursorManager::_UpdateCursorState() noexcept {
 	// 复制是特意的，用于检查缩放窗口的位置和尺寸更改
 	const RECT rendererRect = ScalingWindow::Get().RendererRect();
 	const bool isSrcFocused = ScalingWindow::Get().IsSourceForeground();
+	// The parameter panel can occupy letterboxing. Keep that area reachable
+	// while it is visible, including the approach before ImGui owns the pointer.
+	const bool skipLetterboxing = isSrcFocused && !renderer.IsEffectParametersVisible();
 	
 	const DWORD style = GetWindowExStyle(hwndScaling);
 
@@ -652,7 +883,7 @@ void CursorManager::_UpdateCursorState() noexcept {
 		// 
 		///////////////////////////////////////////////////////////
 
-		HWND hwndCur = WindowFromPoint(hwndScaling, rendererRect, SrcToScaling(cursorPos, isSrcFocused), false);
+		HWND hwndCur = WindowFromPoint(hwndScaling, rendererRect, SrcToScaling(cursorPos, skipLetterboxing), false);
 		_shouldDrawCursor = hwndCur == hwndScaling;
 
 		if (_shouldDrawCursor) {
@@ -766,7 +997,7 @@ void CursorManager::_UpdateCursorState() noexcept {
 						SetWindowLong(hwndScaling, GWL_EXSTYLE, style & ~WS_EX_TRANSPARENT);
 					}
 				}
-			} else if (isSrcFocused) {
+			} else if (skipLetterboxing) {
 				// 跳过黑边
 				if (_isOnOverlay) {
 					// 从内部移到外部，此时有 UI 贴边
@@ -808,19 +1039,14 @@ void CursorManager::_UpdateCursorState() noexcept {
 					}
 				}
 			} else {
-				// 源窗口不在前台则允许光标进入黑边
-				if (!_isOnOverlay) {
-					if (PtInRect(&destRect, cursorPos)) {
-						if (!(style & WS_EX_TRANSPARENT)) {
-							SetWindowLong(hwndScaling, GWL_EXSTYLE, style | WS_EX_TRANSPARENT);
-						}
-
-						_StartCapture(cursorPos);
-					} else {
-						if (style & WS_EX_TRANSPARENT) {
-							SetWindowLong(hwndScaling, GWL_EXSTYLE, style & ~WS_EX_TRANSPARENT);
-						}
+				// Unfocused sources and visible parameter panels allow letterboxing.
+				if (!_isOnOverlay && PtInRect(&destRect, cursorPos)) {
+					if (!(style & WS_EX_TRANSPARENT)) {
+						SetWindowLong(hwndScaling, GWL_EXSTYLE, style | WS_EX_TRANSPARENT);
 					}
+					_StartCapture(cursorPos);
+				} else if (style & WS_EX_TRANSPARENT) {
+					SetWindowLong(hwndScaling, GWL_EXSTYLE, style & ~WS_EX_TRANSPARENT);
 				}
 			}
 		}
@@ -877,12 +1103,12 @@ void CursorManager::_ClipCursorForMonitors(POINT cursorPos) noexcept {
 	const RECT& srcRect = renderer.SrcRect();
 	const RECT& destRect = renderer.DestRect();
 
-	const bool isSrcFocused = ScalingWindow::Get().IsSourceForeground();
+	const bool skipLetterboxing = ScalingWindow::Get().IsSourceForeground() && !renderer.IsEffectParametersVisible();
 
 	// 根据当前光标位置的四个方向有无屏幕来确定应该在哪些方向限制光标，但这无法
 	// 处理屏幕之间存在间隙的情况。解决办法是 _StopCapture 只在目标位置存在屏幕时才取消捕获，
 	// 当光标试图移动到间隙中时将被挡住。如果光标的速度足以跨越间隙，则它依然可以在屏幕间移动。
-	const POINT scaledPos = _isUnderCapture ? SrcToScaling(cursorPos, true) : cursorPos;
+	const POINT scaledPos = _isUnderCapture ? SrcToScaling(cursorPos, skipLetterboxing) : cursorPos;
 
 	RECT clips{ LONG_MIN, LONG_MIN, LONG_MAX, LONG_MAX };
 
@@ -903,14 +1129,14 @@ void CursorManager::_ClipCursorForMonitors(POINT cursorPos) noexcept {
 
 				if (minLeft < destRect.right) {
 					// 存在黑边且源窗口位于前台时，应阻止光标进入黑边
-					if ((minLeft < destRect.left && isSrcFocused) || minLeft == destRect.left) {
+					if ((minLeft < destRect.left && skipLetterboxing) || minLeft == destRect.left) {
 						clips.left = srcRect.left;
 					} else {
 						// 将缩放后光标位置限制在屏幕内
 						clips.left = ScalingToSrc({ minLeft,scaledPos.y }, RoundMethod::Ceil).x;
 					}
 				}
-			} else if (isSrcFocused && destRect.left != rendererRect.left) {
+			} else if (skipLetterboxing && destRect.left != rendererRect.left) {
 				// 源窗口在前台时阻止光标进入黑边
 				clips.left = destRect.left;
 			}
@@ -928,13 +1154,13 @@ void CursorManager::_ClipCursorForMonitors(POINT cursorPos) noexcept {
 				}
 
 				if (minTop < destRect.bottom) {
-					if ((minTop < destRect.top && isSrcFocused) || minTop == destRect.top) {
+					if ((minTop < destRect.top && skipLetterboxing) || minTop == destRect.top) {
 						clips.top = srcRect.top;
 					} else {
 						clips.top = ScalingToSrc({ scaledPos.x,minTop }, RoundMethod::Ceil).y;
 					}
 				}
-			} else if (isSrcFocused && destRect.top != rendererRect.top) {
+			} else if (skipLetterboxing && destRect.top != rendererRect.top) {
 				clips.top = destRect.top;
 			}
 		}
@@ -942,7 +1168,7 @@ void CursorManager::_ClipCursorForMonitors(POINT cursorPos) noexcept {
 		// right
 		rect = { rendererRect.right, scaledPos.y, LONG_MAX, scaledPos.y + 1 };
 		if (!AnyIntersectedMonitor(monitorRects, rect)) {
-			if (isSrcFocused) {
+			if (skipLetterboxing) {
 				clips.right = _isUnderCapture ? srcRect.right : destRect.right;
 			} else if (_isUnderCapture && destRect.right == rendererRect.right) {
 				clips.right = srcRect.right;
@@ -957,13 +1183,13 @@ void CursorManager::_ClipCursorForMonitors(POINT cursorPos) noexcept {
 				}
 
 				if (maxRight > destRect.left) {
-					if ((maxRight > destRect.right && isSrcFocused) || maxRight == destRect.right) {
+					if ((maxRight > destRect.right && skipLetterboxing) || maxRight == destRect.right) {
 						clips.right = srcRect.right;
 					} else {
 						clips.right = ScalingToSrc({ maxRight,scaledPos.y }, RoundMethod::Floor).x;
 					}
 				}
-			} else if (isSrcFocused && destRect.right != rendererRect.right) {
+			} else if (skipLetterboxing && destRect.right != rendererRect.right) {
 				clips.right = destRect.right;
 			}
 		}
@@ -980,13 +1206,13 @@ void CursorManager::_ClipCursorForMonitors(POINT cursorPos) noexcept {
 				}
 
 				if (maxBottom > destRect.top) {
-					if ((maxBottom > destRect.bottom && isSrcFocused) || maxBottom == destRect.bottom) {
+					if ((maxBottom > destRect.bottom && skipLetterboxing) || maxBottom == destRect.bottom) {
 						clips.bottom = srcRect.bottom;
 					} else {
 						clips.bottom = ScalingToSrc({ scaledPos.x,maxBottom }, RoundMethod::Floor).y;
 					}
 				}
-			} else if (isSrcFocused && destRect.bottom != rendererRect.bottom) {
+			} else if (skipLetterboxing && destRect.bottom != rendererRect.bottom) {
 				clips.bottom = destRect.bottom;
 			}
 		}
@@ -1207,7 +1433,8 @@ bool CursorManager::_StopCapture(POINT& cursorPos, bool onDestroy) noexcept {
 	//
 	// 在有黑边的情况下自动将光标调整到全屏窗口外
 
-	POINT newCursorPos = SrcToScaling(cursorPos, ScalingWindow::Get().IsSourceForeground());
+	POINT newCursorPos = SrcToScaling(cursorPos, ScalingWindow::Get().IsSourceForeground() &&
+		!ScalingWindow::Get().Renderer().IsEffectParametersVisible());
 
 	if (onDestroy || MonitorFromPoint(newCursorPos, MONITOR_DEFAULTTONULL)) {
 		cursorPos = newCursorPos;
@@ -1229,6 +1456,7 @@ void CursorManager::_SetClipCursor(const RECT& clipRect, bool is3DGameMode) noex
 	if (ScalingWindow::Get().Options().IsDebugMode()) {
 		return;
 	}
+	if (_DeferClipCursor(&clipRect)) return;
 
 	// 限制区域有变化才调用 ClipCursor，因为每次调用 ClipCursor 都会向前台窗口发送
 	// WM_MOUSEMOVE 消息，一些程序无法正确处理，如 GH#920 和 GH#927。
@@ -1253,6 +1481,7 @@ void CursorManager::_SetClipCursor(const RECT& clipRect, bool is3DGameMode) noex
 }
 
 void CursorManager::_RestoreClipCursor() noexcept {
+	if (_DeferClipCursor(nullptr)) return;
 	if (_lastClip.left == std::numeric_limits<LONG>::max()) {
 		return;
 	}

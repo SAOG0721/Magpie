@@ -85,11 +85,25 @@ bool DwmSharedSurfaceFrameSource::_Initialize() noexcept {
 }
 
 FrameSourceState DwmSharedSurfaceFrameSource::_Update() noexcept {
+	const HWND source = ScalingWindow::Get().SrcTracker().Handle();
+	const auto sourceUnavailable = [source] {
+		return !IsWindowVisible(source) || IsIconic(source);
+	};
+	const auto waitForSurface = [this] {
+		if (!_captureInterrupted) {
+			_captureInterrupted = true;
+			++_captureSequence;
+		}
+		return FrameSourceState::Waiting;
+	};
+	if (sourceUnavailable()) return waitForSurface();
+
 	HANDLE sharedTextureHandle = NULL;
-	if (!DwmGetDxSharedSurface(ScalingWindow::Get().SrcTracker().Handle(),
+	if (!DwmGetDxSharedSurface(source,
 		&sharedTextureHandle, nullptr, nullptr, nullptr, nullptr)
 		|| !sharedTextureHandle
 	) {
+		if (sourceUnavailable()) return waitForSurface();
 		Logger::Get().Win32Error("DwmGetDxSharedSurface 失败");
 		return FrameSourceState::Error;
 	}
@@ -99,13 +113,28 @@ FrameSourceState DwmSharedSurfaceFrameSource::_Update() noexcept {
 	HRESULT hr = _deviceResources->GetD3DDevice()
 		->OpenSharedResource(sharedTextureHandle, IID_PPV_ARGS(&sharedTexture));
 	if (FAILED(hr)) {
+		if (sourceUnavailable()) return waitForSurface();
 		Logger::Get().ComError("OpenSharedResource 失败", hr);
 		return FrameSourceState::Error;
 	}
 
+	D3D11_TEXTURE2D_DESC sourceDesc{};
+	sharedTexture->GetDesc(&sourceDesc);
+	// DWM can replace the surface during resize/minimize before the frontend
+	// retires this capture. An out-of-bounds copy can remove the D3D device.
+	if (_frameInWnd.right > sourceDesc.Width || _frameInWnd.bottom > sourceDesc.Height) {
+		if (!_captureInterrupted) Logger::Get().Info(fmt::format(
+			"DWM shared surface unavailable for capture crop: surface={}x{} crop=({},{},{},{})",
+			sourceDesc.Width, sourceDesc.Height, _frameInWnd.left, _frameInWnd.top,
+			_frameInWnd.right, _frameInWnd.bottom));
+		return waitForSurface();
+	}
+	if (sourceUnavailable()) return waitForSurface();
+
 	_deviceResources->GetD3DDC()->CopySubresourceRegion(
 		_output.get(), 0, 0, 0, 0, sharedTexture.get(), 0, &_frameInWnd);
 
+	_captureInterrupted = false;
 	return FrameSourceState::NewFrame;
 }
 

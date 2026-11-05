@@ -16,6 +16,8 @@ session = source[source.index("static bool InitializeSignedSnippet(\n"):source.i
 (out / "DLSSNRSessionUnderTest.h").write_text(session, encoding="utf-8")
 live = source[source.index("EffectParameterApplyMode DLSSNRFilter::GetParameterApplyMode("):source.index("EffectParameterRestartReason DLSSNRFilter::GetParameterRestartReason(")]
 live += source[source.index("static bool SameNRSettings("):source.index("bool DLSSNRFilter::Initialize(")]
+sparse = read("src/Magpie.Core/DLSSNRSparse.inl")
+live += sparse[sparse.index("void DLSSNRFilter::UpdateSparseParameters("):sparse.index("bool DLSSNRFilter::DrawSparse(")]
 (out / "DLSSNRLiveUnderTest.h").write_text(live, encoding="utf-8")
 guidance_types = read("src/Magpie.Core/FrameGuidanceTypes.h")
 guidance_types = guidance_types[guidance_types.index("using FrameGuidanceFrameId"):guidance_types.index("struct MotionVectorProviderOutput;")]
@@ -32,7 +34,33 @@ for block in shader.split("//!PARAMETER\n")[1:]:
     match = re.search(r"^(?:int|float) (\w+);", block, re.M)
     assert match and match[1] not in blocks
     blocks[match[1]] = block[:match.end()]
-assert len(blocks) == 42
+assert len(blocks) == 50
+assert "opticalFlowScaleOrder" not in blocks
+assert "residualMaxAgeFrames" not in blocks
+assert "residualMaxAgeFrames" not in source
+assert list(blocks)[0] == "modelPreset"
+assert re.findall(r"//!OPTION (\d+) (.*)", blocks["modelPreset"]) == [("0", "Automatic (DLL Default)"), ("1", "HT"), ("2", "CC Small FP8")]
+assert "//!DEFAULT 1\n" in blocks["enableInputResolutionScaling"]
+for field, value in [("MIN", "0"), ("MAX", "1"), ("DEFAULT", "0"), ("STEP", "0.05")]:
+    assert f"//!{field} {value}\n" in blocks["residualChromaProtection"]
+for obsolete in ["residualNeutralProtection", "residualSkinProtection", "residualShowColorZones",
+                 "residualShadowChroma", "residualMidtoneChroma", "residualHighlightChroma"]:
+    assert obsolete not in blocks
+assert list(blocks).index("residualMidtoneStrength") == list(blocks).index("shadowStructureMultiplier") + 1
+assert list(blocks).index("reflectionGlowMultiplier") == list(blocks).index("residualMidtoneStrength") + 1
+assert re.findall(r"//!OPTION (\d+) (.*)", blocks["residualTransfer"]) == [("0", "Historical Residual in Place"), ("1", "Historical Residual Reprojection")]
+performance = [name for name, block in blocks.items() if "//!GROUP Performance Advanced Adjustments" in block]
+assert performance == ["resolutionControl", "inputResolutionPercent", "processingMode", "sparseUpdateInterval", "residualTransfer", "opticalFlowMethod", "amdOpticalFlowMode", "nvidiaOpticalFlowQuality"]
+for retired in ("recoveryPolicy", "bufferedDelayFrames", "asyncResidualComposition", "__dlssnrModeVersion"):
+    assert retired not in blocks
+    assert "pass2_" + retired not in blocks and "pass3_" + retired not in blocks
+assert "//!DEFAULT 0" in blocks["resolutionControl"]
+assert "//!DEFAULT 0" in blocks["processingMode"]
+assert re.findall(r"//!OPTION (\d+) (.*)", blocks["processingMode"]) == [
+    ("0", "Every Frame"), ("1", "Alternating Frames")]
+assert "//!DEFAULT 2\n" in blocks["sparseUpdateInterval"]
+assert re.findall(r"//!OPTION (\d+) (.*)", blocks["sparseUpdateInterval"]) == [
+    ("2", "Every 2 Frames"), ("3", "Every 3 Frames"), ("4", "Every 4 Frames")]
 assert "residualColorMode" not in blocks and "residualShowProtection" not in blocks
 anti = blocks["antiFlicker"]
 assert list(blocks).index("antiFlicker") == list(blocks).index("multiPass") + 1
@@ -59,21 +87,35 @@ for name in names:
         for field in ("DEFAULT", "MIN", "MAX", "STEP", "LABEL"):
             pattern = rf"//!{field} (.*)"
             assert re.search(pattern, original)[1] == re.search(pattern, later)[1]
-vm = read("src/Magpie/EffectParametersViewModel.cpp")
-assert 'GetEffectParameterColumnLayout(visibleGroupCount, _availableLayoutWidth)' in vm
 xaml = ET.fromstring(read("src/Magpie/ScalingModesPage.xaml"))
 namespace = "{http://schemas.microsoft.com/winfx/2006/xaml/presentation}"
 template = next(element for element in xaml.iter(namespace + "DataTemplate")
                 if element.attrib.get("{http://schemas.microsoft.com/winfx/2006/xaml}Key") == "EffectParametersFlyout")
-scroll = next(template.iter(namespace + "ScrollViewer"))
-assert scroll.attrib["HorizontalScrollBarVisibility"] == "Auto"
-assert scroll.attrib["HorizontalScrollMode"] == "Enabled"
+assert not list(template.iter(namespace + "ScrollViewer")), "Parameter panels must fit without scrolling"
 for lang in ("en-US", "zh-Hans", "zh-Hant"):
     root = ET.fromstring(read(f"src/Magpie/Resources.language-{lang}.resw"))
     entries = {item.attrib["name"]: item.findtext("value") for item in root.findall("data")}
+    assert not any("DLSSNR_DLSSNR_AI_Filter_opticalFlowScaleOrder_" in key for key in entries)
     assert entries["EffectParam_DLSSNR_DLSSNR_AI_Filter_multiPass_Label"] == "Multi Pass"
+    processing_labels = {
+        "en-US": ("Every Frame", "Alternating Frames"),
+        "zh-Hans": ("逐帧", "隔帧"),
+        "zh-Hant": ("逐幀", "隔幀")}
+    for i, label in enumerate(processing_labels[lang]):
+        assert entries[f"EffectParam_DLSSNR_DLSSNR_AI_Filter_processingMode_Option_{i}"] == label
+    for name in ("recoveryPolicy", "bufferedDelayFrames", "asyncResidualComposition"):
+        assert not any(key.startswith(f"EffectParam_DLSSNR_DLSSNR_AI_Filter_{name}_") for key in entries)
+    for i in (2, 3, 4, 5, 6):
+        assert f"EffectParam_DLSSNR_DLSSNR_AI_Filter_processingMode_Option_{i}" not in entries
+    assert "EffectParam_DLSSNR_DLSSNR_AI_Filter_FixedResolutionRequired" not in entries
+    assert entries["FrameSync_Mode_Async.Content"] == "Async"
+    for suffix in ("Label", "Description"):
+        assert entries[f"EffectParam_DLSSNR_DLSSNR_AI_Filter_sparseUpdateInterval_{suffix}"]
+    for i in (2, 3, 4):
+        expected = {"en-US": f"Every {i} Frames", "zh-Hans": f"每 {i} 帧", "zh-Hant": f"每 {i} 幀"}
+        assert entries[f"EffectParam_DLSSNR_DLSSNR_AI_Filter_sparseUpdateInterval_Option_{i}"] == expected[lang]
     for i in range(5):
         assert entries[f"EffectParam_DLSSNR_DLSSNR_AI_Filter_antiFlicker_Option_{i}"]
     for i in (1, 2, 3):
         assert entries[f"EffectParam_DLSSNR_DLSSNR_AI_Filter_Group_DLSSNR____Pass_{i}"] == f"DLSSNR · Pass {i}"
-print("Multi Pass shader defaults/ranges, 42 unique keys, dynamic-column viewport and localization contracts passed.")
+print("Multi Pass metadata: 50 unique keys, two contiguous processing modes, capture-interval choices 2/3/4 with default 2, retired controls absent, independent Async frame sync, adaptive/flow defaults, performance order, fixed-age/transfer choices, midpoint position, viewport and localization passed.")

@@ -39,6 +39,7 @@ struct PresenterBase {
 	bool _vrrInitializationComplete = false;
 	HWND _vrrWindow = HWND(uintptr_t(0x111));
 	void _RefreshVRREnvironment() { ++probes; }
+	UINT _PresentSyncInterval(UINT) const noexcept { return 0; }
 	void _UpdateForegroundCompatibility() noexcept;
 	void _BindVRRSwapChain(FakeSwapChain*) noexcept;
 	void _VRRPathAvailable(bool available) { _vrr.PathAvailable(available); }

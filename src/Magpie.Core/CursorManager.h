@@ -1,6 +1,8 @@
 #pragma once
+#include "FrameTrace.h"
 #include "ScalingSessionLifetime.h"
 #include <memory>
+#include <optional>
 
 namespace Magpie {
 
@@ -12,6 +14,10 @@ public:
 
 	~CursorManager() noexcept;
 	void BeginShutdown() noexcept { _lifetime->RequestStop(); }
+	// After the window owner cut, restore clips and final capture coordinates.
+	// False retains a pending restore: the caller must keep this manager alive
+	// and retry through CompletePendingDestroy, independently of cursor Update.
+	bool ReleasePendingCursorReposition() noexcept;
 
 	void Update() noexcept;
 
@@ -67,7 +73,14 @@ private:
 
 	void _RestoreCursorSpeed() noexcept;
 
-	void _ReliableSetCursorPos(POINT pos) const noexcept;
+	void _ReliableSetCursorPos(POINT pos) noexcept;
+	winrt::DispatcherQueueTimer _CreateCursorRepositionTimer(uint64_t id);
+	bool _ReliableSetCursorPosOnDestroy(POINT pos) noexcept;
+	void _CompleteCursorReposition(uint64_t id) noexcept;
+	bool _FinishCursorReposition(FrameTrace::CursorRepositionReason reason) noexcept;
+	bool _FinishCursorRepositionForShutdown() noexcept;
+	bool _DeferClipCursor(const RECT* clipRect) noexcept;
+	winrt::fire_and_forget _RefreshCursorShapeAsync(uint64_t id, POINT pos) noexcept;
 
 	winrt::fire_and_forget _SrcHitTestAsync(POINT screenPos) noexcept;
 
@@ -101,6 +114,29 @@ private:
 
 	RECT _lastClip{ std::numeric_limits<LONG>::max() };
 	RECT _lastRealClip{ std::numeric_limits<LONG>::max() };
+
+	// Only the frontend accesses this state or calls ClipCursor. While the point
+	// clip drains queued hardware input, normal confinement changes update the
+	// restoration target rather than shortening the hold or saving the point clip.
+	struct CursorReposition {
+		uint64_t id;
+		POINT pos;
+		RECT pointClip, restoreClip;
+		bool restoreManaged, restoreDefault = false;
+		std::chrono::steady_clock::time_point deadline;
+		int64_t traceStart;
+		uint64_t traceFrame;
+		winrt::DispatcherQueueTimer timer{ nullptr };
+	};
+	std::optional<CursorReposition> _cursorReposition;
+	std::optional<POINT> _nextCursorReposition;
+	uint64_t _cursorRepositionId = 0;
+	std::chrono::steady_clock::time_point _nextCursorCleanupAttempt{};
+	bool _cursorCleanupFailureReported = false;
+	bool _cursorShutdownInputReleased = false;
+	struct CursorShapeRequest { uint64_t id; POINT pos; };
+	std::optional<CursorShapeRequest> _nextCursorShape;
+	bool _isCursorShapeInFlight = false;
 
 	int _originCursorSpeed = 0;
 

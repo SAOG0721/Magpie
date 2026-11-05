@@ -22,6 +22,13 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h" />
+    <ClInclude Include="OKLabRuntime.h"><Filter>Render</Filter></ClInclude>
+    <ClInclude Include="OKLabOverlayEditor.h"><Filter>Render</Filter></ClInclude>
+    <ClInclude Include="ParameterPanelLayout.h"><Filter>Render</Filter></ClInclude>
+    <ClInclude Include="include\OKLabParameters.h"><Filter>Include</Filter></ClInclude>
+    <ClInclude Include="include\OKLabParameterTable.h"><Filter>Include</Filter></ClInclude>
+    <ClInclude Include="include\OKLabLut.h"><Filter>Include</Filter></ClInclude>
+    <ClInclude Include="include\OKLabColor.h"><Filter>Include</Filter></ClInclude>
     <ClInclude Include="OverlayColor.h"><Filter>Render</Filter></ClInclude>
     <ClInclude Include="SceneScreenshot.h"><Filter>Render</Filter></ClInclude>
     <ClInclude Include="ScreenshotNaming.h"><Filter>Helpers</Filter></ClInclude>
@@ -39,6 +46,9 @@
     <ClInclude Include="ScalingWindow.h" />
     <ClInclude Include="CursorManager.h" />
     <ClInclude Include="GraphicsCaptureFrameSource.h">
+      <Filter>Capture</Filter>
+    </ClInclude>
+    <ClInclude Include="WgcMinUpdateIntervalPolicy.h">
       <Filter>Capture</Filter>
     </ClInclude>
     <ClInclude Include="GDIFrameSource.h">
@@ -132,6 +142,7 @@
     <ClInclude Include="MotionVectorRequest.h" />
     <ClInclude Include="PresentationFrameRate.h" />
     <ClInclude Include="FramePresentationTiming.h" />
+    <ClInclude Include="FrameUpdateReason.h" />
     <ClInclude Include="FramePacingWait.h" />
     <ClInclude Include="include\FramePacingOptions.h" />
     <ClInclude Include="include\SourceWindowGeometry.h" />
@@ -285,6 +296,7 @@
       <Filter>Render</Filter>
     </ClCompile>
     <ClCompile Include="RendererScreenshot.cpp"><Filter>Render</Filter></ClCompile>
+    <ClCompile Include="Renderer.OKLab.cpp"><Filter>Render</Filter></ClCompile>
     <ClCompile Include="FrameGuidanceService.cpp">
       <Filter>Render</Filter>
     </ClCompile>
@@ -387,5 +399,12 @@
     <ClInclude Include="FrontendMotionTexture.h"><Filter>Presenter</Filter></ClInclude>
     <ClInclude Include="PresenterFailure.h"><Filter>Presenter</Filter></ClInclude>
     <ClCompile Include="FSR3FGPresenter.cpp"><Filter>Presenter</Filter></ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="DLSSNRPerformanceShader.h"><Filter>Render</Filter></ClInclude>
+    <ClInclude Include="DLSSNRPerformance.inl"><Filter>Render</Filter></ClInclude>
+    <ClInclude Include="include\DLSSNRPerformanceParameters.h"><Filter>Include</Filter></ClInclude>
+    <ClInclude Include="include\DLSSNRPerformanceState.h"><Filter>Include</Filter></ClInclude>
+    <ClInclude Include="include\DLSSNRSubmissionWorker.h"><Filter>Include</Filter></ClInclude>
   </ItemGroup>
 </Project>

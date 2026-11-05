@@ -1,6 +1,9 @@
 namespace Magpie {
 	runtimeclass ScalingModeParameter : Windows.UI.Xaml.Data.INotifyPropertyChanged {
 		Boolean IsBoolean { get; };
+		Boolean IsCheckBox { get; };
+		Boolean IsDisclosure { get; };
+		String DisclosureGlyph { get; };
 		Boolean IsChoice { get; };
 		Boolean IsFloat { get; };
 		Boolean IsVisible { get; };
@@ -9,6 +12,8 @@ namespace Magpie {
 		Int32 ChoiceValue;
 		Int32 ChoiceIndex;
 		IObservableVector<String> Choices { get; };
+		ScalingModeParameter Companion { get; };
+		Boolean HasCompanion { get; };
 		Double Value;
 		String Label { get; };
 		String Tooltip { get; };
@@ -35,17 +40,58 @@ namespace Magpie {
 		String Label { get; };
 		Boolean HasLabel { get; };
 		Boolean IsVisible { get; };
-		Double ColumnWidth { get; };
 		Boolean ShowLeadingSeparator { get; };
 		IVector<IInspectable> Params { get; };
 	}
 
 	runtimeclass EffectParametersViewModel : Windows.UI.Xaml.Data.INotifyPropertyChanged {
+		Boolean IsOKLab { get; };
+		Int32 OKSection;
+		Int32 OKColor;
+		Int32 OKSlot;
+		Int32 OKCurve;
+		Int32 OKPreset;
+		Int32 OKWheel;
+		Boolean OKWheelVisible { get; };
+		IVector<String> OKWheels { get; };
+		Windows.UI.Xaml.Media.ImageSource OKWheelImage { get; };
+		Double OKWheelX { get; };
+		Double OKWheelY { get; };
+		void OKWheelPressed(Object sender, Windows.UI.Xaml.Input.PointerRoutedEventArgs args);
+		void OKWheelMoved(Object sender, Windows.UI.Xaml.Input.PointerRoutedEventArgs args);
+		void OKWheelReleased(Object sender, Windows.UI.Xaml.Input.PointerRoutedEventArgs args);
+		Boolean OKMixerVisible { get; };
+		Boolean OKSelectionVisible { get; };
+		Boolean OKCurveVisible { get; };
+		Boolean OKLutVisible { get; };
+		IVector<String> OKSections { get; };
+		IVector<String> OKColors { get; };
+		IVector<String> OKSlots { get; };
+		IVector<String> OKCurves { get; };
+		IVector<String> OKPresets { get; };
+		String OKStatus { get; };
+		Windows.UI.Xaml.Media.PointCollection OKCurvePoints { get; };
+		Windows.UI.Xaml.Media.Geometry OKCurveGeometry { get; };
+		void OKApplyPreset();
+		void OKResetGroup();
+		void OKResetAll();
+		void OKStoreA();
+		void OKSwapAB();
+		void OKUndo();
+		void OKImportLut();
+		void OKExportLut();
+		void OKClearLut();
+		void OKCurvePressed(Object sender, Windows.UI.Xaml.Input.PointerRoutedEventArgs args);
+		void OKCurveMoved(Object sender, Windows.UI.Xaml.Input.PointerRoutedEventArgs args);
+		void OKCurveReleased(Object sender, Windows.UI.Xaml.Input.PointerRoutedEventArgs args);
 		UInt32 ScalingModeIdx;
 		UInt32 EffectIdx;
 
 		Double ContentWidth { get; };
 		Double ContentMaxHeight { get; };
+		Boolean HasOKContextTools { get; };
 		IVector<IInspectable> Groups { get; };
+		Boolean HasValidationMessage { get; };
+		String ValidationMessage { get; };
 	}
 }

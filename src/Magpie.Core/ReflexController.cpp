@@ -1,5 +1,6 @@
 #include "pch.h"
 #include "ReflexController.h"
+#include "FrameTrace.h"
 #include "Logger.h"
 
 #ifdef MP_ENABLE_DLSS_FRAME_GENERATION
@@ -59,8 +60,8 @@ public:
 		options.bLowLatencyMode = settings.lowLatency;
 		options.bLowLatencyBoost = settings.lowLatency && settings.boost;
 		options.minimumIntervalUs = settings.minimumIntervalUs;
-		// Marker-based CPU optimization needs separately validated Boost timing.
-		// Standard markers remain active without enabling this extra optimization.
+		// Keep marker-driven optimization off. Optional frontend out-of-band
+		// tracking can be unavailable independently of Sleep/capture/present.
 		ReflexConfigurationResult result;
 		result.setStatus = _setSleepMode(_device.get(), &options);
 		NV_GET_SLEEP_STATUS_PARAMS state{};
@@ -77,7 +78,21 @@ public:
 			result.queried, result.queryStatus, result.lowLatency));
 		return result;
 	}
-	int Sleep() noexcept override { return _sleep(_device.get()); }
+	ReflexSleepStatus QueryStatus() noexcept override {
+		NV_GET_SLEEP_STATUS_PARAMS state{};
+		state.version = NV_GET_SLEEP_STATUS_PARAMS_VER;
+		const int status = _getSleepStatus(_device.get(), &state);
+		const bool enabled = status == NVAPI_OK && state.bLowLatencyMode;
+		Logger::Get().Info(fmt::format("Reflex warm status: GetSleepStatus={} actualOn={}; read-only observation",
+			status, enabled));
+		return { status, enabled };
+	}
+	int Sleep() noexcept override {
+		FrameTrace::Scope traceSleep(FrameTrace::Event::ReflexSleep);
+		const int status = _sleep(_device.get());
+		traceSleep.Data(status);
+		return status;
+	}
 	int Marker(ReflexMarker marker, uint64_t frameId) noexcept override {
 		NV_LATENCY_MARKER_PARAMS params{};
 		params.version = NV_LATENCY_MARKER_PARAMS_VER;

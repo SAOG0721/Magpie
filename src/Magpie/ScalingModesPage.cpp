@@ -34,6 +34,42 @@ namespace winrt::Magpie::implementation {
 ScalingModesPage::ScalingModesPage() {
 }
 
+void ScalingModesPage::ParameterCheckboxRow_SizeChanged(IInspectable const& sender, SizeChangedEventArgs const&) {
+	const auto row = sender.as<Grid>();
+	// x:Load can leave the optional companion uncreated. Inspect realized
+	// children instead of assuming the second entry is a live CheckBox.
+	bool paired = false;
+	for (const auto& child : row.Children()) {
+		const auto checkbox = child ? child.try_as<CheckBox>() : nullptr;
+		if (checkbox && Grid::GetColumn(checkbox) == 1) {
+			paired = checkbox.Visibility() != Visibility::Collapsed;
+			break;
+		}
+	}
+	const auto column = row.ColumnDefinitions().GetAt(0);
+	column.Width({ 1.0, paired ? GridUnitType::Auto : GridUnitType::Star });
+	// Auto measures the full left checkbox. Its minimum reserves half the
+	// current parameter column, with ColumnSpacing supplying the fixed gap.
+	column.MinWidth(paired ? std::max(0.0,
+		GetPairedCheckboxOffset(row.ActualWidth(), 0.0, row.ColumnSpacing()) - row.ColumnSpacing()) : 0.0);
+}
+
+void ScalingModesPage::ParameterColumns_SizeChanged(IInspectable const& sender, SizeChangedEventArgs const&) {
+	const auto canvas = sender.as<Canvas>();
+	canvas.Children().Clear();
+	// The OKLab template keeps 260 DIP controls and a 24 DIP column gap.
+	// Draw in an overlay so separators never affect measuring or hit-testing.
+	for (double x = 272.0; x < canvas.ActualWidth(); x += 284.0) {
+		Border separator;
+		separator.Width(1);
+		separator.Height(canvas.ActualHeight());
+		separator.Background(canvas.Tag().as<Brush>());
+		separator.Opacity(.45);
+		Canvas::SetLeft(separator, x);
+		canvas.Children().Append(separator);
+	}
+}
+
 template<class T>
 static T FindIssueElement(const DependencyObject& parent, std::wstring_view name = {}) {
 	if (!parent) return nullptr;
@@ -282,6 +318,9 @@ void ScalingModesPage::EffectParametersFlyout_Opening(
 	winrt::Magpie::EffectParametersViewModel parameters = content ?
 		content.Content().try_as<winrt::Magpie::EffectParametersViewModel>() : nullptr;
 	if (!parameters || !XamlRoot()) return;
+	if (!content.ContentTemplate()) {
+		content.ContentTemplate(Resources().Lookup(box_value(L"EffectParametersFlyout")).as<DataTemplate>());
+	}
 
 	const auto anchor = flyout.Target();
 	TraceParameterFlyout("parent.context", uintptr_t(get_abi(flyout)),
@@ -318,9 +357,36 @@ void ScalingModesPage::EffectParametersFlyout_Closing(IInspectable const& sender
 
 void ScalingModesPage::EffectParametersFlyout_Closed(IInspectable const& sender, IInspectable const&) {
 	TraceParameterFlyout("parent.Closed", uintptr_t(get_abi(sender)));
+	// Keep the model (including edits, presets and undo), but do not reuse an
+	// unloaded selector tree whose cached selection can write back on reattach.
+	if (const auto content = sender.as<Flyout>().Content().try_as<ContentControl>()) {
+		content.ContentTemplate(nullptr);
+	}
 }
 
 void ScalingModesPage::ParameterChoice_DropDownOpened(IInspectable const& sender, IInspectable const&) {
+	const auto combo = sender.as<ComboBox>();
+	if (const auto model = combo.DataContext().try_as<Magpie::ScalingModeParameter>()) {
+		combo.UpdateLayout();
+		const auto parameter = get_self<ScalingModeParameter>(model);
+		for (uint32_t i = 0; i < combo.Items().Size(); ++i) {
+			if (const auto container = combo.ContainerFromIndex(i).try_as<ComboBoxItem>()) {
+				const bool allowed = parameter->IsChoiceAllowed(int32_t(i));
+				// Keep hit-testing/focus so the reason can be read. The value setter
+				// and SelectionChanged both reject activation of unavailable items.
+				container.Opacity(allowed ? 1.0 : .45);
+				const auto reason = parameter->ChoiceReason(int32_t(i));
+				if (reason.empty()) ToolTipService::SetToolTip(container, nullptr);
+				else {
+					TextBlock text; text.Text(reason); text.TextWrapping(TextWrapping::Wrap); text.MaxWidth(328);
+					ToolTip tip; tip.MaxWidth(360); tip.Content(text);
+					ToolTipService::SetToolTip(container, tip);
+				}
+				Windows::UI::Xaml::Automation::AutomationProperties::SetHelpText(container, reason);
+				Windows::UI::Xaml::Automation::AutomationProperties::SetItemStatus(container, reason);
+			}
+		}
+	}
 	if (!IsParameterFlyoutTraceEnabled()) return;
 	TraceParameterFlyout("child.DropDownOpened", uintptr_t(get_abi(sender)), sender.as<ComboBox>().SelectedIndex());
 }
@@ -331,8 +397,13 @@ void ScalingModesPage::ParameterChoice_DropDownClosed(IInspectable const& sender
 }
 
 void ScalingModesPage::ParameterChoice_SelectionChanged(IInspectable const& sender, IInspectable const&) {
-	if (!IsParameterFlyoutTraceEnabled()) return;
 	const auto combo = sender.as<ComboBox>();
+	if (const auto model = combo.DataContext().try_as<Magpie::ScalingModeParameter>()) {
+		const auto parameter = get_self<ScalingModeParameter>(model);
+		if (combo.SelectedIndex() >= 0 && !parameter->IsChoiceAllowed(combo.SelectedIndex()) &&
+			combo.SelectedIndex() != parameter->ChoiceIndex()) combo.SelectedIndex(parameter->ChoiceIndex());
+	}
+	if (!IsParameterFlyoutTraceEnabled()) return;
 	TraceParameterFlyout("child.SelectionChanged", uintptr_t(get_abi(sender)), combo.SelectedIndex(),
 		intptr_t(get_abi(combo.DataContext())));
 }

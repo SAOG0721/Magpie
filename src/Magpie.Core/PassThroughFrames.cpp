@@ -66,6 +66,12 @@ void PassThroughFrames::_ClearBackend() noexcept {
 	_previousValid = false;
 	_currentMetadata = {};
 	_previousMetadata = {};
+	_captureHistory.Reset();
+	for (auto& reference : _captureReferences) reference = {};
+	_selectedTarget = {};
+	_selectedPrevious = {};
+	_selectedTargetValid = _selectedPreviousValid = false;
+	_baseMetadata = {};
 	_presentedMetadata = {};
 }
 
@@ -171,6 +177,41 @@ bool PassThroughFrames::InitializeBackend(DeviceResources& resources,
 	return true;
 }
 
+bool PassThroughFrames::EnableCaptureHistory(uint32_t capacity) noexcept {
+	const auto fail = [&]() {
+		_ClearBackend();
+		Logger::Get().Warn("Capture-aligned original comparison resources unavailable; effects remain enabled");
+		return false;
+	};
+	if (!_sharingEnabled || !_backendResources || !_current || capacity == 0 ||
+		capacity > PassThroughFrameHistory::MaxCapacity) return fail();
+	D3D11_TEXTURE2D_DESC desc{};
+	_current->GetDesc(&desc);
+	const auto create = [&]() {
+		return DirectXHelper::CreateTexture2D(_backendResources->GetD3DDevice(),
+			desc.Format, _width, _height, 0);
+	};
+	for (auto& reference : _captureReferences) reference = {};
+	for (uint32_t i = 0; i < capacity; ++i) {
+		_captureReferences[i].texture = create();
+		if (!_captureReferences[i].texture) return fail();
+	}
+	_selectedTarget = {};
+	_selectedPrevious = {};
+	_selectedTarget.texture = create();
+	_selectedPrevious.texture = create();
+	if (!_selectedTarget.texture || !_selectedPrevious.texture) return fail();
+	_captureHistory.Reset(capacity);
+	_selectedTargetValid = _selectedPreviousValid = false;
+	// Generated frames now select the previous output target explicitly; a
+	// physical-previous image is unnecessary once capture history is enabled.
+	_previous = nullptr;
+	_previousValid = false;
+	_previousFrameId = 0;
+	_previousMetadata = {};
+	return true;
+}
+
 bool PassThroughFrames::OpenFrontend(DeviceResources& resources, uint32_t slotCount) noexcept {
 	_frontendResources = &resources;
 	for (auto& slot : _frontendSlots) slot = {};
@@ -180,6 +221,7 @@ bool PassThroughFrames::OpenFrontend(DeviceResources& resources, uint32_t slotCo
 	_presentedValid = false;
 	_allocationFailed = false;
 	_baseFrameId = _presentedFrameId = 0;
+	_baseMetadata = _presentedMetadata = {};
 	if (!_handles[0]) return true; // Optional backend resource creation failed.
 	auto fail = [&]() {
 		_sharingEnabled = false;
@@ -201,6 +243,11 @@ bool PassThroughFrames::OpenFrontend(DeviceResources& resources, uint32_t slotCo
 }
 
 void PassThroughFrames::UpdateBackend(uint64_t captureFrameId, bool newCapture) noexcept {
+	_UpdateBackend(captureFrameId, newCapture, nullptr);
+}
+
+void PassThroughFrames::_UpdateBackend(uint64_t captureFrameId, bool newCapture,
+	const HdrFrameMetadata* sourceMetadata) noexcept {
 	FrameTrace::Scope traceReference(FrameTrace::Event::ReferencePrepare);
 	if (!_sharingEnabled || !_current || !_shader || (!newCapture && _currentValid)) return;
 	auto context = _backendResources->GetD3DDC();
@@ -225,21 +272,97 @@ void PassThroughFrames::UpdateBackend(uint64_t captureFrameId, bool newCapture) 
 	context->Dispatch((_width + 7) / 8, (_height + 7) / 8, 1);
 	context->ClearState();
 	_currentFrameId = captureFrameId;
+	if (sourceMetadata) _currentMetadata = *sourceMetadata;
 	_currentMetadata.frameId = captureFrameId;
 	_currentValid = true;
+	// A resize refresh can materialize an already accepted capture for the
+	// first time. Retain that real identity without inventing a new capture;
+	// subsequent same-capture refreshes have already returned above.
+	const auto slot = _captureHistory.Capture(captureFrameId);
+	if (slot != PassThroughFrameHistory::Missing) {
+		auto& reference = _captureReferences[slot];
+		context->CopyResource(reference.texture.get(), _current.get());
+		reference.metadata = _currentMetadata;
+	}
+}
+
+HdrFrameMetadata PassThroughFrames::_ReferenceMetadata(const HdrFrameMetadata& source, bool canonical) const noexcept {
+	if (canonical) {
+		auto result = source;
+		result.stage = HdrFrameStage::CanonicalInput;
+		return result;
+	}
+	// SDR callers may have only capture identities, with no canonical HDR
+	// texture or color description. Keep the initialized comparison domain.
+	auto result = _currentMetadata;
+	result.frameId = source.frameId;
+	result.previousFrameId = source.previousFrameId;
+	result.captureSequence = source.captureSequence;
+	result.resourceGeneration = source.resourceGeneration;
+	result.timestamp100ns = source.timestamp100ns;
+	result.captureAdmissionTime100ns = source.captureAdmissionTime100ns;
+	result.parameterRevision = source.parameterRevision;
+	result.outputHistoryRevision = source.outputHistoryRevision;
+	result.contentRedraw = source.contentRedraw;
+	result.updateReason = source.updateReason;
+	result.generated = source.generated;
+	result.frameIndex = source.frameIndex;
+	result.frameMultiplier = source.frameMultiplier;
+	return result;
 }
 
 void PassThroughFrames::UpdateBackend(const HdrFrame& frame, bool newCapture) noexcept {
-	UpdateBackend(frame.metadata.frameId, newCapture);
-	if (_hdrEnabled && frame.IsCanonical()) {
-		_currentMetadata = frame.metadata;
-		_currentMetadata.stage = HdrFrameStage::CanonicalInput;
+	const bool canonical = _hdrEnabled && frame.IsCanonical();
+	const auto metadata = _ReferenceMetadata(frame.metadata, canonical);
+	_UpdateBackend(frame.metadata.frameId, newCapture, &metadata);
+	if (!_captureHistory.Capacity() && canonical) {
+		// Preserve legacy metadata refresh for same-capture redraws. Buffered
+		// references retain the metadata captured with their immutable pixels.
+		_currentMetadata = metadata;
 	}
+}
+
+bool PassThroughFrames::SelectBackendFrame(uint64_t targetFrameId, uint64_t previousOutputFrameId) noexcept {
+	if (!_sharingEnabled || !_captureHistory.Capacity()) return false;
+	const auto selected = _captureHistory.Select(targetFrameId, previousOutputFrameId);
+	if (selected.swapSelected) std::swap(_selectedTarget, _selectedPrevious);
+	const auto copy = [&](Reference& destination, const Reference& source) {
+		_backendResources->GetD3DDC()->CopyResource(destination.texture.get(), source.texture.get());
+		destination.metadata = source.metadata;
+	};
+	if (selected.previousFromTarget) copy(_selectedPrevious, _selectedTarget);
+	else if (selected.previousCaptureSlot != PassThroughFrameHistory::Missing)
+		copy(_selectedPrevious, _captureReferences[selected.previousCaptureSlot]);
+	if (selected.targetCaptureSlot != PassThroughFrameHistory::Missing)
+		copy(_selectedTarget, _captureReferences[selected.targetCaptureSlot]);
+	_selectedTargetValid = selected.targetAvailable;
+	_selectedPreviousValid = selected.previousAvailable;
+	return _selectedTargetValid;
 }
 
 void PassThroughFrames::Publish(uint32_t slot, bool generatedFrame) noexcept {
 	FrameTrace::Scope traceReference(FrameTrace::Event::ReferencePublish);
-	if (!_sharingEnabled || !_backendSlots[slot].texture || !_currentValid) return;
+	if (slot >= MAX_SLOTS) return;
+	_valid[slot] = false;
+	_frameIds[slot] = 0;
+	if (!_sharingEnabled || !_backendSlots[slot].texture || !_currentValid) {
+		_metadata[slot] = {};
+		return;
+	}
+	if (_captureHistory.Capacity()) {
+		if (generatedFrame ? !_selectedPreviousValid : !_selectedTargetValid) {
+			_metadata[slot] = {};
+			return;
+		}
+		const auto& reference = generatedFrame ? _selectedPrevious : _selectedTarget;
+		_backendResources->GetD3DDC()->CopyResource(_backendSlots[slot].texture.get(), reference.texture.get());
+		_frameIds[slot] = reference.metadata.frameId;
+		_metadata[slot] = reference.metadata;
+		_metadata[slot].stage = HdrFrameStage::PublishedOutput;
+		_metadata[slot].generated = generatedFrame;
+		_valid[slot] = true;
+		return;
+	}
 	const bool previous = generatedFrame && _previousValid;
 	_backendResources->GetD3DDC()->CopyResource(_backendSlots[slot].texture.get(),
 		previous ? _previous.get() : _current.get());
@@ -272,7 +395,7 @@ bool PassThroughFrames::Consume(uint32_t slot) noexcept {
 	}
 	_frontendResources->GetD3DDC()->CopyResource(_base.get(), _frontendSlots[slot].texture.get());
 	_baseFrameId = _frameIds[slot];
-	_presentedMetadata = _metadata[slot];
+	_baseMetadata = _metadata[slot];
 	_baseValid = true;
 	return true;
 }
@@ -283,7 +406,11 @@ void PassThroughFrames::OnPresented() noexcept {
 	if (_presentedValid) {
 		_frontendResources->GetD3DDC()->CopyResource(_presented.get(), _base.get());
 		_presentedFrameId = _baseFrameId;
+		_presentedMetadata = _baseMetadata;
 		_presentedMetadata.stage = HdrFrameStage::PresentedOutput;
+	} else {
+		_presentedFrameId = 0;
+		_presentedMetadata = {};
 	}
 }
 

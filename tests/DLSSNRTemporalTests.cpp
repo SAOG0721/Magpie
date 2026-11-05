@@ -15,6 +15,7 @@
 #include <string>
 #include "DLSSNRTemporalShader.h"
 #include "DLSSNRTemporalState.h"
+#include "DLSSNRColorReference.h"
 using Microsoft::WRL::ComPtr;
 using namespace Magpie;
 constexpr unsigned W = 16, H = 16;
@@ -34,7 +35,7 @@ struct Harness {
 	ComPtr<ID3D11ComputeShader> reduceShader;
 	ComPtr<ID3D11SamplerState> sampler;
 	ComPtr<ID3D11Buffer> cb;
-	std::array<Texture,6> inputs;
+	std::array<Texture,7> inputs;
 	std::array<Texture,3> outputs;
 	std::array<Texture,2> low;
 	unsigned width, height;
@@ -42,7 +43,7 @@ struct Harness {
 		unsigned w = W, h = H, motion = 0, hdr = 0;
 		float weight = .8f; unsigned route = 1, lowWidth = (W+1)/2, lowHeight = (H+1)/2;
 		unsigned left = 0, top = 0, right = W, bottom = H;
-		float chromaStrength = 0; unsigned enforceZero = 0, padding0 = 0, padding1 = 0;
+		float chromaStrength = 0; unsigned enforceZero = 0, useReuseValidity = 0, bypassHistory = 0;
 	} constants;
 	Harness(unsigned w=W, unsigned h=H) : width(w), height(h) {
 		auto create = D3D11CreateDevice(nullptr,D3D_DRIVER_TYPE_WARP,nullptr,D3D11_CREATE_DEVICE_DEBUG,nullptr,0,D3D11_SDK_VERSION,&device,nullptr,&dc);
@@ -104,26 +105,28 @@ struct Harness {
 		constants.lowWidth=(width+1)/2; constants.lowHeight=(height+1)/2;
 		Constant(0,{.4f,.4f,.4f,1}); Constant(1,{.4f,.4f,.4f,1}); Constant(2,{.5f,.5f,.5f,.7f});
 		Constant(3,{.3f,.3f,.3f,1}); Constant(4,{.4f,.4f,.4f,1}); Constant(5,{0,0,0,0});
+		Constant(6,{1,0,0,0});
 	}
 	Image Run(unsigned result = 0) {
 		dc->UpdateSubresource(cb.Get(),0,nullptr,&constants,0,0);
-		ID3D11ShaderResourceView* srvs[8]; for (unsigned i=0;i<6;++i) srvs[i]=inputs[i].srv.Get();
+		ID3D11ShaderResourceView* srvs[9]; for (unsigned i=0;i<6;++i) srvs[i]=inputs[i].srv.Get();
 		srvs[6]=low[0].srv.Get(); srvs[7]=low[1].srv.Get();
+		srvs[8]=inputs[6].srv.Get();
 		ID3D11UnorderedAccessView* uavs[3]; for (unsigned i=0;i<3;++i) uavs[i]=outputs[i].uav.Get();
 		auto* buffer=cb.Get(); auto* s=sampler.Get();
 		dc->CSSetConstantBuffers(0,1,&buffer);
-		if (constants.route==4) {
+		if (constants.route==4 && !constants.bypassHistory) {
 			ID3D11UnorderedAccessView* lowUavs[]{low[0].uav.Get(),low[1].uav.Get()};
 			dc->CSSetShader(reduceShader.Get(),nullptr,0); dc->CSSetShaderResources(0,3,srvs);
 			dc->CSSetUnorderedAccessViews(0,2,lowUavs,nullptr);
 			dc->Dispatch((constants.lowWidth+7)/8,(constants.lowHeight+7)/8,1);
 			ID3D11UnorderedAccessView* nu[2]{}; dc->CSSetUnorderedAccessViews(0,2,nu,nullptr);
 		}
-		dc->CSSetShader(shader.Get(),nullptr,0); dc->CSSetShaderResources(0,8,srvs);
+		dc->CSSetShader(shader.Get(),nullptr,0); dc->CSSetShaderResources(0,9,srvs);
 		dc->CSSetUnorderedAccessViews(0,3,uavs,nullptr); dc->CSSetConstantBuffers(0,1,&buffer); dc->CSSetSamplers(0,1,&s);
 		dc->Dispatch((width+7)/8,(height+7)/8,1);
-		ID3D11ShaderResourceView* ns[8]{}; ID3D11UnorderedAccessView* nu[3]{};
-		dc->CSSetShaderResources(0,8,ns); dc->CSSetUnorderedAccessViews(0,3,nu,nullptr);
+		ID3D11ShaderResourceView* ns[9]{}; ID3D11UnorderedAccessView* nu[3]{};
+		dc->CSSetShaderResources(0,9,ns); dc->CSSetUnorderedAccessViews(0,3,nu,nullptr);
 		auto* texture=result < 3 ? outputs[result].texture.Get() : low[result-3].texture.Get();
 		D3D11_TEXTURE2D_DESC desc{}; texture->GetDesc(&desc);
 		desc.Usage=D3D11_USAGE_STAGING; desc.BindFlags=0; desc.CPUAccessFlags=D3D11_CPU_ACCESS_READ;
@@ -179,6 +182,22 @@ int main(int argc, char** argv) {
 	Near(state.Weight(2,4,3,1166667,false,std::numeric_limits<float>::quiet_NaN()),
 		state.Weight(2,4,3,1166667,false,80));
 	Harness h;
+	{
+		h.Default(); h.constants.weight=0; h.Constant(2,{1.1f,.2f,.15f,.7f});
+		const auto mapped=h.Run()[0], history=h.Run(1)[0];
+		for (int c=0;c<3;++c) assert(mapped[c]>=0 && mapped[c]<=1);
+		Near(history[0],.7f,.001f); // no pre-temporal RGB clipping
+		const auto source=ColorReference::ToLab({1.1,.2,.15});
+		const auto result=ColorReference::ToLab({mapped[0],mapped[1],mapped[2]});
+		assert(std::abs(source[1]*result[2]-source[2]*result[1])<2e-5);
+		h.Default(); h.constants.useReuseValidity=1; h.Constant(6,{0,0,0,0});
+		Near(h.Run()[0][0],.5f); Near(h.Run(1)[0][3],0);
+		h.Default(); h.constants.route=4; h.constants.bypassHistory=1;
+		h.Constant(2,{.6f,.1f,.2f,.7f});
+		const auto diagnostic=h.Run()[0];
+		Near(diagnostic[0],.6f); Near(diagnostic[1],.1f); Near(diagnostic[3],.7f);
+		Near(h.Run(1)[0][3],0);
+	}
 	const unsigned center=8*W+8;
 	h.Default(); auto out=h.Run(); Near(out[center][0],.66f); Near(out[center][3],.7f);
 	// Stable negative residual and on/off disappearance remain signed and decay.

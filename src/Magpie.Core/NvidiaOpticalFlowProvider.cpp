@@ -21,6 +21,8 @@ Texture2D<uint> ForwardCost : register(t2);
 Texture2D<uint> BackwardCost : register(t3);
 RWTexture2D<float2> DenseMotion : register(u0);
 RWTexture2D<float> DenseConfidence : register(u1);
+RWTexture2D<float2> DenseReverseMotion : register(u2);
+RWTexture2D<float> DenseReverseConfidence : register(u3);
 
 cbuffer Params : register(b0) {
     uint2 SourceExtent;
@@ -90,6 +92,21 @@ void Densify(uint3 tid : SV_DispatchThreadID) {
 
     DenseMotion[tid.xy] = forward;
     DenseConfidence[tid.xy] = saturate(confidence);
+    if ((HasBackward & 2) != 0) {
+        // Bit 0 enables consistency checks; bit 1 exports the optional field.
+        // Backward is sampled in previous-frame coordinates; it is not -forward.
+        float2 reverse = SampleFlow(BackwardFlow, p);
+        float reverseConfidence = HasBackwardCost != 0 ?
+            1.0 - SampleCost(BackwardCost, p) : 0.65;
+        float2 currentPixel = p + reverse;
+        bool inside = all(currentPixel >= 0.0) && all(currentPixel < float2(SourceExtent));
+        float2 pairedForward = SampleFlow(ForwardFlow, currentPixel);
+        float threshold = 0.75 + 0.05 * length(reverse);
+        reverseConfidence *= inside ? saturate(1.0 - length(reverse + pairedForward) / threshold) : 0.0;
+        if (HasForwardCost != 0) reverseConfidence *= 1.0 - SampleCost(ForwardCost, currentPixel);
+        DenseReverseMotion[tid.xy] = reverse;
+        DenseReverseConfidence[tid.xy] = saturate(reverseConfidence);
+    }
 }
 )";
 
@@ -248,6 +265,10 @@ struct NvidiaOpticalFlowProvider::Impl {
 		confidence = nullptr;
 		motionUav = nullptr;
 		confidenceUav = nullptr;
+		reverseMotion = nullptr;
+		reverseConfidence = nullptr;
+		reverseMotionUav = nullptr;
+		reverseConfidenceUav = nullptr;
 		densifyShader = nullptr;
 		paramsBuffer = nullptr;
 		hdrToNvofShader = nullptr;
@@ -271,6 +292,7 @@ struct NvidiaOpticalFlowProvider::Impl {
 		previousSlot = 0;
 		bidirectional = false;
 		historyValid = false;
+		previousFrame = {};
 		resources = nullptr;
 		device = nullptr;
 		context = nullptr;
@@ -423,6 +445,21 @@ struct NvidiaOpticalFlowProvider::Impl {
 			FAILED(device->CreateUnorderedAccessView(
 				confidence.get(), nullptr, confidenceUav.put()))) {
 			return false;
+		}
+		if (bidirectional) {
+			reverseMotion = DirectXHelper::CreateSharedTexture2D(
+				device, DXGI_FORMAT_R16G16_FLOAT, extent.width, extent.height,
+				GUIDE_BIND, "NVOF/ReverseMotion");
+			reverseConfidence = DirectXHelper::CreateSharedTexture2D(
+				device, DXGI_FORMAT_R8_UNORM, extent.width, extent.height,
+				GUIDE_BIND, "NVOF/ReverseConfidence");
+			if (!reverseMotion || !reverseConfidence ||
+				FAILED(device->CreateUnorderedAccessView(reverseMotion.get(), nullptr, reverseMotionUav.put())) ||
+				FAILED(device->CreateUnorderedAccessView(reverseConfidence.get(), nullptr, reverseConfidenceUav.put()))) {
+				reverseMotion = nullptr; reverseConfidence = nullptr;
+				reverseMotionUav = nullptr; reverseConfidenceUav = nullptr;
+				Logger::Get().Warn("NVOF reverse export unavailable; ordinary forward guidance remains enabled");
+			}
 		}
 
 		for (size_t i = 0; i < input.size(); ++i) {
@@ -647,6 +684,8 @@ struct NvidiaOpticalFlowProvider::Impl {
 		static constexpr float ZERO[4]{};
 		context->ClearUnorderedAccessViewFloat(motionUav.get(), ZERO);
 		context->ClearUnorderedAccessViewFloat(confidenceUav.get(), ZERO);
+		if (reverseMotionUav) context->ClearUnorderedAccessViewFloat(reverseMotionUav.get(), ZERO);
+		if (reverseConfidenceUav) context->ClearUnorderedAccessViewFloat(reverseConfidenceUav.get(), ZERO);
 	}
 
 	bool Densify() noexcept {
@@ -670,7 +709,7 @@ struct NvidiaOpticalFlowProvider::Impl {
 			(extent.width + gridSize - 1) / gridSize,
 			(extent.height + gridSize - 1) / gridSize,
 			gridSize, costEnabled ? 1u : 0u,
-			bidirectional ? 1u : 0u,
+			(bidirectional ? 1u : 0u) | (reverseMotionUav && reverseConfidenceUav ? 2u : 0u),
 			bidirectional && costEnabled ? 1u : 0u
 		};
 		context->Unmap(paramsBuffer.get(), 0);
@@ -679,7 +718,8 @@ struct NvidiaOpticalFlowProvider::Impl {
 			flowSrv[0].get(), bidirectional ? flowSrv[1].get() : nullptr,
 			costSrv[0].get(), bidirectional ? costSrv[1].get() : nullptr
 		};
-		ID3D11UnorderedAccessView* uavs[]{ motionUav.get(), confidenceUav.get() };
+		ID3D11UnorderedAccessView* uavs[]{ motionUav.get(), confidenceUav.get(),
+			reverseMotionUav.get(), reverseConfidenceUav.get() };
 		ID3D11Buffer* buffers[]{ paramsBuffer.get() };
 		context->CSSetShader(densifyShader.get(), nullptr, 0);
 		context->CSSetShaderResources(0, ARRAYSIZE(srvs), srvs);
@@ -711,6 +751,8 @@ struct NvidiaOpticalFlowProvider::Impl {
 	winrt::com_ptr<ID3D11Texture2D> confidence;
 	winrt::com_ptr<ID3D11UnorderedAccessView> motionUav;
 	winrt::com_ptr<ID3D11UnorderedAccessView> confidenceUav;
+	winrt::com_ptr<ID3D11Texture2D> reverseMotion, reverseConfidence;
+	winrt::com_ptr<ID3D11UnorderedAccessView> reverseMotionUav, reverseConfidenceUav;
 	winrt::com_ptr<ID3D11ComputeShader> densifyShader;
 	winrt::com_ptr<ID3D11Buffer> paramsBuffer;
 	std::array<GpuQuerySlot, GPU_QUERY_SLOT_COUNT> gpuQuerySlots;
@@ -730,6 +772,7 @@ struct NvidiaOpticalFlowProvider::Impl {
 	bool costEnabled = false;
 	bool gpuTimingAvailable = false;
 	bool historyValid = false;
+	FrameGuidanceFrame previousFrame{};
 	OpticalFlowInitializationError initializationError =
 		OpticalFlowInitializationError::ProviderUnavailable;
 	DXGI_FORMAT inputDxgiFormat = DXGI_FORMAT_UNKNOWN;
@@ -755,6 +798,7 @@ bool NvidiaOpticalFlowProvider::BeginFrame(
 ) noexcept {
 	FrameTrace::Scope traceNvof(FrameTrace::Event::NvofSubmit, static_cast<int64_t>(_quality));
 	Impl& impl = *_impl;
+	output = {};
 	if (!frame.color || frame.sourceExtent != impl.extent || !impl.session) {
 		return false;
 	}
@@ -773,6 +817,12 @@ bool NvidiaOpticalFlowProvider::BeginFrame(
 		return false;
 	}
 
+	if (impl.historyValid && !frame.ContinuesMotionHistory(impl.previousFrame)) {
+		impl.historyValid = false;
+		impl.resetReason = FrameGuidanceResetReason::CaptureInterrupted;
+	}
+	const bool hadPrevious = impl.historyValid;
+	const auto previousFrame = impl.previousFrame;
 	const uint32_t currentSlot = impl.historyValid ? 1u - impl.previousSlot : 0u;
 	if (frameDesc.Format == DXGI_FORMAT_R16G16B16A16_FLOAT) {
 		if (impl.hdrSourceTexture != frame.color) {
@@ -851,6 +901,17 @@ bool NvidiaOpticalFlowProvider::BeginFrame(
 		.format = DXGI_FORMAT_R8_UNORM,
 		.metadata = metadata
 	};
+	if (hadPrevious && !isZero) {
+		output.motionPair = {frame.frameId, previousFrame.frameId,
+			frame.captureSequence, previousFrame.captureSequence, true};
+		if (impl.bidirectional && impl.reverseMotion && impl.reverseConfidence) {
+			auto reverseMetadata = metadata;
+			reverseMetadata.validRegion = previousFrame.validRegion;
+			output.reverseMotion = {impl.reverseMotion.get(), DXGI_FORMAT_R16G16_FLOAT, reverseMetadata};
+			output.reverseConfidence = {impl.reverseConfidence.get(), DXGI_FORMAT_R8_UNORM, reverseMetadata};
+		}
+	}
+	impl.previousFrame = frame;
 	impl.resetReason = FrameGuidanceResetReason::None;
 	return true;
 }
@@ -859,6 +920,7 @@ void NvidiaOpticalFlowProvider::Reset(
 	FrameGuidanceResetReason reason
 ) noexcept {
 	_impl->historyValid = false;
+	_impl->previousFrame = {};
 	_impl->resetReason = reason;
 }
 

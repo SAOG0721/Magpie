@@ -54,5 +54,17 @@ float3 MapLab(float3 lab, out float scale) {
     }
     return saturate(EncodeRGB(rgb));
 }
+// The only SDR output boundary. In-gamut RGB keeps its exact values; signed
+// candidates are mapped after interpolation and optional temporal filtering.
+float3 FinalizeSDRColor(float3 color, out float scale) {
+    scale = 1;
+    if (!all(isfinite(color))) { scale = 0; return 0; }
+    if (all(color >= 0) && all(color <= 1)) return color;
+    return MapLab(RGBToLab(color),scale);
+}
+float3 FinalizeSDRColor(float3 color) {
+    float scale;
+    return FinalizeSDRColor(color,scale);
+}
 )hlsl";
 }

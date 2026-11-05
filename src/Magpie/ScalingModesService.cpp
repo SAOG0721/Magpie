@@ -1,5 +1,8 @@
 #include "pch.h"
 #include "DLSSNRDetailParameters.h"
+#include "DLSSNRPerformanceParameters.h"
+#include "OKLabConfig.h"
+#include "OKLabParameters.h"
 #include "RTXVideoParameters.h"
 #include "XeSSFGParameters.h"
 #include "DlssOpticalFlowParameters.h"
@@ -45,7 +48,10 @@ void ScalingModesService::AddScalingMode(std::wstring_view name, int copyFrom) {
 	}
 
 	for (auto& effect : scalingModes.back().effects) {
-		if (!effect.isRecoveryInvalid) NormalizeFrameGenerationParameters(effect);
+		if (!effect.isRecoveryInvalid) {
+			NormalizeFrameGenerationParameters(effect);
+			if (effect.name == L"DLSSNR\\DLSSNR_AI_Filter") NormalizeDLSSNRDetailParameters(effect.parameters);
+		}
 	}
 	ScalingModeAdded.Invoke(copyFrom < 0 ? EffectAddedWay::Add : EffectAddedWay::Duplicate);
 
@@ -169,10 +175,14 @@ static void WriteScalingMode(rapidjson::PrettyWriter<rapidjson::StringBuffer>& w
 		writer.Key("effects");
 		writer.StartArray();
 		for (auto effect : scaleMode.effects) {
-			if (!effect.isRecoveryInvalid) NormalizeFrameGenerationParameters(effect);
+			if (!effect.isRecoveryInvalid) {
+				NormalizeFrameGenerationParameters(effect);
+				if (effect.name == L"DLSSNR\\DLSSNR_AI_Filter") NormalizeDLSSNRDetailParameters(effect.parameters);
+			}
 			writer.StartObject();
 			writer.Key("name");
 			writer.String(StrHelper::UTF16ToUTF8(effect.name).c_str());
+			if (effect.name == L"OKLabImageAdjustment") OKLab::WriteAsset(writer, effect.oklabLut);
 			if (effect.isRecoveryInvalid) {
 				writer.Key("recoveryInvalid");
 				writer.Bool(true);
@@ -293,6 +303,10 @@ static bool LoadScalingMode(
 			}
 		}
 		JsonHelper::ReadBool(elemObj, "recoveryInvalid", effect.isRecoveryInvalid);
+		if (effect.name == L"OKLabImageAdjustment" && !OKLab::ReadAsset(elemObj, effect.oklabLut)) {
+			if (!loadingSettings) return false;
+			retainInvalidHdrEffect(effect, elem);
+		}
 		if (auto raw = elemObj.FindMember("recoveryOriginal"); raw != elemObj.MemberEnd() && raw->value.IsString() && effect.recoveryOriginal.empty())
 			effect.recoveryOriginal.assign(raw->value.GetString(), raw->value.GetStringLength());
 		// Frame Rate Filter used to live in the Utility folder. Keep existing
@@ -350,6 +364,10 @@ static bool LoadScalingMode(
 
 					std::wstring name = StrHelper::UTF8ToUTF16(param.name.GetString());
 					effect.parameters[name] = param.value.GetFloat();
+					if (effect.name == L"OKLabImageAdjustment") {
+						if (const auto* p = OKLab::Find(param.name.GetString()))
+							effect.parameters[name] = OKLab::Normalize(*p, effect.parameters[name]);
+					}
 				}
 			} else {
 				if (!loadingSettings) {
@@ -633,6 +651,21 @@ bool ScalingModesService::Import(const rapidjson::GenericObject<true, rapidjson:
 		if (loadingSettings) AppSettings::Get().MarkConfigMigrationNeeded();
 		Logger::Get().Info("FG settings migration: FSR3 requires optical flow (default AMDOF Quality); retired per-effect duplicate filter removed; common settings preserved");
 	}
+
+	bool migratedNr = false;
+	for (auto& mode : scalingModes) {
+		if (mode.hdrMigrationInvalid) continue;
+		for (auto& effect : mode.effects) {
+			if (!effect.isRecoveryInvalid && effect.name == L"DLSSNR\\DLSSNR_AI_Filter") {
+				migratedNr |= NormalizeDLSSNRDetailParameters(effect.parameters);
+				migratedNr |= NormalizeDLSSNRFlowDependencies([&](std::string_view name, float fallback) {
+					const auto it = effect.parameters.find(StrHelper::UTF8ToUTF16(name));
+					return it == effect.parameters.end() ? fallback : it->second;
+				}, [&](std::string_view name, float value) { effect.parameters[StrHelper::UTF8ToUTF16(name)] = value; });
+			}
+		}
+	}
+	if (migratedNr && loadingSettings) AppSettings::Get().MarkConfigMigrationNeeded();
 
 	const V065NormalizationStats normalization =
 		NormalizeV065ScalingModes(scalingModes);

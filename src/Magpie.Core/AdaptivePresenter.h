@@ -31,6 +31,9 @@ public:
 	void CancelReflexRender() noexcept override;
 	bool WaitForFrameCapacity(DWORD timeout) noexcept override;
 	bool WasFrameCapacityBusy() const noexcept override { return _frameCapacityBusy; }
+	bool NeedsRedraw() const noexcept override;
+	bool HasFatalError() const noexcept override { return !_failure.context.empty(); }
+	const PresenterFailure* GetFailure() const noexcept override { return &_failure; }
 	bool SupportsDeferredPresent() const noexcept override {
 		return !_isDCompPresenting && !_isResized && !_isSwitchingToSwapChain;
 	}
@@ -50,7 +53,12 @@ private:
 	uint64_t _reflexPresentId = 0;
 	bool _reflexGenerated = false;
 	bool _reflexRendering = false;
-	bool _ResizeSwapChain() noexcept;
+	bool _ResizeSwapChain(DWORD capacityTimeout = 1000) noexcept;
+	void _TryRecoverSwapChain() noexcept;
+	void _TryCompleteSwapChainSwitch() noexcept;
+	void _KeepDCompFallback(const char* context, HRESULT hr) noexcept;
+	void _Fail(const char* context, HRESULT hr) noexcept;
+	bool _CheckDeviceFailure(const char* context, HRESULT hr) noexcept;
 
 	bool _ResizeDCompVisual(HWND hwndAttach = NULL) noexcept;
 
@@ -69,8 +77,12 @@ private:
 	bool _isResized = false;
 	FrameLatencyGate _frameLatencyGate;
 	bool _isSwitchingToSwapChain = false;
-	// 当前未被任何代码读取（等待超时计数未接线）；ClangCL -Werror、-Wunused-private-field 会报错
-	[[maybe_unused]] uint32_t _frameLatencyWaitTimeoutCount = 0;
+	// Only temporary DComp has a DXGI chain and a recovery deadline. The
+	// capacity token survives retries; only a real Present consumes it.
+	std::optional<std::chrono::steady_clock::time_point> _nextRecoveryAttempt;
+	uint32_t _recoveryAttempts = 0;
+	winrt::com_ptr<ID3D11Query> _switchCompletionQuery;
+	PresenterFailure _failure;
 	uint32_t _presentOccludedCount = 0;
 	uint32_t _presentFailureCount = 0;
 };

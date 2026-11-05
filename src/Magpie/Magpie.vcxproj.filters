@@ -8,6 +8,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp" />
+    <ClCompile Include="EffectParametersViewModel.OKLab.cpp"><Filter>ViewModels</Filter></ClCompile>
     <ClCompile Include="App.cpp" />
     <ClCompile Include="ShortcutService.cpp">
       <Filter>Services</Filter>
@@ -94,6 +95,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h" />
+    <ClInclude Include="OKLabConfig.h"><Filter>Models</Filter></ClInclude>
     <ClInclude Include="ShortcutService.h">
       <Filter>Services</Filter>
     </ClInclude>

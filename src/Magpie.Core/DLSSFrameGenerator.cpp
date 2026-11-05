@@ -704,7 +704,8 @@ bool DLSSFrameGenerator::Draw(
 	FrameGuidanceFrameId frameId,
 	const FrameGuidanceView& guidance,
 	const FrameGuidanceView& zeroGuidance,
-	const PublishCallback& publishGeneratedFrame
+	const PublishCallback& publishGeneratedFrame,
+	std::optional<uint64_t> sourceReflexFrameId
 ) noexcept {
 	if (!_impl || !_impl->feature || !_impl->parameters) {
 		return false;
@@ -915,8 +916,8 @@ bool DLSSFrameGenerator::Draw(
 			return false;
 		}
 		ID3D12CommandList* lists[]{ impl.commandList12.get() };
-		const uint64_t reflexFrameId = impl.reflex ? impl.reflex->CaptureFrameId() : 0;
-		const uint64_t reflexPresentId = impl.reflex ? impl.reflex->NextPresentId() : 0;
+		const uint64_t reflexFrameId = sourceReflexFrameId.value_or(impl.reflex ? impl.reflex->CaptureFrameId() : 0);
+		const uint64_t reflexPresentId = impl.reflex ? impl.reflex->NextPresentIdForFrame(reflexFrameId) : 0;
 		if (impl.reflex) impl.reflex->Generation(
 			impl.queue12.get(), reflexFrameId, reflexPresentId, true);
 		impl.queue12->ExecuteCommandLists(1, lists);
@@ -1047,7 +1048,7 @@ bool DLSSFrameGenerator::Resize(
 bool DLSSFrameGenerator::Draw(
 	ID3D11Texture2D*, FrameGuidanceFrameId,
 	const FrameGuidanceView&, const FrameGuidanceView&,
-	const PublishCallback&) noexcept {
+	const PublishCallback&, std::optional<uint64_t>) noexcept {
 	return false;
 }
 void DLSSFrameGenerator::RequestHistoryReset() noexcept {}

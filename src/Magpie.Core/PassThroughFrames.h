@@ -1,5 +1,6 @@
 #pragma once
 #include "HdrColorTransform.h"
+#include "PassThroughFrameHistory.h"
 #include <array>
 #include <atomic>
 #include <optional>
@@ -19,8 +20,16 @@ public:
 		const HdrTransformParameters& hdrParameters = {},
 		const HdrFrameMetadata& frameMetadata = {}, std::optional<bool> inputHdr = std::nullopt) noexcept;
 	bool OpenFrontend(DeviceResources& resources, uint32_t slotCount) noexcept;
+	// Backend initialization only, before opening the frontend. Extra textures
+	// are allocated exclusively for buffered-output comparison. Failure disables
+	// comparison sharing while leaving processed output unaffected.
+	bool EnableCaptureHistory(uint32_t capacity = PassThroughFrameHistory::MaxCapacity) noexcept;
 	void UpdateBackend(uint64_t captureFrameId, bool newCapture) noexcept;
 	void UpdateBackend(const HdrFrame& frame, bool newCapture) noexcept;
+	// Call before publishing an output whose target differs from physical-now.
+	// The return value describes the target; generated Publish separately needs
+	// previousOutputFrameId. Missing references invalidate only their own slot.
+	bool SelectBackendFrame(uint64_t targetFrameId, uint64_t previousOutputFrameId) noexcept;
 	void Publish(uint32_t slot, bool generatedFrame) noexcept;
 	bool Consume(uint32_t slot) noexcept;
 	void OnPresented() noexcept;
@@ -46,7 +55,14 @@ private:
 		winrt::com_ptr<ID3D11Texture2D> texture;
 		winrt::com_ptr<IDXGIKeyedMutex> mutex;
 	};
+	struct Reference {
+		winrt::com_ptr<ID3D11Texture2D> texture;
+		HdrFrameMetadata metadata{};
+	};
 	void _ClearBackend() noexcept;
+	void _UpdateBackend(uint64_t captureFrameId, bool newCapture,
+		const HdrFrameMetadata* sourceMetadata) noexcept;
+	HdrFrameMetadata _ReferenceMetadata(const HdrFrameMetadata& source, bool canonical) const noexcept;
 	DeviceResources* _backendResources = nullptr;
 	DeviceResources* _frontendResources = nullptr;
 	std::array<Slot, MAX_SLOTS> _backendSlots;
@@ -76,12 +92,19 @@ private:
 	HdrFrameMetadata _previousMetadata{};
 	bool _currentValid = false;
 	bool _previousValid = false;
+	PassThroughFrameHistory _captureHistory;
+	std::array<Reference, PassThroughFrameHistory::MaxCapacity> _captureReferences;
+	Reference _selectedTarget;
+	Reference _selectedPrevious;
+	bool _selectedTargetValid = false;
+	bool _selectedPreviousValid = false;
 	winrt::com_ptr<ID3D11Texture2D> _base;
 	winrt::com_ptr<ID3D11Texture2D> _presented;
 	bool _baseValid = false;
 	bool _presentedValid = false;
 	uint64_t _baseFrameId = 0;
 	uint64_t _presentedFrameId = 0;
+	HdrFrameMetadata _baseMetadata{};
 	HdrFrameMetadata _presentedMetadata{};
 };
 

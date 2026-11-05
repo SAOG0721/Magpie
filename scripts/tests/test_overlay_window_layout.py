@@ -9,8 +9,8 @@ import sys
 root = Path(__file__).resolve().parents[2]
 drawer = (root / 'src/Magpie.Core/OverlayDrawer.cpp').read_text(encoding='utf-8-sig')
 panel = drawer.split('bool OverlayDrawer::_DrawEffectParameters(', 1)[1]
-prepare = panel.split('const ImVec2 displaySize =', 1)[1].split('\n\tconst std::string title', 1)[0]
-prepare = 'const ImVec2 displaySize =' + prepare
+prepare = panel.split('const ImGuiViewport* parameterViewport =', 1)[1].split('\n\tconst std::string title', 1)[0]
+prepare = 'const ImGuiViewport* parameterViewport =' + prepare
 record = panel.split('const bool expanded =', 1)[1].split('\n\tif (!expanded)', 1)[0]
 record = 'const bool expanded =' + record
 
@@ -41,11 +41,13 @@ struct Panel {
     bool _effectParametersWindowLayoutDirty = false;
     bool _isEffectParametersVisible = true;
     ImVec2 _effectParametersViewport{};
+    ImVec2 _effectParametersViewportOrigin{};
     OverlayWindowRect _effectParametersWindowRect{};
     Input _imguiImpl;
     void Draw() {
         PREPARE
         const std::string title = "Parameters##effectParameters";
+        const float parameterScale=_dpiScale*windowOption.zoom;
         RECORD
         if (expanded) ImGui::TextUnformatted("parameter controls");
         ImGui::End();
@@ -59,15 +61,20 @@ void contained(const OverlayWindowRect& r, float w, float h) {
     assert(r.x + r.width <= w && r.y + r.height <= h);
 }
 void frame(Panel& panel, float w, float h, bool down = false,
-    ImVec2 pos = {-1,-1}, ImVec2 size = {-1,-1}, int collapse = -1) {
-    auto& io = ImGui::GetIO(); io.DisplaySize = {w,h}; io.DeltaTime = 1.0f / 60;
-    io.AddMousePosEvent(-100,-100); io.AddMouseButtonEvent(0,down);
+    ImVec2 pos = {-1,-1}, ImVec2 size = {-1,-1}, int collapse = -1, ImVec2 origin = {},
+    ImVec2 mouse = {-100,-100}, ImVec2 image = {}) {
+    auto& io = ImGui::GetIO(); io.DisplaySize = image.x>0?image:ImVec2{w,h}; io.DeltaTime = 1.0f / 60;
+    io.AddMousePosEvent(mouse.x,mouse.y); io.AddMouseButtonEvent(0,down);
     ImGui::NewFrame();
+    ImGui::GetMainViewport()->Pos = ImGui::GetMainViewport()->WorkPos = origin;
+    ImGui::GetMainViewport()->Size = ImGui::GetMainViewport()->WorkSize = {w,h};
     if (pos.x >= 0) ImGui::SetNextWindowPos(pos);
     if (size.x >= 0) ImGui::SetNextWindowSize(size);
     if (collapse >= 0) ImGui::SetNextWindowCollapsed(collapse != 0);
     panel.Draw(); ImGui::Render();
-    contained(panel._effectParametersWindowRect,w,h);
+    auto rect = panel._effectParametersWindowRect;
+    rect.x -= origin.x; rect.y -= origin.y;
+    contained(rect,w,h);
 }
 int main() {
     OverlayWindowOption old{0,1,60,0.5f};
@@ -133,11 +140,30 @@ int main() {
     Panel reopened; reopened.Saved() = panel.Saved();
     frame(reopened,1920,1080);
     near(reopened._effectParametersWindowRect.x,1200); near(reopened._effectParametersWindowRect.width,650);
+    // Letterboxing changes the image-relative origin, not saved surface geometry.
+    reopened._effectParametersWindowLayoutDirty = false;
+    frame(reopened,1920,1080,false,{-1,-1},{-1,-1},-1,{-500,-200});
+    near(reopened._effectParametersWindowRect.x,700);
+    near(reopened._effectParametersWindowRect.y,100);
+    assert(!reopened._effectParametersWindowLayoutDirty);
+    frame(reopened,1920,1080);
+    near(reopened._effectParametersWindowRect.x,1200);
+    near(reopened._effectParametersWindowRect.y,300);
     // DPI changes use logical sizes and logical edge distances.
     reopened._dpiScale = 1.5f; reopened._effectParametersWindowLayoutInitialized = false;
     frame(reopened,2560,1600);
     near(reopened._effectParametersWindowRect.width,975);
     near(reopened._effectParametersWindowRect.height,1050);
+    Panel letterboxed; letterboxed.Saved()={0,0,1220,137,1339,1149};
+    const auto drawLetterboxed=[&](bool down,ImVec2 mouse){frame(letterboxed,2560,1440,down,{-1,-1},{-1,-1},-1,{-788,-399},mouse,{984,641});};
+    drawLetterboxed(false,{1012,-250});drawLetterboxed(false,{1012,-250});
+    const auto beforeDrag=letterboxed._effectParametersWindowRect;
+    drawLetterboxed(true,{1012,-250});drawLetterboxed(true,{1012,-250});
+    drawLetterboxed(true,{212,-150});drawLetterboxed(true,{212,-150});
+    drawLetterboxed(false,{212,-150});
+    near(letterboxed._effectParametersWindowRect.x,beforeDrag.x-800);
+    near(letterboxed._effectParametersWindowRect.y,beforeDrag.y+100);
+    std::cout<<"PASS production window layout: title drag across a negative image-relative origin preserves its screen displacement\n";
     ImGui::DestroyContext();
     std::cout << "Overlay layout: legacy defaults, 16 viewport/DPI combinations, anchors, invalid settings, "
         "real ImGui persistence, shrink/grow, collapse, reopen and DPI restoration passed.\n";

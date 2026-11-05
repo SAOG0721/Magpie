@@ -3,9 +3,7 @@
 
 🌍 **English** | [简体中文](./README_ZH.md)
 
-**Current release: [Magpie Experimental v0.6.10](https://github.com/SAOG0721/Magpie/releases/tag/v0.6.10-experimental)** · [Release notes](docs/RELEASE_NOTES_v0.6.10-experimental.md)
-
-**0.6.11 review draft:** [Release notes](docs/RELEASE_NOTES_v0.6.11-experimental.md). The source includes the 0.6.11 candidate; public downloads remain at 0.6.10 until review is complete.
+**Current release: [Magpie Experimental v0.6.11](https://github.com/SAOG0721/Magpie/releases/tag/v0.6.11-experimental)** · Pre-release · [Release notes](docs/RELEASE_NOTES_v0.6.11-experimental.md)
 
 Magpie Experimental is a Windows tool for processing window content and an unofficial fork of [Blinue/Magpie](https://github.com/Blinue/Magpie). Built on Magpie's window-scaling and effect system, it explores DLSS, XeSS, FSR, RTX Video and related technologies for games, video and other windowed content.
 
@@ -63,6 +61,8 @@ Start with the suggestions and details in Home's recent-issue card, or open the 
 The [upstream Magpie FAQ](https://github.com/Blinue/Magpie/wiki/FAQ) also covers general usage questions. Please discuss this fork's experimental effects and compatibility issues in this repository.
 
 ## Development and Documentation
+
+The next development cycle starts from the [development baseline](docs/experimental/DEVELOPMENT-BASELINE.md). Track its scope in [next-release notes](docs/RELEASE_NOTES_NEXT.md); the next version number and features are not yet assigned.
 
 The project includes the Magpie application, MagpieFX effects and experimental native effect backends. Optional proprietary backends are disabled by default in source builds and require separately supplied SDKs and runtimes. Configure local paths in the untracked `src/BuildOptions.props.user` file.
 

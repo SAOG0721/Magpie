@@ -1,23 +1,34 @@
 # Magpie 实验分支文档索引
 
-- [0.6.11 Beta1：DLSS 参数、SM86、VFX 浮窗与暂停截图](todos/20261022-dlss-runtime-presets-antiflicker-TODO.md)：四个独立分支已整合，0.6.11-beta1 已完成构建、包校验及本机部署启动；VFX 按用户意见暂定通过。[分支与验证记录](reviews/20261022-v0.6.11-beta1-implementation.md)。
+## 0.6.12 Beta 5 本地候选 / Local candidate
 
+- [Beta 5 中英说明](../RELEASE_NOTES_v0.6.12-beta5.md)：DLSSNR 仅保留逐帧／隔帧，旧异步模式自动回退并保留有效更新间隔、模型与输入比例；独立 Async 节奏继续保留。另有 WGC／DLSSNR／Front Edge＋VRR、无补帧路径的短暂空档补交及捕获恢复修复。
+- [开发基线](DEVELOPMENT-BASELINE.md)与[下一版计划](../RELEASE_NOTES_NEXT.md)：后续开发、构建和当前公开版本入口。
+- [DLSSNR 功能与参数](effects/DLSSNR-MULTIPASS.md)、[帧率与刷新](../FRAME_SYNC_GUIDE.md)、[发布流程](RELEASE-WORKFLOW.md)。
 
-## 0.6.11 待审核分发 / Distribution under review
+## 0.6.11 已公开版本 / Published release
 
-[完整中英更新说明](../RELEASE_NOTES_v0.6.11-experimental.md)汇总 0.6.10 之后的变化。分发候选整合性能分析浮窗与双曲线、XeSS 输出间隔、DLSS 参数、SM86 0.4.0、默认社区 DLSSNR、暂停截图和时间戳命名。本地验证、部署和发布材料已完成；按用户后续授权创建的 [GitHub Draft](https://github.com/SAOG0721/Magpie/releases/tag/untagged-c23927d0f93baaa5e319) 已上传三个附件并核验，保持 Draft + Pre-release，等待审核。[本轮 TODO](todos/20261023-xess-output-interval-release-TODO.md)。
+[Magpie Experimental v0.6.11](https://github.com/SAOG0721/Magpie/releases/tag/v0.6.11-experimental) 已于 2026-10-23 公开，保持 Pre-release，标签对应 `4fc74a19`。[完整中英更新说明](../RELEASE_NOTES_v0.6.11-experimental.md)汇总性能分析浮窗与双曲线、XeSS 输出间隔、DLSS 参数、SM86 0.4.0、默认社区 DLSSNR、暂停截图和时间戳命名。`version.json` 和公开下载入口已同步为 0.6.11。[发布准备历史 TODO](todos/20261023-xess-output-interval-release-TODO.md)保留当时的审核记录。
 
-The 0.6.11 candidate integrates the resizable profiler and capture/output charts, XeSS output intervals, DLSS controls, SM86 0.4.0, the default community DLSSNR runtime, paused screenshots and timestamped filenames. The [GitHub Draft](https://github.com/SAOG0721/Magpie/releases/tag/untagged-c23927d0f93baaa5e319) contains the user-facing bilingual notes and three verified assets. It remains an unpublished Draft + Pre-release awaiting review.
+[Version 0.6.11](https://github.com/SAOG0721/Magpie/releases/tag/v0.6.11-experimental) was published on 2026-10-23 as a Pre-release at `4fc74a19`. The update manifest and public download links now refer to this release. See its [bilingual notes](../RELEASE_NOTES_v0.6.11-experimental.md) for features and installation.
+
+## 维护规范
 
 - [错误状态与操作引导规范](../ERROR-REPORTING-GUIDELINES.md)：修改错误状态、提示或恢复入口时按需使用。
 - [DLSSNR 状态与恢复](../DLSSNR-TROUBLESHOOTING.md)：检测结果、处理入口及恢复确认。
 - [报错引导与 DLSSNR 状态细分 TODO](todos/20261013-error-guidance-and-dlssnr-status-TODO.md)：功能分支实现与独立编译验收交接。
 
+## 历史开发与验证记录
+
+以下条目保留对应日期的实现和验收状态；当前开发起点以上方基线为准。
+
+- [0.6.11 Beta1：DLSS 参数、SM86、VFX 浮窗与暂停截图](todos/20261022-dlss-runtime-presets-antiflicker-TODO.md)：四个独立分支已整合，0.6.11-beta1 已完成构建、包校验及本机部署启动；VFX 按用户意见暂定通过。[分支与验证记录](reviews/20261022-v0.6.11-beta1-implementation.md)。
+
 - [2026-10-12 FG 设置与空闲重绘源码交接](reviews/20261012-fg-settings-idle-source-handoff.md)：FSR3 默认必选 AMDOF 质量，四类 FG 共用重复检测与空闲重绘。源码完成；本轮未编译部署，原生与 GPU 验收待执行。
 
 帧率与刷新及配置页布局：原 `feature/0610-frame-refresh-rtss-auto` 分支在整页 280 DIP 布局基础上，完成模式外框圆角、10 处单位外置及 RTSS 独立分组。见[第五阶段实施与交接](reviews/20261011-rtss-grouped-units.md)及[TODO R01–R06](todos/20261011-frame-refresh-modes-TODO.md)。最新设计参照为 `profile-rtss-grouped.html`；R06 / S07 / V07 原生视觉与运行验收、产品编译部署交给后续会话。[第四阶段](reviews/20261011-profile-controls-unified.md)、[第三阶段](reviews/20261011-frame-refresh-visual-alignment.md)、[第二阶段](reviews/20261011-frame-refresh-rtss-auto.md)与[第一阶段](reviews/20261011-frame-refresh-modes.md)保留为历史。
 
-当前公开版本为 [Magpie Experimental v0.6.10](https://github.com/SAOG0721/Magpie/releases/tag/v0.6.10-experimental)，其[中英 Release Note](../RELEASE_NOTES_v0.6.10-experimental.md)已按线上正文同步。`version.json` 和公开下载入口保持指向该已发布版本。0.6.11 Draft 审核及发布完成后再更新公开入口。
+上一公开版本 [Magpie Experimental v0.6.10](https://github.com/SAOG0721/Magpie/releases/tag/v0.6.10-experimental) 的[中英 Release Note](../RELEASE_NOTES_v0.6.10-experimental.md)保留供查阅。
 
 HDR 兼容模式更新开发中：见[功能文档](design/20261005-hdr-compatibility-update-functional-spec.md)和[开发需求与进度](todos/20261005-hdr-compatibility-update-development-TODO.md)。本轮进行源码和针对性回归，应用完整编译及部署留给后续会话。
 
@@ -39,7 +50,7 @@ HDR 当前状态：旧配置页入口保持隐藏，新旧配置中的旧开关�
 
 本目录只收纳实验功能的路线图、TODO、测试矩阵和运行记录。上游通用 Wiki 文档继续保留在 `docs/` 根目录，避免实验说明与用户文档混在一起。
 
-## 当前工作
+### 功能开发记录
 
 - [效果器用户说明重写 TODO](todos/20261013-effect-description-user-copy-revision-TODO.md)／[样稿、全量审查与交接](reviews/20261013-effect-description-user-copy-revision.md)：已重写 165 项双语说明并整理 40 项分类／家族说明；减少防御句，聚焦自身用途，统一新旧表达。文案 review 与静态检查完成；编译部署及界面／GPU 验收待后续会话执行。
 - [效果器说明维护规范](EFFECT-DESCRIPTION-GUIDE.md)：已修订为用户理解和选择优先，明确比较／组合／参数信息的归属；技术来源与证据要求继续保留。

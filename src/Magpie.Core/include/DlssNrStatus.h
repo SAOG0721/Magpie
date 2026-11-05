@@ -50,6 +50,7 @@ struct DlssNrStatus {
 	DlssNrFailure failure;
 	bool restartRequired = false;
 	std::string environment;
+	uint32_t activeInputResolutionPercent = 0;
 	bool operator==(const DlssNrStatus&) const = default;
 	bool Failed() const noexcept { return state == DlssNrState::Skipped || state == DlssNrState::Stopped; }
 };

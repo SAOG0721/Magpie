@@ -15,7 +15,7 @@ $imguiPackage = Get-ChildItem -LiteralPath (Join-Path $env:USERPROFILE '.conan2/
 if (!$imguiPackage) { throw 'Restore imgui before running parameter input tests.' }
 $imgui = Join-Path $imguiPackage.FullName 'p'
 New-Item -ItemType Directory -Force $output | Out-Null
-foreach ($test in @('parameter_input', 'overlay_window_layout')) {
+foreach ($test in @('parameter_input', 'overlay_window_layout', 'cursor_letterboxing')) {
     & python (Join-Path $repo "scripts/tests/test_$test.py") $output
     if ($LASTEXITCODE) { throw "Extract $test failed" }
     & cl.exe /nologo /std:c++20 /EHsc /utf-8 /MT /O2 /DNOMINMAX "/I$repo/src/Magpie.Core/include" "/I$imgui/include" "$output/$test.cpp" "$imgui/lib/imgui.lib" user32.lib imm32.lib "/Fe:$output/$test.exe" "/Fo:$output/$test.obj"

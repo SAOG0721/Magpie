@@ -43,12 +43,21 @@ public:
 		FrameGuidanceExtent sourceExtent,
 		const FrameGuidanceRequirements& requirements
 	) noexcept;
+	// Prepares a provider on the D3D11 owner.
+	// A failed candidate leaves existing consumers and their histories intact.
+	bool PrepareMotionRequest(MotionVectorRequest request) noexcept;
+	double LastGpuMilliseconds() const noexcept;
+	uint64_t LastGpuSample() const noexcept;
 	void ResetHistory(FrameGuidanceResetReason reason) noexcept;
 	FrameGuidanceConsumerViews GetConsumerViews(
 		FrameGuidanceFrameId frameId,
 		FrameGuidanceExtent targetExtent,
 		MotionVectorRequest request
 	) noexcept;
+	// Adapt a retained content target, without consulting the current provider
+	// or capture. Returned adapter textures remain Renderer-owner resources.
+	FrameGuidanceConsumerViews AdaptConsumerViews(const FrameGuidanceView& produced,
+		const FrameGuidanceView& zero, FrameGuidanceExtent targetExtent) noexcept;
 
 	const FrameGuidanceView& View() const noexcept { return _view; }
 	const FrameGuidanceView& ZeroView() const noexcept { return _zeroView; }
@@ -63,6 +72,7 @@ public:
 
 private:
 	struct AdapterCache;
+	struct GpuTiming;
 
 	const FrameGuidanceView& _Produce(
 		const FrameGuidanceFrame& frame,
@@ -84,6 +94,7 @@ private:
 	};
 	std::vector<ProviderEntry> _providers;
 	MotionVectorRequest _selectedMotionRequest{};
+	MotionVectorRequest _preparedMotionRequest{};
 	FrameGuidanceExtent _sourceExtent{};
 	FrameGuidanceView _view{};
 	FrameGuidanceView _zeroView{};
@@ -96,6 +107,7 @@ private:
 	OpticalFlowInitializationError _initializationError =
 		OpticalFlowInitializationError::None;
 	std::unique_ptr<AdapterCache> _adapterCache;
+	std::unique_ptr<GpuTiming> _gpuTiming;
 };
 
 }

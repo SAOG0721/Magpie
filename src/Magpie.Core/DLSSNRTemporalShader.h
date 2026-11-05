@@ -13,6 +13,7 @@ Texture2D<float4> PreviousGuide : register(t4);
 Texture2D<float2> Motion : register(t5);
 Texture2D<float4> LowResidual : register(t6);
 Texture2D<float4> LowGuide : register(t7);
+Texture2D<float> ReuseValidity : register(t8);
 RWTexture2D<float4> Output : register(u0);
 RWTexture2D<float4> NextHistory : register(u1);
 RWTexture2D<float4> NextGuide : register(u2);
@@ -21,8 +22,14 @@ cbuffer Settings : register(b0) {
     uint2 Size; uint UseMotion; uint Hdr;
     float HistoryWeight; uint Route; uint2 LowSize;
     uint4 Region; // x, y, exclusive right, exclusive bottom
-    float ChromaStrength; uint EnforceZero; uint2 DetailPadding;
+    float ChromaStrength; uint EnforceZero; uint UseReuseValidity; uint BypassHistory;
 };
+float4 FinalTemporalColor(float4 color) {
+    float3 result = color.rgb;
+    [branch] if (Hdr) result = clamp(color.rgb,-65504,65504);
+    else result = FinalizeSDRColor(color.rgb);
+    return float4(result,color.a);
+}
 float3 Guide(float3 c) { return Hdr ? c / (1 + abs(c)) : c; }
 bool Inside(int2 p) { return all(p >= int2(Region.xy)) && all(p < int2(Region.zw)); }
 bool PreviousPosition(int2 p, out float2 previous) {
@@ -103,12 +110,34 @@ void main(uint3 id : SV_DispatchThreadID) {
         Output[p] = all(isfinite(base)) ? base : (finiteInput ? original : float4(0,0,0,1));
         return;
     }
+    if (BypassHistory) {
+        NextHistory[p] = 0;
+        Output[p] = FinalTemporalColor(raw);
+        return;
+    }
     float3 current = raw.rgb - base.rgb;
+    // Invalid or only partially trusted enhancement must not be resurrected
+    // through the post-filter. Current-frame lightweight NR remains intact.
+    float reuse = 1;
+    if ((UseReuseValidity & 1) != 0) {
+        float validity = ReuseValidity.SampleLevel(LinearClamp,(p+.5)/Size,0);
+        bool sparse = (UseReuseValidity & 2) != 0;
+        if (!isfinite(validity) || (sparse ? validity <= 0 : validity < .999)) {
+            NextHistory[p] = 0;
+            Output[p] = FinalTemporalColor(raw);
+            return;
+        }
+        if (sparse) reuse = saturate(validity);
+    }
+    // Sparse streams transport a repeated observation with weight=1; a new NR
+    // observation uses its own elapsed time. Soft confidence cannot resurrect
+    // a completely rejected correction. Legacy flags 0/1 retain their gate.
+    float historyWeight = HistoryWeight * reuse;
     // New SDR detail mode has an exact zero-current contract. Do not retain a
     // prior correction at pixels where the total correction has vanished.
     if (EnforceZero && all(current == 0)) {
         NextHistory[p] = 0;
-        Output[p] = raw;
+        Output[p] = FinalTemporalColor(raw);
         return;
     }
     float3 detail = 0;
@@ -116,7 +145,7 @@ void main(uint3 id : SV_DispatchThreadID) {
         float3 low;
         if (!Reconstruct(p, Guide(original.rgb), low)) {
             NextHistory[p] = 0;
-            Output[p] = raw;
+            Output[p] = FinalTemporalColor(raw);
             return;
         }
         detail = current-low; // Exact current high-frequency complement, not temporally filtered.
@@ -129,7 +158,7 @@ void main(uint3 id : SV_DispatchThreadID) {
     float support = observed;
     float3 result = current;
     float2 previous;
-    if (HistoryWeight > 0 && PreviousPosition(p, previous)) {
+    if (historyWeight > 0 && PreviousPosition(p, previous)) {
         float error = 0;
         float maximumError = 0;
         bool valid = true;
@@ -171,25 +200,25 @@ void main(uint3 id : SV_DispatchThreadID) {
                     float oldSupport = saturate(old.a-1);
                     // 60 ms attack / 180 ms release, derived from the same capture
                     // interval as the 80 ms amplitude EMA. q is applied once.
-                    float memory = pow(abs(HistoryWeight), .08/(observed > oldSupport ? .06 : .18))*q;
+                    float memory = pow(abs(historyWeight), .08/(observed > oldSupport ? .06 : .18))*q;
                     support = lerp(observed, oldSupport, memory);
                     if (oldSupport <= .001) result = current;
                     else if (observed > 0 && dot(current, old.rgb) < 0) {
                         // An opposite direction starts a new support episode.
-                        support = observed*(1-pow(abs(HistoryWeight),.08/.06)*q);
+                        support = observed*(1-pow(abs(historyWeight),.08/.06)*q);
                         result = current;
                     } else {
-                        float update = (1-HistoryWeight*q)*observed;
+                        float update = (1-historyWeight*q)*observed;
                         result = lerp(safe, current, update);
                     }
-                } else result = lerp(current, safe, HistoryWeight*q);
+                } else result = lerp(current, safe, historyWeight*q);
                 if (!Hdr && ChromaStrength > 0) {
                     // Reuse the same validated history, footprint and confidence.
                     // Existing luma result is retained; additional memory only
                     // affects Lab chroma. Signed RGB history remains the storage.
                     float3 nowLab = RGBToLab(base.rgb+detail+(Route == 3 ? support*result : result));
                     float3 oldLab = RGBToLab(base.rgb+detail+safe);
-                    float extra = ChromaStrength*HistoryWeight*q*(Route == 3 ? min(observed,support) : 1);
+                    float extra = ChromaStrength*historyWeight*q*(Route == 3 ? min(observed,support) : 1);
                     nowLab.yz = lerp(nowLab.yz,oldLab.yz,extra);
                     float gamutScale;
                     float3 extraResidual = MapLab(nowLab,gamutScale)-base.rgb-detail;
@@ -202,7 +231,7 @@ void main(uint3 id : SV_DispatchThreadID) {
     // FP16 history is signed; its alpha marks a valid observation, not opacity.
     NextHistory[p] = float4(clamp(result,-65504,65504),Route == 3 ? 1+support : 1);
     float3 color = base.rgb + detail + (Route == 3 ? support*result : result);
-    Output[p] = float4(Hdr ? clamp(color,-65504,65504) : saturate(color), raw.a);
+    Output[p] = FinalTemporalColor(float4(color,raw.a));
 }
 )hlsl";
 
@@ -218,7 +247,7 @@ cbuffer Settings : register(b0) {
     uint2 Size; uint UseMotion; uint Hdr;
     float HistoryWeight; uint Route; uint2 LowSize;
     uint4 Region;
-    float ChromaStrength; uint EnforceZero; uint2 DetailPadding;
+    float ChromaStrength; uint EnforceZero; uint UseReuseValidity; uint BypassHistory;
 };
 [numthreads(8,8,1)]
 void main(uint3 id : SV_DispatchThreadID) {

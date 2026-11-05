@@ -6,6 +6,8 @@
 #include "EffectParameterResetGesture.h"
 #include "ProfilerHistory.h"
 #include "PresentationFrameRate.h"
+#include "OKLabOverlayEditor.h"
+#include <map>
 
 namespace Magpie {
 
@@ -153,6 +155,7 @@ private:
 
 	bool _DrawProfiler(const EffectsProfilerSnapshot& profile, uint32_t fps, int& itemId) noexcept;
 	bool _BeginProfilerWindow() noexcept;
+	bool _DrawProfilerHeader(const char* label, bool& expanded) noexcept;
 	bool _DrawProfilerGraphs(const EffectsProfilerSnapshot& profile) noexcept;
 	void _DrawProfilerGraph(const ProfilerHistory::Plot& plot, int metric, bool available) noexcept;
 	bool _DrawEffectParameters(int& itemId) noexcept;
@@ -185,6 +188,7 @@ private:
 	bool _profilerTimingKnown = false;
 	bool _profilerWindowLayoutInitialized = false;
 	bool _profilerWindowLayoutDirty = false;
+	bool _profilerSettingsDirty = false;
 	ImVec2 _profilerViewport{};
 	OverlayWindowRect _profilerWindowRect{};
 	// (总计时间, 帧数)
@@ -198,6 +202,8 @@ private:
 	std::vector<std::vector<float>> _appliedEffectParameterValues;
 	EffectParameterSessionState::Snapshot _parameterSessionSnapshot;
 	std::vector<std::vector<float>> _draftEffectParameterValues;
+	std::map<size_t, OKLabEditorState> _oklabEditors;
+	ParameterPanelAnchor _parameterHoverAnchor;
 	std::vector<std::vector<float>> _submittedEffectParameterValues;
 	std::vector<EffectOption> _submittedEffectOptions;
 	FrameRefreshSettings _startupFrameRefresh;
@@ -238,6 +244,7 @@ private:
 	bool _effectParametersWindowLayoutInitialized = false;
 	bool _effectParametersWindowLayoutDirty = false;
 	ImVec2 _effectParametersViewport{};
+	ImVec2 _effectParametersViewportOrigin{};
 	OverlayWindowRect _effectParametersWindowRect{};
 	EffectParameterResetGesture _parameterResetGesture;
 #ifdef _DEBUG

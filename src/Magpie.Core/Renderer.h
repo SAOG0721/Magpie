@@ -3,6 +3,7 @@
 #include "CursorDrawer.h"
 #include "DeviceResources.h"
 #include "EffectDrawer.h"
+#include "OKLabColor.h"
 #include "EffectFrameState.h"
 #include "EffectsProfiler.h"
 #include "FrameGuidanceService.h"
@@ -62,6 +63,7 @@ public:
 			_presentationRate.WaitingForContent();
 	}
 	std::string NvidiaVfxProcessDescription(size_t effect) const;
+	bool RequestOKLabSample(uint32_t effect, float u, float v, std::shared_ptr<OKLab::PickResult> result) noexcept;
 	DLSSFGFrameRenderResult RenderDLSSFGFrame(
 		uint32_t sharedTextureSlot,
 		uint32_t sharedTextureGeneration,
@@ -187,6 +189,22 @@ private:
 	FrameSyncBackend _appliedFrameSyncBackend = FrameSyncBackend::None;
 	bool _reflexFallbackLogged = false;
 	bool _frameSyncUsesSharedSlot = false;
+	// Ordinary NR may prepare one output while the previous shared image waits
+	// for Present. No further Draw/maintenance runs until that output is published.
+	bool _frameSyncCaptureAheadEnabled = false;
+	winrt::com_ptr<ID3D11Texture2D> _pendingFrameSyncOutput;
+	bool _pendingFrameSyncHasPhysicalCapture = false;
+	bool _IsFrameSyncPublicationPending() const noexcept {
+		return _frameSyncEnabled && _frameSyncUsesSharedSlot &&
+			_frameSyncAcknowledgedKey.load(std::memory_order_acquire) !=
+			_sharedTextureMutexKeys[0].load(std::memory_order_acquire);
+	}
+	bool _FrameSyncBlocksCapture() const noexcept {
+		return _IsFrameSyncPublicationPending() &&
+			(!_frameSyncCaptureAheadEnabled || _pendingFrameSyncOutput);
+	}
+	bool _StageFrameSyncOutput(ID3D11Texture2D* output, bool isNewCaptureFrame) noexcept;
+	bool _PublishPendingFrameSyncOutput() noexcept;
 	bool _frameSyncLimiterFailed = false;
 	uint32_t _configuredFrameGenerationMultiplier = 1;
 	std::atomic<double> _presentationRefreshRate = 60.0;
@@ -201,9 +219,12 @@ private:
 	FrontEdgeSyncClock _fgInputClock;
 	wil::unique_handle _fgInputTimer;
 	winrt::com_ptr<ID3D11Texture2D> _pendingFrameGenerationInput;
+	bool _pendingFrameGenerationHasPhysicalCapture = false;
 	bool _backendMayDeferFG = false;
 	void _CompleteBackendFrame(ID3D11Texture2D* effectsOutput, bool isNewCaptureFrame,
 		uint64_t captureSequence) noexcept;
+	FrameGuidanceConsumerViews _ProcessedGuidance(FrameGuidanceExtent extent,
+		MotionVectorRequest request) noexcept;
 	void _LogHdrTextureStats(ID3D11Texture2D* texture, std::string_view label) noexcept;
 	struct PendingFrontendFrame {
 		bool stableBaseOnly = false;
@@ -216,16 +237,23 @@ private:
 		uint64_t overlayRevision = 0;
 		uint64_t contentKey = 0;
 		uint32_t diagnosticReasons = 0;
+		FrameUpdateReason updateReason = FrameUpdateReason::RenderRefresh;
 	};
 	std::optional<PendingFrontendFrame> _pendingFrontendFrame;
 	bool _SubmitFrontendFrame() noexcept;
 	bool _TryIdleRedraw() noexcept;
+	bool _UsesVrrCaptureRefresh() const noexcept;
+	std::chrono::steady_clock::time_point _lastFreshContentSubmission{};
+	std::chrono::steady_clock::time_point _vrrCaptureRefreshRetry{};
 	IdlePresentationClock _idlePresentationClock;
 	std::atomic<double> _idleRedrawRate = 0;
 	std::atomic<bool> _captureAllowsIdle = false;
 	std::atomic<bool> _backendContentInFlight = false;
 	uint32_t _FrontendDiagnosticReasons() noexcept;
 	OverlayPresentationClock _overlayPresentationClock;
+	// A noncritical replay can yield one bounded UI polling turn to content
+	// already being processed. It never holds a swap-chain capacity token.
+	std::optional<std::chrono::steady_clock::time_point> _overlayContentionUntil;
 	HMONITOR _overlayMonitor = nullptr;
 	HMONITOR _overlayWhiteMonitor = nullptr;
 	float _overlayMonitorSdrWhiteNits = 0;
@@ -306,7 +334,7 @@ private:
 
 	void _BackendRender(
 		ID3D11Texture2D* effectsOutput,
-		bool isNewCaptureFrame
+		FrameUpdateReason reason
 	) noexcept;
 
 	bool _PublishBackendTexture(
@@ -385,17 +413,35 @@ private:
 	Magpie::BackendDescriptorStore _backendDescriptorStore;
 	std::unique_ptr<FrameSourceBase> _frameSource;
 	FrameGuidanceService _frameGuidanceService;
+	bool _sourceFocusHistoryResetPending = false;
 	bool _hasFrameGeneration = false;
 	mutable PresentationFrameRate _presentationRate;
 	FrameGuidanceFrameId _capturedFrameId = 0;
 	FrameGuidanceFrameId _previousCapturedFrameId = 0;
 	int64_t _acceptedCaptureTimestamp100ns = 0;
+	// Physical input identity, independent of a future SIM candidate or an old
+	// Sparse output target stored in _processedFrame.
+	uint64_t _acceptedCaptureReflexFrameId = 0;
 	std::chrono::steady_clock::time_point _lastCapturedFrameTime{};
 	NgxD3D12Core _ngxD3D12Core;
 	std::vector<EffectDrawer> _effectDrawers;
 	std::vector<EffectOption> _runtimeEffectOptions;
 	std::vector<EffectFrameState> _effectFrameStates;
 	uint32_t _captureEffectFrameCount = 0;
+	// Backend-owned provenance of the pixels after the effect chain. Capture
+	// admission remains on the physical input clock; temporal consumers and
+	// presentation use this possibly delayed target clock.
+	struct ProcessedFrame {
+		FrameGuidanceFrameId frameId = 0, previousFrameId = 0;
+		uint64_t captureIndex = 0, captureSequence = 0, resourceGeneration = 0, reflexFrameId = 0;
+		int64_t timestamp100ns = 0, admissionTime100ns = 0;
+		FrameGuidanceConsumerViews guidance{};
+		bool redirected = false, newContent = false;
+	};
+	ProcessedFrame _processedFrame;
+	std::vector<ProcessedFrame> _effectOutputFrames;
+	FrameGuidanceFrameId _lastPublishedProcessedFrameId = 0;
+	int64_t _lastPublishedProcessedTimestamp100ns = 0;
 	struct PendingEffectParameterUpdate {
 		uint32_t effectIdx = 0;
 		uint32_t parameterIdx = 0;
@@ -430,12 +476,14 @@ private:
 	uint32_t _SoftwareFrameMultiplier() const noexcept;
 	bool _InitializeNvidiaVfxFrameGenerator() noexcept;
 	bool _DrawNvidiaVfxPostEffects(ID3D11Texture2D* input, uint32_t index, uint32_t multiplier,
-		const NvidiaVfxCudaFrame* cudaFrame = nullptr) noexcept;
+		const NvidiaVfxCudaFrame* cudaFrame = nullptr, bool isNewCaptureFrame = true) noexcept;
+	uint64_t _vfxPostInputRevision = 0;
 	void _LogNvidiaVfxMeasurements() noexcept;
 	uint32_t _dlssFgConsecutiveFailures = 0;
 	uint32_t _dlssFgRecoveryAttempts = 0;
 
 	StepTimer _stepTimer;
+	std::atomic<uint64_t> _successfulPresentCalls = 0, _failedPresentCalls = 0;
 	// Frontend-owned before backend creation; backend-owned for the session.
 	void _EnsureGpuPriority(bool force = false) noexcept;
 	std::chrono::steady_clock::time_point _nextGpuPriorityCheck{};
@@ -476,6 +524,7 @@ private:
 		_sharedTextureMutexKeys{};
 	std::array<std::atomic<bool>, MAX_SHARED_TEXTURE_SLOTS>
 		_sharedTextureContainsGeneratedFrame{};
+	std::array<std::atomic<FrameUpdateReason>, MAX_SHARED_TEXTURE_SLOTS> _sharedTextureUpdateReasons{};
 	std::array<std::atomic<FrameGuidanceFrameId>, MAX_SHARED_TEXTURE_SLOTS>
 		_sharedMotionFrameIds{};
 	std::array<std::atomic<bool>, MAX_SHARED_TEXTURE_SLOTS>
@@ -494,6 +543,7 @@ private:
 	std::array<HdrFrameMetadata, MAX_SHARED_TEXTURE_SLOTS> _sharedFrameMetadata{};
 	uint64_t _backendOutputHistoryRevision = 0, _lastPublishedOutputHistoryRevision = 0;
 	bool _backendOutputRedraw = false;
+	FrameUpdateReason _backendOutputUpdateReason = FrameUpdateReason::NewCapture;
 	HdrFrameMetadata _frontendFrameMetadata{};
 	// Protected by the slot's existing publication/consumption mutex. These
 	// IDs survive retries and stay paired with exactly the copied colour image.
@@ -510,6 +560,9 @@ private:
 	std::optional<float> _captureMaxFrameRate;
 	// Backend-owned cadence; publish an immutable interval with each ring slot.
 	CaptureFrameCadence _captureCadence;
+	CaptureIdleClock _nativeOutputIdleClock;
+	uint64_t _nativeOutputResourceGeneration = 0;
+	std::vector<uint64_t> _refreshedNativeOutputVersions;
 	uint64_t _captureSequence = 0;
 	uint32_t _publicationTimingSamples = 0;
 	double _publicationTransactionTotalMs = 0;
@@ -522,6 +575,10 @@ private:
 	std::chrono::nanoseconds _synchronousPresentInterval{};
 	std::array<std::atomic<int64_t>, MAX_SHARED_TEXTURE_SLOTS> _sharedPresentIntervalNs{};
 	FramePresentationClock _presentationClock;
+	// Bounds same-capture publications by display capacity without moving the
+	// separate content deadline. Every scene submission updates this anchor.
+	FramePresentationClock _outputRefreshClock;
+	OutputCadenceStatistics _outputCadenceStatistics;
 	FrameGuidanceFrameId _frontendCaptureFrameId = 0;
 	FrameGuidanceFrameId _lastCountedRealFrameId = 0;
 	uint32_t _dlssFgFrontendTimingFrames = 0;

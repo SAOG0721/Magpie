@@ -1,7 +1,10 @@
 #pragma once
+#include "FrameUpdateReason.h"
 #include <algorithm>
+#include <array>
 #include <chrono>
 #include <cstdint>
+#include <optional>
 
 namespace Magpie {
 
@@ -127,6 +130,96 @@ private:
 	double _seconds = 0;
 	bool _started = false;
 	bool _hasSequenceEstimate = false;
+};
+
+// An output target describes our capacity, not when the source will capture
+// again. Learn from native capture timestamps, retain a recent slow/jitter
+// envelope, and wait through two source periods before a final quality redraw.
+class CaptureIdleClock {
+public:
+	using Clock = std::chrono::steady_clock;
+	void Observe(int64_t timestamp100ns, Clock::time_point now) noexcept {
+		if (timestamp100ns > _timestamp100ns && _timestamp100ns > 0) {
+			const auto interval = std::chrono::duration_cast<std::chrono::nanoseconds>(
+				std::chrono::duration<int64_t, std::ratio<1, 10'000'000>>(timestamp100ns - _timestamp100ns));
+			// A resumed static source must not teach the detector its idle gap.
+			if (interval <= std::chrono::seconds(2) &&
+				(_samples < 2 || interval <= std::chrono::milliseconds(250) || interval < IdleInterval())) {
+				_intervals[_next++ % _intervals.size()] = interval;
+				_samples = std::min(_samples + 1, _intervals.size());
+			}
+		}
+		_timestamp100ns = timestamp100ns;
+		_last = now;
+		_started = true;
+	}
+	std::chrono::nanoseconds Remaining(Clock::time_point now) const noexcept {
+		if (!_started) return std::chrono::milliseconds(250);
+		return std::max(std::chrono::nanoseconds::zero(),
+			std::chrono::duration_cast<std::chrono::nanoseconds>(_last - now) + IdleInterval());
+	}
+	void Reset() noexcept { *this = {}; }
+	std::chrono::nanoseconds IdleInterval() const noexcept {
+		if (_samples < 2) return std::chrono::milliseconds(250);
+		auto minimum = _intervals[0], maximum = minimum;
+		for (size_t i = 1; i < _samples; ++i) {
+			minimum = std::min(minimum, _intervals[i]);
+			maximum = std::max(maximum, _intervals[i]);
+		}
+		return maximum * 2 + std::max(maximum - minimum,
+			std::chrono::nanoseconds(std::chrono::milliseconds(1)));
+	}
+private:
+	std::array<std::chrono::nanoseconds, 12> _intervals{};
+	size_t _samples = 0, _next = 0;
+	int64_t _timestamp100ns = 0;
+	Clock::time_point _last{};
+	bool _started = false;
+};
+
+// Bounded frontend samples of successful Present calls. These are submission
+// intervals, not physical scanout timestamps or GPU execution durations.
+struct OutputCadenceSnapshot {
+	std::array<uint32_t, 5> counts{};
+	double captureRate = 0;
+	double p50Ms = 0, p95Ms = 0, p99Ms = 0, maximumMs = 0, outputMaximumMs = 0;
+};
+class OutputCadenceStatistics {
+public:
+	using Clock = std::chrono::steady_clock;
+	std::optional<OutputCadenceSnapshot> Submitted(FrameUpdateReason reason, Clock::time_point now) noexcept {
+		++_counts[static_cast<size_t>(reason)];
+		if (_lastOutput != Clock::time_point{})
+			_outputMaximum = std::max(_outputMaximum, now - _lastOutput);
+		_lastOutput = now;
+		if (reason != FrameUpdateReason::NewCapture) return {};
+		if (_lastCapture != Clock::time_point{}) {
+			_intervals[_samples++] = now - _lastCapture;
+		}
+		_lastCapture = now;
+		if (_samples < _intervals.size()) return {};
+		std::sort(_intervals.begin(), _intervals.end());
+		OutputCadenceSnapshot result;
+		result.counts = _counts;
+		Clock::duration total{};
+		for (auto interval : _intervals) total += interval;
+		result.captureRate = std::chrono::duration<double>(total).count() > 0 ?
+			double(_samples) / std::chrono::duration<double>(total).count() : 0;
+		const auto milliseconds = [](auto value) { return std::chrono::duration<double, std::milli>(value).count(); };
+		result.p50Ms = milliseconds(_intervals[_samples / 2]);
+		result.p95Ms = milliseconds(_intervals[(_samples * 95 + 99) / 100 - 1]);
+		result.p99Ms = milliseconds(_intervals[(_samples * 99 + 99) / 100 - 1]);
+		result.maximumMs = milliseconds(_intervals.back());
+		result.outputMaximumMs = milliseconds(_outputMaximum);
+		_samples = 0; _counts = {}; _outputMaximum = {};
+		return result;
+	}
+private:
+	std::array<Clock::duration, 120> _intervals{};
+	std::array<uint32_t, 5> _counts{};
+	size_t _samples = 0;
+	Clock::time_point _lastCapture{}, _lastOutput{};
+	Clock::duration _outputMaximum{};
 };
 
 // No catch-up burst after a long stall. The frontend polls this deadline while

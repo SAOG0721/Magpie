@@ -8,6 +8,12 @@
     <CopyFileToFolders Include="Lanczos.hlsl" />
     <CopyFileToFolders Include="SSimDownscaler.hlsl" />
     <CopyFileToFolders Include="ImageAdjustment.hlsl" />
+    <CopyFileToFolders Include="OKLabImageAdjustment.hlsl" />
+    <CopyFileToFolders Include="OKLab\Color.hlsli" />
+    <CopyFileToFolders Include="OKLab\Adjust.hlsli" />
+    <CopyFileToFolders Include="OKLab\Tables.hlsli" />
+    <CopyFileToFolders Include="OKLab\Statistics.hlsli" />
+    <CopyFileToFolders Include="OKLab\Adapt.hlsli" />
     <CopyFileToFolders Include="MLAA\MLAA.hlsl">
       <Filter>MLAA</Filter>
     </CopyFileToFolders>

@@ -19,6 +19,13 @@
 - 标签必须指向完成构建和运行验证的准确提交。已推送或已发布的标签不得移动、覆盖或重建。
 - 常规版的 `version.json`、程序“关于”页、包内 `build-manifest.json`、标签和 Release 标题中的版本必须一致。Hotfix 必须明确继承的基础版本，并在标签、标题和附件名中使用一致的 Hotfix 后缀。
 
+## 日常本机部署（2026-10-30）
+
+- 日常构建运行 `scripts/Build-Release.ps1 -Version 0.6.12-beta1 -IncludeSymbols -RequireMagpieClosed`，或工作区根目录 `Update-Release.ps1`。直接更新 `release/v0.6.12-beta1/Magpie-Experimental-x64/`，同一版本不另建任务后缀目录。
+- 默认只构建运行目录、符号和构建清单，保留配置、日志和缓存。原运行目录备份到工作区 `backups/local-deploy/`；日常部署前应关闭对应实例。
+- 正式准备发布前不生成主包 ZIP、Release note 和可选 DLL options。既有过期发布材料移到备份，避免与新程序混用；运行依赖 DLL 仍正常部署。
+- 维护者明确要求准备 Release 时才加 `-PrepareRelease` 生成主包和版本说明，再按以下发布规范准备其余附件。测试报告放 `reports/`；历史任务构建放 `archive/release-iterations/`，移动映射随归档保存。
+
 ## 2. 发布门禁
 
 发布过程分为四个阶段，每个阶段的授权不能自动延伸到下一阶段。

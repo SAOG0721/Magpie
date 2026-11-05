@@ -1,5 +1,6 @@
 #pragma once
 #include "DLSSNRDetailParameters.h"
+#include "DLSSNRPerformanceParameters.h"
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -38,7 +39,7 @@ inline std::string_view DLSSNRBaseParameter(std::string_view name) noexcept {
 // A time-constant edit affects the next capture, not the already accumulated
 // output. Do not dirty the current frame or reset downstream temporal history.
 inline bool DLSSNRParameterChangesCurrentOutput(std::string_view name, int activePasses) noexcept {
-	return name != "antiFlickerTimeMs" && name != "residualShowAdvanced" &&
+	return name != "antiFlickerTimeMs" && !IsDLSSNRDisplayParameter(name) &&
 		DLSSNRParameterPass(name) <= activePasses;
 }
 

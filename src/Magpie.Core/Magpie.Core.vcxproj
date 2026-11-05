@@ -82,6 +82,13 @@
     <ClInclude Include="DwmSharedSurfaceFrameSource.h" />
     <ClInclude Include="EffectCacheManager.h" />
     <ClInclude Include="EffectDrawer.h" />
+    <ClInclude Include="OKLabRuntime.h" />
+    <ClInclude Include="OKLabOverlayEditor.h" />
+    <ClInclude Include="ParameterPanelLayout.h" />
+    <ClInclude Include="include\OKLabParameters.h" />
+    <ClInclude Include="include\OKLabParameterTable.h" />
+    <ClInclude Include="include\OKLabLut.h" />
+    <ClInclude Include="include\OKLabColor.h" />
     <ClInclude Include="EffectHelper.h" />
     <ClInclude Include="EffectsProfiler.h" />
     <ClInclude Include="ProfilerHistory.h" />
@@ -90,6 +97,7 @@
     <ClInclude Include="FrameTrace.h" />
     <ClInclude Include="GDIFrameSource.h" />
     <ClInclude Include="GraphicsCaptureFrameSource.h" />
+    <ClInclude Include="WgcMinUpdateIntervalPolicy.h" />
     <ClInclude Include="ImGuiBackend.h" />
     <ClInclude Include="ImGuiFontsCacheManager.h" />
     <ClInclude Include="OverlayHelper.h" />
@@ -104,6 +112,7 @@
     <ClInclude Include="include\SourceWindowGeometry.h" />
     <ClInclude Include="include\ScalingSessionLifetime.h" />
     <ClInclude Include="include\OverlayWindowGeometry.h" />
+    <ClInclude Include="include\OverlayProfilerOptions.h" />
     <ClInclude Include="include\ToolbarPlacement.h" />
     <ClInclude Include="include\EffectParameterPersistence.h" />
     <ClInclude Include="include\EffectParameterRestart.h" />
@@ -161,6 +170,10 @@
     <ClInclude Include="DLSSNRFilter.h" />
     <ClInclude Include="DLSSNRColorShader.h" />
     <ClInclude Include="DLSSNRDetailShader.h" />
+    <ClInclude Include="DLSSNRPerformanceShader.h" />
+    <ClInclude Include="DLSSNRPerformance.inl" />
+    <ClInclude Include="include\DLSSNRPerformanceParameters.h" />
+    <ClInclude Include="include\DLSSNRPerformanceState.h" />
     <ClInclude Include="include\DLSSNRDetailParameters.h" />
     <ClInclude Include="DLSSNRMultiPass.h" />
     <ClInclude Include="DLSSNRTemporal.h" />
@@ -168,6 +181,7 @@
     <ClInclude Include="include\DLSSNRTemporalState.h" />
     <ClInclude Include="include\DLSSNRParameters.h" />
     <ClInclude Include="include\DLSSNRChainCache.h" />
+    <ClInclude Include="include\DLSSNRSubmissionWorker.h" />
     <ClInclude Include="FrameGuidanceProvider.h" />
     <ClInclude Include="FrameGuidanceService.h" />
     <ClInclude Include="MotionVectorRequest.h" />
@@ -177,6 +191,7 @@
     <ClInclude Include="include\OpticalFlowDefaults.h" />
     <ClInclude Include="PresentationFrameRate.h" />
     <ClInclude Include="FramePresentationTiming.h" />
+    <ClInclude Include="FrameUpdateReason.h" />
     <ClInclude Include="FramePacingWait.h" />
     <ClInclude Include="include\FramePacingOptions.h" />
     <ClInclude Include="include\FrameRefreshSettings.h" />
@@ -240,6 +255,7 @@
     <ClCompile Include="EffectCacheManager.cpp" />
     <ClCompile Include="EffectCompiler.cpp" />
     <ClCompile Include="EffectDrawer.cpp" />
+    <ClCompile Include="Renderer.OKLab.cpp" />
     <ClCompile Include="EffectsProfiler.cpp" />
     <ClCompile Include="ExclModeHelper.cpp" />
     <ClCompile Include="FrameSourceBase.cpp" />

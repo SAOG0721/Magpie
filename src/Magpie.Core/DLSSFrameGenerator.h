@@ -1,6 +1,7 @@
 #pragma once
 #include "FrameGuidanceTypes.h"
 #include "DLSSFGParameters.h"
+#include <optional>
 
 namespace Magpie {
 
@@ -44,7 +45,8 @@ public:
 		FrameGuidanceFrameId frameId,
 		const FrameGuidanceView& guidance,
 		const FrameGuidanceView& zeroGuidance,
-		const PublishCallback& publishGeneratedFrame) noexcept;
+		const PublishCallback& publishGeneratedFrame,
+		std::optional<uint64_t> sourceReflexFrameId = std::nullopt) noexcept;
 	void RequestHistoryReset() noexcept;
 	void SetReflexController(ReflexController* controller) noexcept;
 	bool Drain() noexcept;

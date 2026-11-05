@@ -1,6 +1,8 @@
 #include "../src/Magpie.Core/ProfilerHistory.h"
 #include "../src/Magpie.Core/PresentationFrameRate.h"
 #include "../src/Magpie.Core/include/OverlayWindowGeometry.h"
+#include "../src/Magpie.Core/include/OverlayProfilerOptions.h"
+#include "../src/Magpie.Core/include/EffectParameterPopupLayout.h"
 #include <imgui.h>
 #include <imgui_internal.h>
 #define FMT_HEADER_ONLY
@@ -28,7 +30,10 @@ struct ScalingWindow {
     static ScalingWindow& Get() {static ScalingWindow s;return s;}
     MockRenderer& Renderer() {return renderer;}
 };
-struct Options { std::unordered_map<std::string, OverlayWindowOption> windows{{"profiler", {2,1,60,0.5f}}}; };
+struct Options {
+    std::unordered_map<std::string, OverlayWindowOption> windows{{"profiler", {2,1,60,0.5f}}};
+    OverlayProfilerOptions profiler;
+};
 struct Input { bool canceled = false; bool FrameInputCanceled() const { return canceled; } };
 struct StrHelper { template<class... T> static std::string Concat(T&&... t) { std::string s; (s.append(t),...); return s; } };
 static const char* PROFILER_WINDOW_ID = "profiler";
@@ -37,6 +42,7 @@ class OverlayDrawer {
 public:
     void _DrawProfilerGraph(const ProfilerHistory::Plot&, int, bool) noexcept;
     bool _BeginProfilerWindow() noexcept;
+    bool _DrawProfilerHeader(const char*, bool&) noexcept;
     bool _DrawProfilerGraphs(const EffectsProfilerSnapshot&) noexcept;
     bool Developer(bool, bool, bool&);
     const std::string& _GetResourceString(const wchar_t* key) { return resources[language].at(key); }
@@ -48,10 +54,12 @@ public:
     Input _imguiImpl;
     bool _isProfilerVisible = true;
     bool _profilerWindowLayoutInitialized = false, _profilerWindowLayoutDirty = false;
+    bool _profilerSettingsDirty = false;
     ImVec2 _profilerViewport{};
     OverlayWindowRect _profilerWindowRect{};
     int graphDrawCalls = 0;
     ImRect graphHeader;
+    ImRect lastHeader, developerButton;
     bool graphToggled = false;
     int language = 0;
 };
@@ -65,6 +73,78 @@ static void Frame() {
 }
 
 static void Near(float actual, float expected) { assert(std::abs(actual-expected)<1.1f); }
+
+static void NewContext(float dpi, int language, bool dark) {
+    ImGui::CreateContext();
+    auto& io=ImGui::GetIO(); io.IniFilename=nullptr;
+    ImFontGlyphRangesBuilder ranges;
+    ranges.AddRanges(io.Fonts->GetGlyphRangesDefault());
+    for(const auto& [key,value] : resources[language]) ranges.AddText(value.c_str());
+    ImVector<ImWchar> glyphs; ranges.BuildRanges(&glyphs);
+    assert(io.Fonts->AddFontFromFileTTF("C:/Windows/Fonts/msyh.ttc",18*dpi,nullptr,glyphs.Data));
+    unsigned char* pixels; int w,h; io.Fonts->GetTexDataAsRGBA32(&pixels,&w,&h);
+    io.Fonts->SetTexID((ImTextureID)1);
+    if(dark) ImGui::StyleColorsDark(); else ImGui::StyleColorsLight();
+    ImGui::GetStyle().ScaleAllSizes(dpi);
+}
+
+static void CheckCheckboxes(OverlayDrawer& ui) {
+    const float dpi=ui._dpiScale;
+    const wchar_t* labels[][2]{
+        {L"EffectParam_DLSSNR_DLSSNR_AI_Filter_useAutoMask_Label", L"EffectParam_DLSSNR_DLSSNR_AI_Filter_uiCorrection_Label"},
+        {L"EffectParam_DLSSNR_DLSSNR_AI_Filter_residualShowAdvanced_Label", L"EffectParam_DLSSNR_DLSSNR_AI_Filter_performanceShowAdvanced_Label"}
+    };
+    for(float width : {260.f, 420.f, 800.f}) {
+        Frame(); ImGui::SetNextWindowSize({width*dpi,400*dpi});
+        ImGui::Begin("checkboxes",nullptr,ImGuiWindowFlags_NoSavedSettings);
+        // A second origin checks that positioning is local to each column.
+        for(float indent : {0.f, 20.f*dpi}) {
+            if(indent) ImGui::Indent(indent);
+            for(const auto& pair : labels) {
+                // Production single-page columns measure each paired row as a group.
+                ImGui::BeginGroup();
+                const float start=ImGui::GetCursorScreenPos().x;
+                const float available=ImGui::GetContentRegionAvail().x;
+                bool checked=false;
+                ImGui::Checkbox(ui._GetResourceString(pair[0]).c_str(),&checked);
+                const ImRect left(ImGui::GetItemRectMin(),ImGui::GetItemRectMax());
+                PositionPairedCheckbox(dpi);
+                ImGui::Checkbox(ui._GetResourceString(pair[1]).c_str(),&checked);
+                const auto right=ImGui::GetItemRectMin();
+                Near(right.x,std::max(start+available/2,left.Max.x+8*dpi));
+                Near(right.y,left.Min.y);
+                assert(right.x>=left.Max.x+8*dpi-1);
+                ImGui::EndGroup();
+            }
+            if(indent) ImGui::Unindent(indent);
+        }
+        ImGui::End(); ImGui::Render();
+    }
+}
+
+static void CheckPreferenceControls(OverlayDrawer& ui) {
+    ui.testOptions.profiler.developerExpanded=true;
+    ui.testOptions.profiler.showPasses=false;
+    ImRect timings, developer, debug;
+    bool passes=false;
+    auto frame=[&](ImVec2 mouse=ImVec2(-100,-100),bool down=false) {
+        auto& io=ImGui::GetIO(); io.AddMousePosEvent(mouse.x,mouse.y); io.AddMouseButtonEvent(0,down);
+        Frame(); ImGui::SetNextWindowPos({20,20}); ImGui::SetNextWindowSize({600*ui._dpiScale,400*ui._dpiScale});
+        ImGui::Begin("preferences",nullptr,ImGuiWindowFlags_NoSavedSettings);
+        ui._DrawProfilerHeader("timings",ui.testOptions.profiler.timingsExpanded); timings=ui.lastHeader;
+        ui.Developer(true,true,passes); developer=ui.lastHeader;
+        ui._DrawProfilerHeader("debug",ui.testOptions.profiler.debugExpanded); debug=ui.lastHeader;
+        ImGui::End(); ImGui::Render();
+    };
+    frame(); frame();
+    auto click=[&](ImVec2 point) { frame(point); frame(point,true); frame(point,false); };
+    ui._profilerSettingsDirty=false;
+    click(ui.developerButton.GetCenter());
+    assert(passes && ui.testOptions.profiler.showPasses && ui._profilerSettingsDirty);
+    click(timings.GetCenter()); assert(!ui.testOptions.profiler.timingsExpanded);
+    click(developer.GetCenter()); assert(!ui.testOptions.profiler.developerExpanded);
+    click(debug.GetCenter()); assert(!ui.testOptions.profiler.debugExpanded);
+}
 
 static void PanelFrame(OverlayDrawer& ui, const EffectsProfilerSnapshot& profile,
     ImVec2 viewport, ImVec2 mouse = {-100,-100}, bool down = false, int collapse = -1) {
@@ -123,12 +203,14 @@ static void CheckPanel(OverlayDrawer& ui) {
     };
     click(ui.graphHeader.GetCenter());
     assert(ui.graphToggled && ui.graphDrawCalls==3);
+    assert(ui.testOptions.profiler.graphsExpanded && ui._profilerSettingsDirty);
     assert(renderer.reads==1);
     Near(ui._profilerWindowRect.height,360*dpi); // Expand uses scroll, not auto-resize.
     PanelFrame(ui,profile,viewport);
     assert(ui.graphDrawCalls==6);
     click(ui.graphHeader.GetCenter());
     assert(ui.graphToggled);
+    assert(!ui.testOptions.profiler.graphsExpanded);
     const int before=ui.graphDrawCalls;
     const int reads=renderer.reads;
     PanelFrame(ui,profile,viewport);
@@ -157,8 +239,10 @@ static void CheckPanel(OverlayDrawer& ui) {
     Near(ui._profilerWindowRect.width,resized.width); Near(ui._profilerWindowRect.height,resized.height);
     assert(!ui._profilerWindowLayoutDirty);
     PanelFrame(ui,profile,viewport,{-100,-100},false,1);
+    assert(ui.testOptions.profiler.windowCollapsed);
     Near(saved.height,preference.height);
     PanelFrame(ui,profile,viewport,{-100,-100},false,0);
+    assert(!ui.testOptions.profiler.windowCollapsed);
 
     // Temporary constraints preserve preferred size and anchoring.
     PanelFrame(ui,profile,{280*dpi,200*dpi}); PanelFrame(ui,profile,{280*dpi,200*dpi});
@@ -182,17 +266,7 @@ static void CheckPanel(OverlayDrawer& ui) {
 int main() try {
     int cases=0;
     for (float dpi : {1.0f,1.5f,2.0f}) for (int language : {0,1,2}) for (bool dark : {false,true}) {
-        ImGui::CreateContext();
-        auto& io=ImGui::GetIO(); io.IniFilename=nullptr;
-        ImFontGlyphRangesBuilder ranges;
-        ranges.AddRanges(io.Fonts->GetGlyphRangesDefault());
-        for(const auto& [key,value] : resources[language]) ranges.AddText(value.c_str());
-        ImVector<ImWchar> glyphs; ranges.BuildRanges(&glyphs);
-        assert(io.Fonts->AddFontFromFileTTF("C:/Windows/Fonts/msyh.ttc",18*dpi,nullptr,glyphs.Data));
-        unsigned char* pixels; int w,h; io.Fonts->GetTexDataAsRGBA32(&pixels,&w,&h);
-        io.Fonts->SetTexID((ImTextureID)1);
-        if(dark) ImGui::StyleColorsDark(); else ImGui::StyleColorsLight();
-        ImGui::GetStyle().ScaleAllSizes(dpi);
+        NewContext(dpi,language,dark);
         OverlayDrawer ui; ui._dpiScale=dpi; ui.language=language;
         const ProfilerHistory::Time start(100s);
         ProfilerHistory output;output.Reset(start);
@@ -213,13 +287,15 @@ int main() try {
             ImGui::Begin("profiler-test",nullptr,ImGuiWindowFlags_NoSavedSettings);
             const float begin=ImGui::GetCursorPosY();
             bool passes=true;
+            ui.testOptions.profiler.showPasses=true;
             ui.Developer(true,false,passes);
             assert(!passes && ImGui::GetCursorPosY()==begin);
+            assert(ui.testOptions.profiler.showPasses);
             ui.Developer(false,true,passes);
             assert(!passes && ImGui::GetCursorPosY()==begin);
-            ImGui::SetNextItemOpen(false,ImGuiCond_Always);
+            ui.testOptions.profiler.developerExpanded=false;
             ui.Developer(true,true,passes);
-            assert(ImGui::GetCursorPosY()>begin);
+            assert(passes && ImGui::GetCursorPosY()>begin);
             passes=true;
             const auto after=ImGui::GetCursorPosY();
             ui.Developer(true,false,passes);
@@ -240,10 +316,30 @@ int main() try {
             for(const auto* list : data->CmdLists) for(const auto& v : list->VtxBuffer)
                 assert(std::isfinite(v.pos.x) && std::isfinite(v.pos.y));
         }
+        CheckCheckboxes(ui);
+        CheckPreferenceControls(ui);
         CheckPanel(ui);
+        EffectsProfilerSnapshot profile;
+        PanelFrame(ui,profile,{2000*dpi,1500*dpi},{-100,-100},false,1);
+        const auto saved=ui.testOptions;
+        assert(saved.profiler.windowCollapsed && saved.profiler.graphsExpanded);
+        ImGui::DestroyContext();
+        NewContext(dpi,language,dark);
+        OverlayDrawer restored; restored._dpiScale=dpi; restored.language=language; restored.testOptions=saved;
+        PanelFrame(restored,profile,{1600*dpi,1200*dpi});
+        assert(restored.testOptions.profiler.windowCollapsed && restored.graphDrawCalls==0);
+        assert(!restored._profilerSettingsDirty);
+        PanelFrame(restored,profile,{1600*dpi,1200*dpi},{-100,-100},false,0);
+        assert(restored.graphDrawCalls==3 && restored.testOptions.profiler.graphsExpanded);
+        Frame(); ImGui::Begin("restored-preferences");
+        assert(!restored._DrawProfilerHeader("timings",restored.testOptions.profiler.timingsExpanded));
+        assert(!restored._DrawProfilerHeader("debug",restored.testOptions.profiler.debugExpanded));
+        bool passes=false; restored.Developer(true,true,passes);
+        assert(passes && !restored.testOptions.profiler.developerExpanded);
+        ImGui::End(); ImGui::Render();
         ImGui::DestroyContext(); ++cases;
     }
-    std::printf("Production ImGui profiler: %d language/theme/DPI layouts; developer state, graphs folded/open/closed, real grip resize, persistence, viewport and DPI restoration passed.\n",cases);
+    std::printf("Production ImGui: %d language/theme/DPI cases; paired-checkbox positions, preference controls, fresh-context restoration, graph visibility, resize and viewport restoration passed.\n",cases);
 } catch(const std::exception& error) {
     std::fprintf(stderr,"Profiler UI test failed: %s\n",error.what());
     return 1;

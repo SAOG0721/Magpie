@@ -81,6 +81,8 @@ DLSS SR 当前使用 Balanced／Preset J；其余时序超分按各自倍率与�
 
 DLSSNR 从单次处理开始，可增加至三次并逐次设置风格与强度。SDR 下“调整输入分辨率”启用工作尺寸和细节控制；细节控制在全部处理结束后应用一次。HDR 路径不提供这组控制。风格、强度等实时生效；处理次数、抗闪烁、输入尺寸与光流修改需重新启动缩放。功能初始化失败时，单次路径可能输出原图，多次路径会拒绝启动；排查无变化时查看日志中的功能初始化结果。
 
+处理模式依次为逐帧、隔帧、异步逐帧、异步隔帧。两个隔帧模式可选每 2／3／4 个新捕获帧更新完整 NR，默认每 2 帧。隔帧固定连续复用受保护的历史增强，硬失效时同规格重建；异步逐帧在后台更新并连续复用同规格增强，允许最多 3 帧真实历史龄期，仅硬失效时重建；异步隔帧在后台更新，失效区域使用当前原图。四模式均输出当前画面，不运行轻量 NR，也不提供恢复策略或整图延后选项。处理模式和更新间隔修改需重新启动缩放。
+
 XeSS FG 默认 2×、AMD 光流、质量。各倍率的可用光流选项按当前程序与硬件能力提供；非 Intel 显卡的 3×／4× 使用随附运行库的实验兼容路径。DLSS FG 使用随附兼容运行库，可用倍率以渲染 GPU 的能力为准；切换渲染 GPU 后需重启喜鹊。两者的倍率与光流修改均需重新启动缩放。
 
 帧率限制效果控制整组的基础输入频率，拖动条目不改变限帧范围；多个有效上限共同生效并取较低目标。启用帧同步时由“帧率与刷新”的目标管理节奏。
@@ -88,6 +90,8 @@ XeSS FG 默认 2×、AMD 光流、质量。各倍率的可用光流选项按当�
 DLSS SR currently uses Balanced/Preset J; other temporal upscalers follow their own scale and runtime requirements. Changing temporal-upscaler optical-flow method or quality requires restarting scaling. Motion comes from captured images; fast motion, occlusion, and UI edges are useful areas to inspect when choosing settings.
 
 Start DLSSNR with one pass; up to three passes have independent style and intensity. In SDR, Adjust Input Resolution enables working-resolution and detail controls; detail controls apply once after all passes. The HDR path does not offer these controls. Style and intensity apply live; pass count, anti-flicker, working resolution, and optical flow require restarting scaling. If feature initialization fails, the single-pass path can pass through the image and multiple passes reject startup. Check feature initialization in the log when diagnosing an unchanged image.
+
+Processing modes are Every Frame, Alternating Frames, Async Every Frame and Async Alternating Frames. Both alternating modes update full NR every 2, 3 or 4 new captures, defaulting to 2. Alternating Frames continuously reuses protected history and rebuilds hard-invalid history at the same specification. Async Every Frame continuously reuses same-spec history up to 3 captures old while updating in the background; only hard-invalid or unavailable history requires rebuilding. Async Alternating Frames updates in the background and uses the current original image in invalid regions. All four output the current picture without lightweight NR or a whole-picture delay control. Changing the mode or update interval requires restarting scaling.
 
 XeSS FG defaults to 2x, AMD optical flow, Quality. Optical-flow options at each multiplier depend on the current application and hardware capabilities; 3x/4x on non-Intel GPUs uses the bundled runtime's experimental compatibility path. DLSS FG uses the bundled compatibility runtime, with multipliers determined by the rendering GPU; restart Magpie after changing that GPU. Multiplier and optical-flow changes in either generator require restarting scaling.
 

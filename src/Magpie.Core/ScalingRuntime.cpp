@@ -6,6 +6,7 @@
 #include "ScalingWindow.h"
 #include "Renderer.h"
 #include "EffectParameterValue.h"
+#include "DLSSNRPerformanceParameters.h"
 #include "Win32Helper.h"
 #include <dispatcherqueue.h>
 
@@ -54,6 +55,7 @@ ScalingRuntime::~ScalingRuntime() {
 
 bool ScalingRuntime::Start(HWND hwndSrc, ScalingOptions&& options, bool force) {
 	assert(!options.screenshotsDir.empty() && options.showToast && options.showError && options.save);
+	if (_quitting.load(std::memory_order_acquire)) return false;
 	const winrt::DispatcherQueue& dispatcher = _Dispatcher();
 	const uint64_t generation =
 		_commandGeneration.fetch_add(1, std::memory_order_acq_rel) + 1;
@@ -62,7 +64,8 @@ bool ScalingRuntime::Start(HWND hwndSrc, ScalingOptions&& options, bool force) {
 	if (!dispatcher.TryEnqueue([
 		this, hwndSrc, options(std::move(options)), force, generation
 	]() mutable {
-		if (_commandGeneration.load(std::memory_order_acquire) != generation) return;
+		if (_quitting.load(std::memory_order_acquire) ||
+			_commandGeneration.load(std::memory_order_acquire) != generation) return;
 		ScalingWindow& scalingWindow = ScalingWindow::Get();
 		// 如果正在缩放且 force 为假则忽略
 		if (scalingWindow && !force) {
@@ -74,11 +77,24 @@ bool ScalingRuntime::Start(HWND hwndSrc, ScalingOptions&& options, bool force) {
 		// ownership change, not a deferred request to return to the old game.
 		if (force && scalingWindow.TryGetRenderer()) scalingWindow.Renderer().SuspendParameterInput();
 		scalingWindow.Stop();
-		if (_commandGeneration.load(std::memory_order_acquire) != generation) {
+		if (_quitting.load(std::memory_order_acquire) ||
+			_commandGeneration.load(std::memory_order_acquire) != generation) {
 			return;
 		}
+		// Queue feedback before potentially slow shader/device initialization.
+		// The existing toast host is non-activating and later success/error
+		// messages replace this short notice without changing cancellation.
+		try {
+			const auto loader = winrt::ResourceLoader::GetForViewIndependentUse(
+				CommonSharedConstants::APP_RESOURCE_MAP_ID);
+			const auto message = loader.GetString(L"Message_ScalingPreparing");
+			if (!message.empty()) options.showToast(hwndSrc, message);
+		} catch (...) {
+			Logger::Get().Warn("Could not show scaling preparation notice");
+		}
 		scalingWindow.Start(hwndSrc, std::move(options));
-		if (_commandGeneration.load(std::memory_order_acquire) != generation) {
+		if (_quitting.load(std::memory_order_acquire) ||
+			_commandGeneration.load(std::memory_order_acquire) != generation) {
 			// A stop requested during synchronous initialization cancels this run.
 			scalingWindow.Stop();
 			return;
@@ -95,9 +111,11 @@ bool ScalingRuntime::Start(HWND hwndSrc, ScalingOptions&& options, bool force) {
 }
 
 void ScalingRuntime::ToggleScaling(bool isWindowedMode) {
+	if (_quitting.load(std::memory_order_acquire)) return;
 	const uint64_t generation = _commandGeneration.load(std::memory_order_acquire);
 	_Dispatcher().TryEnqueue([this, isWindowedMode, generation]() {
-		if (_commandGeneration.load(std::memory_order_acquire) != generation ||
+		if (_quitting.load(std::memory_order_acquire) ||
+			_commandGeneration.load(std::memory_order_acquire) != generation ||
 			State() != ScalingState::Scaling) return;
 		if (ScalingWindow& scalingWindow = ScalingWindow::Get()) {
 			scalingWindow.ToggleScaling(isWindowedMode);
@@ -214,6 +232,21 @@ void ScalingRuntime::UpdateEffectParameterFromSettings(uint32_t modeIdx, std::ws
 		const bool vsrCategoryEdit = effect.name == "RTXVideo\\RTXVideo_VSR" && parameter == "category";
 		if (active.name != effect.name || (!vsrCategoryEdit && (active.scale != effect.scale ||
 			active.scalingType != effect.scalingType))) return;
+		if (effect.name == "DLSSNR\\DLSSNR_AI_Filter") {
+			// Preserve the complete UI draft, but never partly apply a combination
+			// awaiting its optical-flow / processing-mode restart transaction.
+			EffectParameterSessionState::Snapshot snapshot;
+			options.parameterSession->ReadIfChanged(snapshot);
+			if (effectIdx < snapshot.desired.size()) {
+				snapshot.desired[effectIdx] = effect;
+				options.parameterSession->Desired(snapshot.desired);
+			}
+			bool ready = IsDLSSNRPerformanceOptionValid(effect);
+			const auto applied = options.parameterSession->Applied();
+			if (effectIdx >= applied.size()) return;
+			ready &= SameDLSSNRPerformanceControls(applied[effectIdx], effect);
+			if (!ready) { window.RenderOverlay(); return; }
+		}
 		if (waiting) {
 			window.UpdateWaitingEffectParameter(effectIdx, parameter, value);
 			return;
@@ -262,12 +295,14 @@ bool ScalingRuntime::RestartWithEffectParameters(
 	std::vector<EffectOption>&& effects,
 	FrameRefreshSettings frameRefresh
 ) {
+	if (_quitting.load(std::memory_order_acquire)) return false;
 	const uint64_t generation = _commandGeneration.load(std::memory_order_acquire);
 	return _Dispatcher().TryEnqueue([
 		this, hwndSource, hwndScaling, scalingRunId, generation,
 		effects = std::move(effects), frameRefresh
 	]() mutable {
-		if (_commandGeneration.load(std::memory_order_acquire) != generation ||
+		if (_quitting.load(std::memory_order_acquire) ||
+			_commandGeneration.load(std::memory_order_acquire) != generation ||
 			State() != ScalingState::Scaling) return;
 		ScalingWindow& window = ScalingWindow::Get();
 		if (!window || scalingRunId != ScalingWindow::RunId() ||
@@ -352,6 +387,17 @@ void ScalingRuntime::_ScalingThreadProc() noexcept {
 	// records work; all rendering happens below, outside the window-procedure
 	// call stack, so a FIFO/presenter wait cannot trap later button-up messages.
 	constexpr uint32_t MAX_MESSAGES_PER_PASS = 32;
+	bool quitRequested = false;
+	auto requestQuit = [&]() noexcept {
+		if (!quitRequested) {
+			quitRequested = true;
+			_quitting.store(true, std::memory_order_release);
+			_commandGeneration.fetch_add(1, std::memory_order_acq_rel);
+			_State(ScalingState::Stopping);
+		}
+		scalingWindow.Stop();
+		scalingWindow.Destroy();
+	};
 	auto peekPriorityMessage = [&]() noexcept {
 		// Preserve modifier/button/character order while the parameter host owns input.
 		if (scalingWindow.TryGetRenderer() && scalingWindow.Renderer().IsEditingParameters())
@@ -367,15 +413,16 @@ void ScalingRuntime::_ScalingThreadProc() noexcept {
 	};
 	while (true) {
 		scalingWindow.CompletePendingDestroy();
+		// Cleanup may have completed at the start of this pass. Do not dispatch
+		// queued application commands after there is nothing left to retire.
+		if (quitRequested && !scalingWindow && !scalingWindow.IsRetiring()) return;
 		for (uint32_t i = 0; i < MAX_MESSAGES_PER_PASS; ++i) {
 			if (!peekPriorityMessage()) {
 				break;
 			}
 			if (msg.message == WM_QUIT) {
-				scalingWindow.Stop();
-				scalingWindow.Destroy();
-				scalingWindow.CompletePendingDestroy();
-				return;
+				requestQuit();
+				break;
 			}
 			FrameTrace::Scope traceMessage(FrameTrace::Event::FrontendMessage, msg.message);
 			TranslateMessage(&msg);
@@ -391,7 +438,7 @@ void ScalingRuntime::_ScalingThreadProc() noexcept {
 		for (uint32_t i = 0; i < MAX_MESSAGES_PER_PASS && PeekMessage(&msg, NULL,
 			CommonSharedConstants::WM_FRONTEND_RENDER_DLSSFG,
 			CommonSharedConstants::WM_FRONTEND_RENDER_DLSSFG, PM_REMOVE); ++i) {
-			if (msg.message == WM_QUIT) { scalingWindow.Stop(); return; }
+			if (msg.message == WM_QUIT) { requestQuit(); break; }
 			FrameTrace::Scope traceMessage(FrameTrace::Event::FrontendMessage, msg.message);
 			DispatchMessage(&msg);
 		}
@@ -400,7 +447,7 @@ void ScalingRuntime::_ScalingThreadProc() noexcept {
 		for (uint32_t i = 0; i < MAX_MESSAGES_PER_PASS && PeekMessage(&msg, NULL,
 			CommonSharedConstants::WM_FRONTEND_RENDER,
 			CommonSharedConstants::WM_FRONTEND_RENDER, PM_REMOVE); ++i) {
-			if (msg.message == WM_QUIT) { scalingWindow.Stop(); return; }
+			if (msg.message == WM_QUIT) { requestQuit(); break; }
 			FrameTrace::Scope traceMessage(FrameTrace::Event::FrontendMessage, msg.message);
 			DispatchMessage(&msg);
 		}
@@ -411,6 +458,14 @@ void ScalingRuntime::_ScalingThreadProc() noexcept {
 		if (scalingWindow.IsRetiring()) {
 			scalingWindow.Destroy();
 			MsgWaitForMultipleObjectsEx(0, nullptr, 10, QS_ALLINPUT, MWMO_INPUTAVAILABLE);
+			continue;
+		}
+		// A quit request must not destroy the cursor input owner while a verified
+		// point-clip restore is temporarily rejected. Retirement keeps servicing
+		// its bounded retries without requiring another rendered/input frame.
+		if (quitRequested) {
+			if (!scalingWindow) return;
+			scalingWindow.Destroy();
 			continue;
 		}
 		scalingWindow.PollSourceState();

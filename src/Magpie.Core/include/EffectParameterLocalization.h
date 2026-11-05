@@ -25,6 +25,12 @@ struct EffectParameterLocalization {
 			"Restores settings from HDR -> SDR at effect #{}.")), index + 1);
 	}
 
+	template<class GetValue>
+	static std::string DLSSNRChoiceReason(std::string_view /*parameter*/, GetValue&& /*getValue*/) {
+		return Resource(L"EffectParam_DLSSNR_DLSSNR_AI_Filter_FlowRequired",
+			"Select AMDOF or NVOF to use this option.");
+	}
+
 	// Display-only help shared by XAML and the runtime overlay. DLSSNR names
 	// show purpose only; other effects retain their descriptor-based numeric help.
 	static std::string Tooltip(std::string_view effect, const EffectParameterDesc& parameter,

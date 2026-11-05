@@ -11,6 +11,7 @@
 #include "ScalingWindowOwner.h"
 #include "StrHelper.h"
 #include "EffectParameterValue.h"
+#include "DLSSNRPerformanceParameters.h"
 #include "HdrDisplayPreflight.h"
 #include "Win32Helper.h"
 #include "WindowHelper.h"
@@ -601,6 +602,7 @@ void ScalingWindow::_BeginDestroy(HWND window) noexcept {
 		NvidiaForegroundCompatibility::ReleaseReferenceFocus();
 		// Focus restoration and USER32 calls can wait. Do them only after the
 		// relationship is verified absent; otherwise retain input resources too.
+		if (_cursorManager) _cursorManager->ReleasePendingCursorReposition();
 		if (_renderer) _renderer->ReleaseParameterInput();
 	} else Logger::Get().Warn(diagnostic);
 	_sourceCoordinator.RetireOutput();
@@ -608,6 +610,9 @@ void ScalingWindow::_BeginDestroy(HWND window) noexcept {
 
 bool ScalingWindow::CompletePendingDestroy() noexcept {
 	if (_finalizingRetirement || !_retirement.Ready(_windowCallbackDepth)) return false;
+	// Keep the input owner alive if USER32 temporarily rejects verified clip
+	// restoration. Runtime retirement passes continue independently of rendering.
+	if (_cursorManager && !_cursorManager->ReleasePendingCursorReposition()) return false;
 	_finalizingRetirement = true;
 	_FinishDestroy();
 	_retirement.Complete();
@@ -793,6 +798,12 @@ void ScalingWindow::RestartWithEffectParameters(
 	std::vector<EffectOption>&& effects,
 	FrameRefreshSettings frameRefresh
 ) noexcept {
+	for (const auto& effect : effects) {
+		if (!IsDLSSNRPerformanceOptionValid(effect)) {
+			ShowToast(GetLocalizedString(L"EffectParam_DLSSNR_DLSSNR_AI_Filter_InvalidConfiguration"));
+			return;
+		}
+	}
 	const HWND hwndSource = _srcTracker.Handle();
 	if (!Handle() || !IsWindow(hwndSource) || effects.empty()) {
 		ShowToast(GetLocalizedString(

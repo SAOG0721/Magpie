@@ -10,6 +10,7 @@
 #include "SourceWindowRelations.h"
 #include "HdrComponents.h"
 #include "OverlayWindowGeometry.h"
+#include "OverlayProfilerOptions.h"
 #include "ToolbarPlacement.h"
 #include "ScreenshotContent.h"
 #include "DlssNrStatus.h"
@@ -96,6 +97,9 @@ struct EffectOption {
 	phmap::flat_hash_map<std::string, float> parameters;
 	ScalingType scalingType = ScalingType::Normal;
 	std::pair<float, float> scale = { 1.0f,1.0f };
+	// Portable .cube source, used only by OKLabImageAdjustment. Changes take
+	// effect when scaling restarts; numerical LUT strength remains live.
+	std::string oklabLut;
 
 	bool HasScale() const noexcept {
 		return scalingType != ScalingType::Normal ||
@@ -326,6 +330,7 @@ struct OverlaySessionState {
 
 struct OverlayOptions {
 	phmap::flat_hash_map<std::string, OverlayWindowOption> windows;
+	OverlayProfilerOptions profiler;
 };
 
 // Values are exposed as MP diagnostic codes. Append new values; do not reorder.

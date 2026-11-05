@@ -11,6 +11,12 @@ Enter-VsDevShell -VsInstallPath $vs -SkipAutomaticLocation -DevCmdArguments '-ar
 if($LASTEXITCODE){throw 'Profiler history compile failed'}
 & (Join-Path $OutputDirectory 'ProfilerHistoryTests.exe')
 if($LASTEXITCODE){throw 'Profiler history tests failed'}
+$rapid=Get-ChildItem -LiteralPath (Join-Path $env:USERPROFILE '.conan2/p') -Directory -Filter 'rapid*' | Where-Object {Test-Path -LiteralPath (Join-Path $_.FullName 'p/include/rapidjson/document.h')} | Select-Object -First 1
+if(!$rapid){throw 'Restore rapidjson before profiler settings tests'}
+& cl.exe /nologo /std:c++20 /EHsc /utf-8 /MT /O2 /W4 /WX /DNOMINMAX "/I$($rapid.FullName)/p/include" (Join-Path $PSScriptRoot 'ProfilerSettingsTests.cpp') "/Fe:$OutputDirectory/ProfilerSettingsTests.exe" "/Fo:$OutputDirectory/ProfilerSettingsTests.obj"
+if($LASTEXITCODE){throw 'Profiler settings compile failed'}
+& (Join-Path $OutputDirectory 'ProfilerSettingsTests.exe')
+if($LASTEXITCODE){throw 'Profiler settings tests failed'}
 $imgui=Get-ChildItem -LiteralPath (Join-Path $env:USERPROFILE '.conan2/p/b') -Directory -Filter 'imgui*' | Where-Object {Test-Path -LiteralPath (Join-Path $_.FullName 'p/lib/imgui.lib')} | Select-Object -First 1
 $fmt=Get-ChildItem -LiteralPath (Join-Path $env:USERPROFILE '.conan2/p/b') -Directory -Filter 'fmt*' | Where-Object {Test-Path -LiteralPath (Join-Path $_.FullName 'p/include/fmt/format.h')} | Select-Object -First 1
 if(!$imgui -or !$fmt){throw 'Restore ImGui and fmt dependencies before profiler UI tests'}

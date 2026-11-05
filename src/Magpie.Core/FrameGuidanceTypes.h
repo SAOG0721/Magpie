@@ -1,6 +1,7 @@
 #pragma once
 #include "MotionVectorRequest.h"
 #include "HdrFrame.h"
+#include "FrameGuidanceAvailability.h"
 
 namespace Magpie {
 
@@ -48,7 +49,8 @@ enum class FrameGuidanceResetReason : uint8_t {
 };
 
 enum class FrameGuidanceMotionDirection : uint8_t {
-	CurrentToPrevious
+	CurrentToPrevious,
+	PreviousToCurrent
 };
 
 enum class FrameGuidanceMotionUnit : uint8_t {
@@ -93,6 +95,20 @@ struct FrameGuidanceResource {
 	}
 };
 
+// Both fields belong to the pair published with currentFrameId. Forward
+// vectors are sampled in current coordinates; reverse vectors in previous
+// coordinates. Frame IDs may skip rejected captures, so never infer the pair
+// from arithmetic on either ID.
+struct FrameGuidanceMotionPair {
+	FrameGuidanceFrameId currentFrameId = 0;
+	FrameGuidanceFrameId previousFrameId = 0;
+	uint64_t currentCaptureSequence = 0;
+	uint64_t previousCaptureSequence = 0;
+	bool valid = false;
+
+	bool operator==(const FrameGuidanceMotionPair&) const noexcept = default;
+};
+
 struct FrameGuidanceView {
 	FrameGuidanceResource depth{};
 	FrameGuidanceResource motion{};
@@ -101,6 +117,31 @@ struct FrameGuidanceView {
 		FrameGuidanceMotionDirection::CurrentToPrevious;
 	FrameGuidanceMotionUnit motionUnit = FrameGuidanceMotionUnit::SourcePixels;
 	bool requiresHistoryReset = false;
+	// Optional channels. Existing consumers and IsValidFor retain their
+	// three-channel contract; absence never changes ordinary forward guidance.
+	FrameGuidanceResource reverseMotion{};
+	FrameGuidanceResource reverseConfidence{};
+	FrameGuidanceMotionPair motionPair{};
+	FrameGuidanceAvailability motionAvailability = FrameGuidanceAvailability::Unavailable;
+
+	bool HasReverseMotionForPair(FrameGuidanceFrameId currentFrameId,
+		FrameGuidanceFrameId previousFrameId, FrameGuidanceExtent extent) const noexcept {
+		return IsValidFor(currentFrameId, extent) &&
+			motionDirection == FrameGuidanceMotionDirection::CurrentToPrevious &&
+			motionUnit == FrameGuidanceMotionUnit::SourcePixels &&
+			motionPair.valid && motionPair.currentFrameId == currentFrameId &&
+			motionPair.previousFrameId == previousFrameId && !requiresHistoryReset &&
+			reverseMotion.IsValid(DXGI_FORMAT_R16G16_FLOAT, currentFrameId, extent) &&
+			reverseConfidence.IsValid(DXGI_FORMAT_R8_UNORM, currentFrameId, extent) &&
+			!reverseMotion.metadata.isZero && !reverseConfidence.metadata.isZero &&
+			!reverseMotion.metadata.requiresHistoryReset && !reverseConfidence.metadata.requiresHistoryReset &&
+			reverseMotion.metadata.validRegion == reverseConfidence.metadata.validRegion &&
+			reverseMotion.metadata.resourceGeneration == reverseConfidence.metadata.resourceGeneration &&
+			reverseMotion.metadata.resourceGeneration == motion.metadata.resourceGeneration &&
+			motion.metadata.captureSequence == motionPair.currentCaptureSequence &&
+			reverseMotion.metadata.captureSequence == motionPair.currentCaptureSequence &&
+			reverseConfidence.metadata.captureSequence == motionPair.currentCaptureSequence;
+	}
 
 	bool IsValidFor(
 		FrameGuidanceFrameId frameId,
@@ -129,6 +170,10 @@ inline FrameGuidanceView SelectFrameGuidanceChannels(
 	if (!useMotion) {
 		selected.motion = zero.motion;
 		selected.confidence = zero.confidence;
+		selected.reverseMotion = {};
+		selected.reverseConfidence = {};
+		selected.motionPair = {};
+		selected.motionAvailability = FrameGuidanceAvailability::Unavailable;
 	}
 	selected.requiresHistoryReset =
 		selected.depth.metadata.requiresHistoryReset ||
@@ -148,6 +193,14 @@ struct FrameGuidanceFrame {
     ColorDescription colorDescription{};
 	FrameGuidanceExtent sourceExtent{};
 	FrameGuidanceRegion validRegion{};
+
+	bool ContinuesMotionHistory(const FrameGuidanceFrame& previous) const noexcept {
+		// CaptureSequence names the capture session, not a per-frame counter.
+		// Accepted frame IDs may skip rejected attempts within that same session.
+		return frameId > previous.frameId && captureSequence == previous.captureSequence &&
+			resourceGeneration == previous.resourceGeneration && sourceExtent == previous.sourceExtent &&
+			(!timestamp100ns || !previous.timestamp100ns || timestamp100ns > previous.timestamp100ns);
+	}
 };
 
 struct DepthProviderOutput {
@@ -157,6 +210,9 @@ struct DepthProviderOutput {
 struct MotionVectorProviderOutput {
 	FrameGuidanceResource motion{};
 	FrameGuidanceResource confidence{};
+	FrameGuidanceResource reverseMotion{};
+	FrameGuidanceResource reverseConfidence{};
+	FrameGuidanceMotionPair motionPair{};
 };
 
 }

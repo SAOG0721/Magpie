@@ -210,8 +210,11 @@ void ScalingModeItem::AddEffect(const hstring& fullName) {
 	EffectItem& effect = _Data().effects.emplace_back();
 	effect.name = fullName;
 	NormalizeFrameGenerationParameters(effect);
-	if (fullName == L"DLSSNR\\DLSSNR_AI_Filter")
+	if (fullName == L"DLSSNR\\DLSSNR_AI_Filter") {
+		effect.parameters[L"resolutionControl"] = 0.f;
+		effect.parameters[L"__dlssnrModeVersion"] = DLSSNR_MODE_VERSION;
 		NormalizeDLSSNRDetailParameters(effect.parameters);
+	}
 	if (effectInfo->CanScale()) {
 		// 支持缩放的效果默认等比缩放到充满屏幕
 		effect.scalingType = ::Magpie::ScalingType::Fit;

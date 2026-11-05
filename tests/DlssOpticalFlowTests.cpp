@@ -12,7 +12,11 @@
 
 namespace Magpie {
 struct EffectOption { std::map<std::string, float, std::less<>> parameters; };
-struct MotionSettings { MotionVectorRequest motionRequest; float gain = 0.08f; };
+struct MotionSettings {
+	MotionVectorRequest motionRequest;
+	float gain = 0.08f;
+	uint32_t inputResolutionPercent = 100;
+};
 enum class EffectParameterRestartReason { FrameGuidance, ResourceRecreation, NativeBackend };
 enum class EffectParameterApplyMode { Live, RestartRequired };
 struct DLSSNRFilter {
@@ -136,6 +140,21 @@ int main() {
 	mixed.Add(MotionVectorRequest::Amd(AmdOpticalFlowMode::Quality));
 	mixed.Add(nvBalanced);
 	assert(mixed.PreferredMotion() == nvBalanced);
+	mixed.Add(MotionVectorRequest::Amd(AmdOpticalFlowMode::Performance));
+	mixed.Add(nvBalanced);
+	const auto resolved = mixed.Resolved();
+	unsigned providers = 0;
+	resolved.ForEachMotion([&](auto request) { ++providers; assert(request == nvBalanced); });
+	assert(providers == 1 && resolved.Contains(nvBalanced));
+	assert(!resolved.Contains(MotionVectorRequest::Amd(AmdOpticalFlowMode::Quality)));
+	assert(FrameGuidanceRequirements::ResolveConsumer(
+		MotionVectorRequest::Amd(AmdOpticalFlowMode::Performance), nvBalanced) == nvBalanced);
+	impl.disabled = false;
+	nr._settings.motionRequest = MotionVectorRequest::Amd(AmdOpticalFlowMode::Performance);
+	for (unsigned percent : {25u, 75u, 100u}) {
+		nr._settings.inputResolutionPercent = percent;
+		assert(nr.GetFrameGuidanceRequirements().FirstMotion() == nr._settings.motionRequest);
+	}
 	assert(FrameGuidanceRequirements::ResolveConsumer({}, nvBalanced) == MotionVectorRequest{});
 	for (auto name : {"opticalFlowMethod", "amdOpticalFlowMode", "nvidiaOpticalFlowQuality"}) {
 		assert(nr.GetParameterRestartReason(name) == EffectParameterRestartReason::FrameGuidance);
@@ -145,7 +164,10 @@ int main() {
 	assert(diagnostic.GetParameterApplyMode("gain") == EffectParameterApplyMode::Live);
 	for (auto id : {"DLSSNR\\DLSSNR_AI_Filter", "DLSSFG\\DLSS_FrameGeneration", "Diagnostics\\FrameGuidance_Motion", "Diagnostics\\FrameGuidance_Confidence"}) {
 		for (int method = 0; method <= 2; ++method) {
-			auto get = [&](auto name, float fallback) { return std::string_view(name) == "opticalFlowMethod" ? float(method) : fallback; };
+			auto get = [&](auto name, float fallback) {
+				if (std::string_view(name) == "performanceShowAdvanced") return 1.f;
+				return std::string_view(name) == "opticalFlowMethod" ? float(method) : fallback;
+			};
 			assert(IsEffectParameterVisible(id, "amdOpticalFlowMode", get) == (method == 1));
 			assert(IsEffectParameterVisible(id, "nvidiaOpticalFlowQuality", get) == (method == 2));
 			assert(IsEffectParameterVisible(id, "opticalFlowMethod", get));

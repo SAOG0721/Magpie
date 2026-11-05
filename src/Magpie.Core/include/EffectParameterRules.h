@@ -31,8 +31,17 @@ bool IsEffectParameterVisible(std::string_view effect, std::string_view paramete
 		return getValue("mode", 0.f) == 1.f ||
 			(getValue("mode", 0.f) == 0.f && getValue("__hdrHasPair", 0.f) == 0.f);
 	if (effect == "DLSSNR\\DLSSNR_AI_Filter" &&
-		(parameter == "residualChromaTemporalStrength" ||
+		(parameter == "enableInputResolutionScaling" || parameter == "residualChromaTemporalStrength" ||
+		 parameter == "residualMaxAgeFrames" || parameter == "recoveryPolicy" ||
+		 parameter == "bufferedDelayFrames" || parameter == "asyncResidualComposition" ||
+		 parameter == "__dlssnrModeVersion" ||
 		 DLSSNRParameterPass(parameter) > DLSSNRPassCount(getValue))) return false;
+	if (effect == "DLSSNR\\DLSSNR_AI_Filter" && IsDLSSNRPerformanceParameter(parameter)) {
+		if (getValue("performanceShowAdvanced", 0.f) == 0) return false;
+		const auto mode = DLSSNRMode(getValue);
+		if (parameter == "residualTransfer" && mode == DLSSNRProcessingMode::EveryFrame) return false;
+		if (parameter == "sparseUpdateInterval") return SupportsDLSSNRUpdateInterval(mode);
+	}
 	if (HasOpticalFlowSelection(effect)) {
 		const float defaultMethod = (effect == "XeSSFG\\XeSS_FrameGeneration" ||
 			effect == "FSR3FG\\FSR3_FrameGeneration") ? 1.0f : 0.0f;
@@ -43,12 +52,9 @@ bool IsEffectParameterVisible(std::string_view effect, std::string_view paramete
 	if (effect == "DLSSNR\\DLSSNR_AI_Filter") {
 		if (parameter == "antiFlickerTimeMs") return DLSSNRAntiFlickerMode(getValue) != 0;
 		if (parameter == "residualShowAdvanced")
-			return getValue("enableInputResolutionScaling", 0.f) != 0;
-		if (parameter == "inputResolutionPercent" || IsDLSSNRResidualParameter(parameter)) {
-			if (getValue("enableInputResolutionScaling", 0.f) == 0) return false;
-			if (IsDLSSNRAdvancedParameter(parameter))
-				return getValue("residualShowAdvanced", 0.f) != 0;
-		}
+			return true; // Its row also owns the always-available performance toggle.
+		if (IsDLSSNRAdvancedParameter(parameter))
+			return getValue("residualShowAdvanced", 0.f) != 0;
 	}
 	return true;
 }
@@ -56,6 +62,8 @@ bool IsEffectParameterVisible(std::string_view effect, std::string_view paramete
 template<class GetValue>
 bool IsEffectParameterEnabled(std::string_view effect, std::string_view parameter,
 	bool frontEdgeSyncEnabled, GetValue&& getValue) noexcept {
+	if (effect == "DLSSNR\\DLSSNR_AI_Filter" && parameter == "inputResolutionPercent")
+		return getValue("resolutionControl", 1.f) == 1.f;
 	if (IsFrameRateFilterEffect(effect)) {
 		if (parameter == "frameRateMode") return !frontEdgeSyncEnabled;
 		if (parameter == "targetFrameRate") {

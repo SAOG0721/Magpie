@@ -28,6 +28,8 @@ public:
 	std::vector<Event> events;
 	std::vector<ReflexSettings> settings;
 	std::string failure;
+	std::string reportedOperation;
+	int reportedStatus = 0;
 	bool actualOn = true;
 	bool failClear = false;
 	bool failClearQuery = false;
@@ -48,6 +50,7 @@ public:
 			(failClearQuery && !value.lowLatency) ? -2 : 0,
 			status == 0, value.lowLatency && actualOn };
 	}
+	ReflexSleepStatus QueryStatus() noexcept override { return { Record("query-status"), actualOn }; }
 	int Sleep() noexcept override {
 		if (sleepHook) sleepHook();
 		return Record("sleep");
@@ -68,7 +71,10 @@ public:
 		return Record(generated ? (start ? "generated-start" : "generated-end") :
 			(start ? "real-start" : "real-end"), frame, present);
 	}
-	void ReportFailure(const char*, int) noexcept override { Record("failure"); }
+	void ReportFailure(const char* operation, int status) noexcept override {
+		{ std::scoped_lock lock(mutex); reportedOperation = operation; reportedStatus = status; }
+		Record("failure");
+	}
 	size_t Count(const std::string& name) {
 		std::scoped_lock lock(mutex);
 		return std::count_if(events.begin(), events.end(), [&](const Event& event) { return event.name == name; });
@@ -130,12 +136,33 @@ static void TestFrameLifecycle() {
 	}
 }
 
+static void TestDelayedOutputIds() {
+	ReflexController reflex;
+	auto fake = std::make_unique<FakeDriver>();
+	auto* driver = fake.get();
+	reflex.Initialize(std::move(fake));
+	const auto target = reflex.BeginCapture(40);
+	reflex.BeginCaptureRender(); reflex.EndCaptureRender(); reflex.CompleteCapture();
+	const auto current = reflex.BeginCapture(42);
+	const auto beforeSleep = driver->Count("sleep");
+	const auto first = reflex.NextPresentIdForFrame(target);
+	const auto second = reflex.NextPresentIdForFrame(target);
+	Require(first && second > first && reflex.CaptureFrameId() == current,
+		"delayed output must allocate unique IDs without replacing the current capture");
+	Present(reflex, target, first, true); Present(reflex, target, second, false);
+	Require(driver->events.back().frame == target && driver->Count("sleep") == beforeSleep,
+		"delayed publication borrowed a physical capture or spent another Sleep");
+	reflex.CompleteCapture();
+	Require(reflex.NextPresentIdForFrame(target) > second && !reflex.NextPresentIdForFrame(0),
+		"idle tail output needs its original ID while overlay refresh needs none");
+}
+
 static void TestPauseAndFailure() {
 	ReflexController absent;
 	absent.Initialize(nullptr);
 	Require(absent.BeginCapture() == 0 && !absent.Available(), "unsupported path must stay inactive");
 	for (const auto* failure : { "on", "query", "sleep", "sim-start", "sim-end", "render-start", "render-end",
-		"queue", "fg-start", "fg-end", "front-start", "front-end", "generated-start", "real-end" }) {
+		"queue", "fg-start", "fg-end", "front-end", "generated-start", "real-end" }) {
 		ReflexController reflex;
 		auto fake = std::make_unique<FakeDriver>();
 		auto* driver = fake.get();
@@ -308,6 +335,123 @@ static void TestDriverOffIsNotFailure() {
 	}
 }
 
+static void TestOptionalFrontendTrackingFailure() {
+	for (const bool actualOn : {false, true}) for (const uint32_t interval : {0u, 16667u}) {
+		ReflexController reflex;
+		auto fake = std::make_unique<FakeDriver>();
+		auto* driver = fake.get();
+		driver->actualOn = actualOn;
+		driver->failure = "front-start";
+		reflex.Initialize(std::move(fake), { .minimumIntervalUs = interval });
+		Require(reflex.FrontendRenderTrackingState() == ReflexRenderTrackingState::Unchecked,
+			"optional tracking must be tried without a platform hardcode");
+		const auto frame = reflex.BeginCapture();
+		reflex.BeginCaptureRender(); reflex.CompleteCapture();
+		for (int i = 0; i < 100; ++i) Present(reflex, frame, reflex.NextPresentIdForFrame(frame), i % 2 != 0);
+		Require(reflex.FrontendRenderTrackingState() == ReflexRenderTrackingState::Disabled &&
+			driver->Count("front-start") == 1 && driver->Count("front-end") == 0,
+			"an initial failed optional marker must not be retried or falsely closed");
+		Require(driver->Count("failure") == 1 && driver->reportedStatus == -1 &&
+			driver->reportedOperation.find("tracking disabled") != std::string::npos && driver->Count("off") == 0,
+			"optional failure must report its raw status once without clearing the accepted driver cap");
+		Require(reflex.CanResume() && reflex.Available() == actualOn &&
+			reflex.PacingAvailable() == (interval != 0) && !reflex.CaptureBlocked(),
+			"tracking failure must preserve independent low-latency and pacing results");
+		Require(driver->Count("real-start") == 50 && driver->Count("generated-end") == 50,
+			"supported async present markers remain active after optional tracking failure");
+		Require(reflex.BeginCapture(frame + 1) > frame && driver->Count("sleep") == 2,
+			"later captures must retain driver Sleep");
+		reflex.CompleteCapture();
+		reflex.SetFrameRateLimit(10000);
+		reflex.SetPresentationAvailable(false); reflex.SetPresentationAvailable(true);
+		Present(reflex, frame, reflex.NextPresentIdForFrame(frame), false);
+		Require(driver->Count("front-start") == 1 && reflex.PacingAvailable(),
+			"ordinary target/presentation changes must not retry failed optional tracking");
+		reflex.Stop();
+		Require(reflex.State() == ReflexState::Stopped && reflex.CanUseAsync() && driver->Count("off") == 2,
+			"explicit stop must still clear the cap after optional tracking was disabled");
+	}
+	// A previously successful scope must not hide a new driver failure or an
+	// unsuccessful closing marker: it may leave driver tracking open.
+	for (const char* failure : {"front-start", "front-end"}) {
+		ReflexController reflex;
+		auto fake = std::make_unique<FakeDriver>(); auto* driver = fake.get();
+		reflex.Initialize(std::move(fake), { .minimumIntervalUs = 16667 });
+		Present(reflex, 1, 1, false);
+		Require(reflex.FrontendRenderTrackingState() == ReflexRenderTrackingState::Supported,
+			"successful tracking must remain enabled");
+		driver->failure = failure;
+		Present(reflex, 2, 2, false);
+		Require(reflex.State() == ReflexState::Faulted && reflex.CanUseAsync() &&
+			driver->Count("off") == 1 && driver->Count("failure") == 1,
+			"established optional tracking failure must retain safe cleanup");
+	}
+}
+
+static void TestCoreFailureAfterTrackingDisabled() {
+	for (const char* failure : {"sleep", "sim-start", "sim-end", "render-start", "render-end",
+		"real-start", "real-end", "generated-start", "generated-end"}) {
+		ReflexController reflex;
+		auto fake = std::make_unique<FakeDriver>(); auto* driver = fake.get();
+		reflex.Initialize(std::move(fake), { .minimumIntervalUs = 8333 });
+		driver->failure = "front-start";
+		Present(reflex, 1, 1, false);
+		Require(reflex.PacingAvailable(), "optional tracking failure must retain cap before the core fault");
+		driver->failure = failure;
+		const auto frame = reflex.BeginCapture(2);
+		reflex.BeginCaptureRender(); reflex.CompleteCapture();
+		Present(reflex, frame, 2, false); Present(reflex, frame, 3, true);
+		Require(reflex.State() == ReflexState::Faulted && reflex.CanUseAsync() &&
+			driver->Count("off") == 1 && driver->Count("failure") == 2,
+			"Sleep/capture/present failure must still fault and clear the cap after tracking degradation");
+	}
+}
+
+static void TestBoundedWarmStatusObservation() {
+	ReflexController absent;
+	Require(absent.FrontendRenderTrackingState() == ReflexRenderTrackingState::Unavailable,
+		"missing driver must not claim optional tracking support");
+	for (const uint32_t interval : {0u, 8333u}) {
+		ReflexController reflex;
+		auto fake = std::make_unique<FakeDriver>(); auto* driver = fake.get();
+		driver->actualOn = false;
+		reflex.Initialize(std::move(fake), { .minimumIntervalUs = interval });
+		for (uint64_t i = 1; i < 32; ++i) Present(reflex, i, i, false);
+		Require(driver->Count("query-status") == 0 && !reflex.Available(), "cold Off must not be queried every frame");
+		Present(reflex, 32, 32, false);
+		Require(driver->Count("query-status") == 1 && reflex.State() == ReflexState::DriverOff,
+			"successful Off observation must remain Off");
+		driver->actualOn = true;
+		for (uint64_t i = 33; i < 128; ++i) Present(reflex, i, i, false);
+		Require(driver->Count("query-status") == 1 && !reflex.Available(), "activation must wait for a real query");
+		Present(reflex, 128, 128, false);
+		Require(driver->Count("query-status") == 2 && reflex.State() == ReflexState::Active,
+			"real warm On observation must refresh the cached controller state");
+		for (uint64_t i = 129; i <= 1024; ++i) Present(reflex, i, i, false);
+		Require(driver->Count("query-status") == 2 && driver->Count("on") == 1 &&
+			reflex.PacingAvailable() == (interval != 0),
+			"warm activation must stop observations without reconfiguring or changing cap ownership");
+		driver->actualOn = false;
+		reflex.SetPresentationAvailable(false); reflex.SetPresentationAvailable(true);
+		for (uint64_t i = 1; i <= 1024; ++i) Present(reflex, i, i + 1024, false);
+		Require(driver->Count("query-status") == 5 && reflex.State() == ReflexState::DriverOff && driver->Count("on") == 2,
+			"an always-Off driver gets at most three observations in a new presentation configuration");
+	}
+	ReflexController reflex;
+	auto fake = std::make_unique<FakeDriver>(); auto* driver = fake.get();
+	driver->actualOn = false;
+	reflex.Initialize(std::move(fake), { .minimumIntervalUs = 16667 });
+	driver->failure = "front-start";
+	Present(reflex, 1, 1, false);
+	driver->failure = "query-status";
+	for (uint64_t i = 2; i <= 1024; ++i) Present(reflex, i, i, false);
+	Require(driver->Count("query-status") == 1 && driver->Count("failure") == 2 && driver->reportedStatus == -1 &&
+		reflex.State() == ReflexState::DriverOff && reflex.PacingAvailable() && driver->Count("off") == 0,
+		"failed read-only observation must report raw status once and retain the accepted cap without forcing On");
+	Require(driver->Count("front-start") == 1 && driver->Count("real-end") == 1024,
+		"disabled optional tracking must still permit presentation and bounded status observation");
+}
+
 static void TestRejectedCapturePreservesMotionHistory() {
 	DLSSNRTemporalState state;
 	state.Commit(30, 1, 1, 100000);
@@ -398,17 +542,21 @@ static void TestUnsupportedZeroCapCanFallback() {
 int main() {
 	try {
 		TestFrameLifecycle();
+		TestDelayedOutputIds();
 		TestPauseAndFailure();
 		TestSleepDoesNotBlockPresentOrStop();
 		TestOrdinaryFrameLimit();
 		TestCaptureRenderBoundaries();
 		TestRejectedCapturePreservesMotionHistory();
 		TestDriverOffIsNotFailure();
+		TestOptionalFrontendTrackingFailure();
+		TestCoreFailureAfterTrackingDisabled();
+		TestBoundedWarmStatusObservation();
 		TestClearBeforeFallback();
 		TestCandidateAcrossPause();
 		TestPauseDuringSleepAndClearQueryFailure();
 		TestUnsupportedZeroCapCanFallback();
-		std::cout << "PASS: Reflex 2x/3x/4x IDs, capture retries, capture GPU boundaries, rejected/staged input, skipped interpolation, FIFO IDs, 14 driver failure points, concurrent Sleep/Present/Stop; ordinary frame limits, same-target deduplication, Off-query distinction and pause/resume\n";
+		std::cout << "PASS: Reflex IDs and GPU boundaries; optional tracking failure independent of driver cap/low latency; bounded warm status; core/established-marker cleanup; concurrent Sleep/Present/Stop; frame limits and pause/resume\n";
 		return 0;
 	} catch (const std::exception& error) {
 		std::cerr << error.what() << '\n';

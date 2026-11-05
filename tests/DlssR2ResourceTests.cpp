@@ -17,6 +17,7 @@
 #include <thread>
 #include <vector>
 #include "NativeBackendTiming.h"
+#include "include/DlssNrStatus.h"
 
 using winrt::com_ptr;
 void Check(bool condition, const char* label) {
@@ -29,18 +30,26 @@ struct Logger {
 };
 
 namespace Nr {
+using Magpie::DlssNrFailure;
+using Magpie::DlssNrStage;
+using Magpie::DlssNrCodeKind;
+using Magpie::DlssNrApiFailure;
 struct DLSSNRSettings {
 	float residualMultiplier = 1, residualSaturation = 1, residualLightness = 1;
 	float shadowStructureMultiplier = 1, reflectionGlowMultiplier = 1;
+	float residualMidtoneStrength = 1;
 	int residualDebugView = 0;
 	float residualHueProtection = 0, residualDarkProtection = 0, residualHighlightProtection = 0, residualLocalCompression = 0;
 	float residualLowFrequencyGain = 1, residualDetailGain = 1;
+	float residualChromaProtection = 0;
 };
 struct DLSSNRFilter { struct Impl {
+	DlssNrFailure failure;
 	ID3D11Device* device11 = nullptr;
 	ID3D11DeviceContext* context11 = nullptr;
 	uint32_t width = 0, height = 0, sourceWidth = 0, sourceHeight = 0;
 	bool useResolutionScaling = true;
+	bool finalizeOutput = true;
 	bool residualConstantsValid = false, residualParametersDirty = true;
 	com_ptr<ID3D11Texture2D> compositeOutput11;
 	com_ptr<ID3D11UnorderedAccessView> compositeOutputUav11, controlledResidualUav11, resampleIntermediateUav11;
@@ -120,7 +129,7 @@ void TestResidual(UINT w, UINT h, UINT rw, UINT rh) {
 	impl.resampleIntermediateSrv11=Srv(horizontal.get()); impl.resampleIntermediateUav11=Uav(horizontal.get());
 	impl.residualPrepareShader11=Shader(Nr::RESIDUAL_PREPARE_SHADER.c_str(), "PrepareResidual");
 	impl.residualHorizontalShader11=Shader(Nr::RESIDUAL_HORIZONTAL_HLSL, "UpsampleResidualHorizontal");
-	impl.residualVerticalCompositeShader11=Shader(Nr::RESIDUAL_VERTICAL_COMPOSITE_HLSL, "CompositeResidualVertical");
+	impl.residualVerticalCompositeShader11=Shader(Nr::RESIDUAL_VERTICAL_COMPOSITE_SHADER.c_str(), "CompositeResidualVertical");
 	D3D11_BUFFER_DESC cb{}; cb.ByteWidth=sizeof(Nr::ResampleConstants); cb.BindFlags=D3D11_BIND_CONSTANT_BUFFER;
 	Hr(device->CreateBuffer(&cb, nullptr, impl.residualConstants11.put()));
 	const std::array<Nr::DLSSNRSettings, 5> settings{{{}, {0,1,1,1,1}, {2,0,0.5f,0,2}, {0.4f,2,1.8f,2,0}, {1,1,1,0.2f,1.8f}}};

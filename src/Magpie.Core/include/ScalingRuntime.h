@@ -75,6 +75,7 @@ private:
 
 	std::atomic<ScalingState> _state = ScalingState::Idle;
 	std::atomic<uint64_t> _commandGeneration = 0;
+	std::atomic<bool> _quitting = false;
 };
 
 }

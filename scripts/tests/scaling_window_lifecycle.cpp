@@ -72,6 +72,7 @@ public:
         if(!settings.lowLatency) Pause(1);
         return {0,0,true,settings.lowLatency};
     }
+    ReflexSleepStatus QueryStatus() noexcept override { return {0,true}; }
     int Sleep() noexcept override { return 0; }
     int Marker(ReflexMarker,uint64_t) noexcept override { return 0; }
     int RegisterGenerationQueue(ID3D12CommandQueue*) noexcept override { return 0; }
@@ -138,7 +139,11 @@ public:
     std::atomic<bool> _backendReady=false;
     bool _frameTraceStarted=false;
 };
-struct Cursor { void BeginShutdown() {} ~Cursor() { assert(!IsWindow(retiringOutput)); } };
+struct Cursor {
+    void BeginShutdown() {}
+    bool ReleasePendingCursorReposition() { return true; }
+    ~Cursor() { assert(!IsWindow(retiringOutput)); }
+};
 struct Source { HWND source=nullptr; HWND Handle() const { return source; } bool IsSessionForeground() const { return true; } };
 struct Coordinator { void RetireOutput() {} };
 struct Base { HWND _hWnd=nullptr; HWND Handle() const { return _hWnd; } };

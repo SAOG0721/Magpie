@@ -22,6 +22,8 @@ struct ScalingModesPage : ScalingModesPageT<ScalingModesPage> {
 	void ComboBox_DropDownOpened(IInspectable const& sender, IInspectable const&);
 
 	void NumberBox_Loaded(IInspectable const& sender, RoutedEventArgs const&);
+	void ParameterCheckboxRow_SizeChanged(IInspectable const& sender, SizeChangedEventArgs const&);
+	void ParameterColumns_SizeChanged(IInspectable const& sender, SizeChangedEventArgs const&);
 	void ParameterSlider_Loaded(IInspectable const& sender, RoutedEventArgs const&);
 	void ParameterSlider_Unloaded(IInspectable const& sender, RoutedEventArgs const&);
 	void ParameterSlider_LostFocus(IInspectable const& sender, RoutedEventArgs const&);

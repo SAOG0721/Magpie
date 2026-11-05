@@ -5516,7 +5516,7 @@
         "copyScope": "User-focused bilingual purpose, content and starting steps; shared guidance moved to categories, parameter help and usage docs. Source review only; no build, deployment, UI or GPU acceptance.",
         "runtimeEvidenceSha256": {
           "src/Magpie.Core/HdrEffectBoundary.cpp": "75f166cd9c3c9cddf931b499f445f76c353d51000d1df36894f819a01809a8eb",
-          "src/Magpie.Core/NativeEffectBackendFactory.cpp": "9e36abc63a3dac84357d2e020f25342257d83b51669b97e9053d73f15adfebc4",
+          "src/Magpie.Core/NativeEffectBackendFactory.cpp": "e813a160c51fbd731b492a10fcadb2915db40187a0af4c2dd3e869908adca1e7",
           "src/Magpie.Core/GroupBHdrRoutes.cpp": "970281df968a0f92276e60c09afd76e0171bb87d57db8fe2bdecc58d595656b3",
           "src/Magpie.Core/DLSSSRUpscaler.cpp": "2ddd49182da6d979a3c3eb935de0e6dce268013be1ffd615c69470b16fd8b06d"
         },
@@ -5645,14 +5645,18 @@
         "copyScope": "User-focused bilingual purpose, content and starting steps; shared guidance moved to categories, parameter help and usage docs. Source review only; no build, deployment, UI or GPU acceptance.",
         "runtimeEvidenceSha256": {
           "src/Magpie.Core/HdrEffectBoundary.cpp": "75f166cd9c3c9cddf931b499f445f76c353d51000d1df36894f819a01809a8eb",
-          "src/Magpie.Core/NativeEffectBackendFactory.cpp": "9e36abc63a3dac84357d2e020f25342257d83b51669b97e9053d73f15adfebc4",
+          "src/Magpie.Core/NativeEffectBackendFactory.cpp": "e813a160c51fbd731b492a10fcadb2915db40187a0af4c2dd3e869908adca1e7",
           "src/Magpie.Core/GroupBHdrRoutes.cpp": "970281df968a0f92276e60c09afd76e0171bb87d57db8fe2bdecc58d595656b3",
-          "src/Magpie.Core/Renderer.cpp": "7646c607945544aeff62515a4933aebe0661476da903d2ca84e4e60a206baab1",
+          "src/Magpie.Core/Renderer.cpp": "be9ba85dd223c7806299c1be0bf00c1900bfb7b2da6d200ef1c6430a1f9c8556",
           "src/Magpie.Core/include/FramePacingOptions.h": "a2706ceaa17b802bfe5e31f489c8af288b5dd9af5765ec9e5b608e9e01764808",
-          "src/Magpie.Core/DLSSFrameGenerator.cpp": "1bad8a6a844a65eda3d7501a5f9efafbe6e1f962bf5820b36829c24dfa03e0a4",
+          "src/Magpie.Core/DLSSFrameGenerator.cpp": "1654bd12fd401df3de566e558f142c860c94a89e2b489a8d25ded0dcba865c1c",
           "src/Magpie.Core/EffectProtocolCatalogC.h": "a2b63ba974d319fd9212377dd1978d2ca9dc19e1f17f666d457b85fb68de171c"
         },
-        "evidenceBaseline": "cbe2c2cb + UWP fullscreen, HDR overlay, DLSSNR guidance and effect-description integration; copy contracts rechecked"
+        "evidenceBaseline": "cbe2c2cb + UWP fullscreen, HDR overlay, DLSSNR guidance and effect-description integration; copy contracts rechecked",
+        "oklabIntegrationAudit": "2026-10-28: reviewed new-effect-only routing/editor integration; existing effect behavior and copy retained.",
+        "beta1IntegrationAudit": "2026-10-28: combined DLSSNR and OKLab parameter surfaces, retained both configuration paths and integrated presenter redraw recovery; fixed FXC temporal return-flow compilation. Effect copy retained.",
+        "beta2FollowupSourceAudit": "2026-10-30: reviewed shared Renderer update reasons, capture/quality pacing separation and publication hooks; ordinary effect Draw contracts remain, and default native maintenance hooks do no work. This refresh records source evidence only, not full hardware frame-generation acceptance; existing notVerified items remain.",
+        "captureAheadSourceAudit": "2026-11-01: one staged output is enabled only for DLSSNR with ordinary FrontEdge, deferred presentation and no frame generation. Shared-slot acknowledgement, publication fences and presentation accounting are retained; non-NR and FG paths keep their existing admission policy. Production-branch CPU/WARP ownership and legacy FrontendDrop/FrameSync regressions passed."
       },
       "zh-Hans": {
         "name": "DLSS FrameGeneration",
@@ -5680,7 +5684,7 @@
       "level": "advanced",
       "source": {
         "path": "src/Effects/DLSSNR/DLSSNR_AI_Filter.hlsl",
-        "sha256": "fe5ddab2bd419ee5352bf61495d66c3ba394b068add1a3f3e4a24d576c4fc257",
+        "sha256": "2583d4a498230ee95d724b1bacb65b2330d1b8b0c8343fdb2f264374671c2e14",
         "output": {
           "WIDTH": "INPUT_WIDTH",
           "HEIGHT": "INPUT_HEIGHT"
@@ -5688,24 +5692,25 @@
         "passCount": 1,
         "parameters": [
           {
+            "name": "modelPreset",
+            "type": "int",
+            "group": "Detail Control",
+            "label": "Model Preset",
+            "default": "0",
+            "options": [
+              "0 Automatic (DLL Default)",
+              "1 HT",
+              "2 CC Small FP8"
+            ]
+          },
+          {
             "name": "enableInputResolutionScaling",
             "type": "int",
             "group": "Detail Control",
             "label": "Adjust Input Resolution",
-            "default": "0",
+            "default": "1",
             "min": "0",
             "max": "1",
-            "step": "1",
-            "options": []
-          },
-          {
-            "name": "inputResolutionPercent",
-            "type": "int",
-            "group": "Detail Control",
-            "label": "Input Resolution (%)",
-            "default": "100",
-            "min": "25",
-            "max": "100",
             "step": "1",
             "options": []
           },
@@ -5754,6 +5759,17 @@
             "options": []
           },
           {
+            "name": "residualMidtoneStrength",
+            "type": "float",
+            "group": "Detail Control",
+            "label": "Midtone Strength",
+            "default": "1",
+            "min": "0",
+            "max": "2",
+            "step": "0.05",
+            "options": []
+          },
+          {
             "name": "reflectionGlowMultiplier",
             "type": "float",
             "group": "Detail Control",
@@ -5768,7 +5784,7 @@
             "name": "residualShowAdvanced",
             "type": "int",
             "group": "Detail Control",
-            "label": "Advanced Adjustments",
+            "label": "Residual",
             "default": "0",
             "min": "0",
             "max": "1",
@@ -5776,90 +5792,20 @@
             "options": []
           },
           {
-            "name": "opticalFlowMethod",
+            "name": "performanceShowAdvanced",
             "type": "int",
             "group": "Detail Control",
-            "label": "Optical Flow Method",
-            "default": "0",
-            "options": [
-              "0 None",
-              "1 AMDOF",
-              "2 NVOF"
-            ]
-          },
-          {
-            "name": "amdOpticalFlowMode",
-            "type": "int",
-            "group": "Detail Control",
-            "label": "Optical Flow Quality",
-            "default": "1",
-            "options": [
-              "0 Performance",
-              "1 Quality"
-            ]
-          },
-          {
-            "name": "nvidiaOpticalFlowQuality",
-            "type": "int",
-            "group": "Detail Control",
-            "label": "Optical Flow Quality",
-            "default": "2",
-            "options": [
-              "1 Performance",
-              "2 Balanced",
-              "3 Quality",
-              "4 High Quality (High Cost)",
-              "5 Highest Quality (Very High Cost)"
-            ]
-          },
-          {
-            "name": "residualHueProtection",
-            "type": "float",
-            "group": "Advanced Adjustments",
-            "label": "Hue Protection",
+            "label": "Performance",
             "default": "0",
             "min": "0",
             "max": "1",
-            "step": "0.05",
-            "options": []
-          },
-          {
-            "name": "residualDarkProtection",
-            "type": "float",
-            "group": "Advanced Adjustments",
-            "label": "Shadow Protection",
-            "default": "0",
-            "min": "0",
-            "max": "1",
-            "step": "0.05",
-            "options": []
-          },
-          {
-            "name": "residualHighlightProtection",
-            "type": "float",
-            "group": "Advanced Adjustments",
-            "label": "Highlight Protection",
-            "default": "0",
-            "min": "0",
-            "max": "1",
-            "step": "0.05",
-            "options": []
-          },
-          {
-            "name": "residualLocalCompression",
-            "type": "float",
-            "group": "Advanced Adjustments",
-            "label": "Overcorrection Suppression",
-            "default": "0",
-            "min": "0",
-            "max": "1",
-            "step": "0.05",
+            "step": "1",
             "options": []
           },
           {
             "name": "residualLowFrequencyGain",
             "type": "float",
-            "group": "Advanced Adjustments",
+            "group": "Residual Advanced Adjustments",
             "label": "Low-frequency Range Strength",
             "default": "1",
             "min": "0",
@@ -5870,7 +5816,7 @@
           {
             "name": "residualDetailGain",
             "type": "float",
-            "group": "Advanced Adjustments",
+            "group": "Residual Advanced Adjustments",
             "label": "High-frequency Range Strength",
             "default": "1",
             "min": "0",
@@ -5879,9 +5825,64 @@
             "options": []
           },
           {
+            "name": "residualHueProtection",
+            "type": "float",
+            "group": "Residual Advanced Adjustments",
+            "label": "Hue Protection",
+            "default": "0",
+            "min": "0",
+            "max": "1",
+            "step": "0.05",
+            "options": []
+          },
+          {
+            "name": "residualChromaProtection",
+            "type": "float",
+            "group": "Residual Advanced Adjustments",
+            "label": "Chroma Protection",
+            "default": "0",
+            "min": "0",
+            "max": "1",
+            "step": "0.05",
+            "options": []
+          },
+          {
+            "name": "residualDarkProtection",
+            "type": "float",
+            "group": "Residual Advanced Adjustments",
+            "label": "Shadow Protection",
+            "default": "0",
+            "min": "0",
+            "max": "1",
+            "step": "0.05",
+            "options": []
+          },
+          {
+            "name": "residualHighlightProtection",
+            "type": "float",
+            "group": "Residual Advanced Adjustments",
+            "label": "Highlight Protection",
+            "default": "0",
+            "min": "0",
+            "max": "1",
+            "step": "0.05",
+            "options": []
+          },
+          {
+            "name": "residualLocalCompression",
+            "type": "float",
+            "group": "Residual Advanced Adjustments",
+            "label": "Overcorrection Suppression",
+            "default": "0",
+            "min": "0",
+            "max": "1",
+            "step": "0.05",
+            "options": []
+          },
+          {
             "name": "residualDebugView",
             "type": "int",
-            "group": "Advanced Adjustments",
+            "group": "Residual Advanced Adjustments",
             "label": "Diagnostic View",
             "default": "0",
             "options": [
@@ -5893,6 +5894,99 @@
               "5 Protection Weight",
               "6 Gamut Scale",
               "7 Compression Scale"
+            ]
+          },
+          {
+            "name": "resolutionControl",
+            "type": "int",
+            "group": "Performance Advanced Adjustments",
+            "label": "Resolution Control",
+            "default": "0",
+            "options": [
+              "0 Adaptive",
+              "1 Manual"
+            ]
+          },
+          {
+            "name": "inputResolutionPercent",
+            "type": "int",
+            "group": "Performance Advanced Adjustments",
+            "label": "Input Resolution (%)",
+            "default": "100",
+            "min": "25",
+            "max": "100",
+            "step": "1",
+            "options": []
+          },
+          {
+            "name": "processingMode",
+            "type": "int",
+            "group": "Performance Advanced Adjustments",
+            "label": "Processing Mode",
+            "default": "0",
+            "options": [
+              "0 Every Frame",
+              "1 Alternating Frames"
+            ]
+          },
+          {
+            "name": "sparseUpdateInterval",
+            "type": "int",
+            "group": "Performance Advanced Adjustments",
+            "label": "NR Update Interval",
+            "default": "2",
+            "options": [
+              "2 Every 2 Frames",
+              "3 Every 3 Frames",
+              "4 Every 4 Frames"
+            ]
+          },
+          {
+            "name": "residualTransfer",
+            "type": "int",
+            "group": "Performance Advanced Adjustments",
+            "label": "Residual Reuse",
+            "default": "0",
+            "options": [
+              "0 Historical Residual in Place",
+              "1 Historical Residual Reprojection"
+            ]
+          },
+          {
+            "name": "opticalFlowMethod",
+            "type": "int",
+            "group": "Performance Advanced Adjustments",
+            "label": "Optical Flow Method",
+            "default": "0",
+            "options": [
+              "0 None",
+              "1 AMDOF",
+              "2 NVOF"
+            ]
+          },
+          {
+            "name": "amdOpticalFlowMode",
+            "type": "int",
+            "group": "Performance Advanced Adjustments",
+            "label": "Optical Flow Quality",
+            "default": "1",
+            "options": [
+              "0 Performance",
+              "1 Quality"
+            ]
+          },
+          {
+            "name": "nvidiaOpticalFlowQuality",
+            "type": "int",
+            "group": "Performance Advanced Adjustments",
+            "label": "Optical Flow Quality",
+            "default": "2",
+            "options": [
+              "1 Performance",
+              "2 Balanced",
+              "3 Quality",
+              "4 High Quality",
+              "5 Highest Quality"
             ]
           },
           {
@@ -5954,7 +6048,7 @@
             "name": "useAutoMask",
             "type": "int",
             "group": "DLSSNR · Pass 1",
-            "label": "Automatic Mask",
+            "label": "Auto mask",
             "default": "0",
             "min": "0",
             "max": "1",
@@ -5965,7 +6059,7 @@
             "name": "uiCorrection",
             "type": "int",
             "group": "DLSSNR · Pass 1",
-            "label": "NR UI Correction",
+            "label": "UI fix",
             "default": "0",
             "min": "0",
             "max": "1",
@@ -6068,7 +6162,7 @@
             "name": "pass2_useAutoMask",
             "type": "int",
             "group": "DLSSNR · Pass 2",
-            "label": "Automatic Mask",
+            "label": "Auto mask",
             "default": "0",
             "min": "0",
             "max": "1",
@@ -6079,7 +6173,7 @@
             "name": "pass2_uiCorrection",
             "type": "int",
             "group": "DLSSNR · Pass 2",
-            "label": "NR UI Correction",
+            "label": "UI fix",
             "default": "0",
             "min": "0",
             "max": "1",
@@ -6145,7 +6239,7 @@
             "name": "pass3_useAutoMask",
             "type": "int",
             "group": "DLSSNR · Pass 3",
-            "label": "Automatic Mask",
+            "label": "Auto mask",
             "default": "0",
             "min": "0",
             "max": "1",
@@ -6156,7 +6250,7 @@
             "name": "pass3_uiCorrection",
             "type": "int",
             "group": "DLSSNR · Pass 3",
-            "label": "NR UI Correction",
+            "label": "UI fix",
             "default": "0",
             "min": "0",
             "max": "1",
@@ -6184,7 +6278,46 @@
           "src/Magpie.Core/GroupBHdrRoutes.cpp",
           "src/Magpie.Core/DLSSNRMultiPass.h",
           "src/Magpie.Core/DLSSNRFilter.cpp",
-          "src/Magpie.Core/include/DLSSNRParameters.h"
+          "src/Magpie.Core/include/DLSSNRParameters.h",
+          "src/Magpie.Core/DLSSNRPerformance.inl",
+          "src/Magpie.Core/DLSSNRPerformanceShader.h",
+          "src/Magpie.Core/include/DLSSNRPerformanceState.h",
+          "src/Magpie.Core/include/DLSSNRPerformanceParameters.h",
+          "src/Magpie.Core/DLSSNRTemporal.cpp",
+          "src/Magpie.Core/DLSSNRTemporalShader.h",
+          "src/Magpie.Core/Renderer.cpp",
+          "src/Magpie.Core/NativeEffectBackend.h",
+          "src/Magpie.Core/DLSSNRFilter.h",
+          "src/Magpie.Core/DLSSNRDetailShader.h",
+          "src/Magpie.Core/DLSSNRColorShader.h",
+          "src/Magpie.Core/include/DLSSNRDetailParameters.h",
+          "src/Magpie.Core/include/EffectParameterRules.h",
+          "src/Magpie/EffectParametersViewModel.cpp",
+          "src/Magpie/ScalingModesService.cpp",
+          "src/Magpie/ScalingModesPage.xaml",
+          "src/Magpie.Core/OverlayDrawer.cpp",
+          "src/Magpie.Core/FrameGuidanceService.cpp",
+          "src/Magpie.Core/FrameGuidanceService.h",
+          "src/Magpie.Core/MotionVectorRequest.h",
+          "src/Magpie.Core/AmdOpticalFlowProvider.cpp",
+          "src/Magpie.Core/include/DLSSNRAdaptiveResolution.h",
+          "src/Magpie.Core/include/DLSSNREnhancementPool.h",
+          "src/Magpie.Core/DLSSNRGpuTimer.h",
+          "src/Magpie/EffectParametersViewModel.h",
+          "src/Magpie.Core/include/EffectParameterLocalization.h",
+          "src/Magpie.Core/DLSSNRSparse.h",
+          "src/Magpie.Core/DLSSNRSparse.inl",
+          "src/Magpie.Core/DLSSNRSparseShader.h",
+          "src/Magpie.Core/include/DLSSNRSparseState.h",
+          "src/Magpie.Core/include/DLSSNRTemporalState.h",
+          "src/Magpie.Core/FrameGuidanceTypes.h",
+          "src/Magpie.Core/NvidiaOpticalFlowProvider.cpp",
+          "src/Magpie.Core/include/EffectFrameState.h",
+          "src/Magpie.Core/PassThroughFrames.cpp",
+          "src/Magpie.Core/include/DLSSNRSubmissionWorker.h",
+          "src/Magpie.Core/Renderer.h",
+          "src/Magpie/AppSettings.cpp",
+          "src/Magpie/ScalingModeItem.cpp"
         ],
         "externalReferences": [],
         "notVerified": [
@@ -6192,33 +6325,79 @@
           "hardware-performance",
           "native-sdk-runtime"
         ],
-        "copyReviewedOn": "2026-10-13",
+        "copyReviewedOn": "2026-11-06",
         "copyDisposition": "revised",
-        "copyScope": "User-focused bilingual purpose, content and starting steps; shared guidance moved to categories, parameter help and usage docs. Source review only; no build, deployment, UI or GPU acceptance.",
+        "copyScope": "Current two-mode processing UI and version-aware configuration compatibility.",
         "runtimeEvidenceSha256": {
           "src/Magpie.Core/HdrEffectBoundary.cpp": "75f166cd9c3c9cddf931b499f445f76c353d51000d1df36894f819a01809a8eb",
-          "src/Magpie.Core/NativeEffectBackendFactory.cpp": "9e36abc63a3dac84357d2e020f25342257d83b51669b97e9053d73f15adfebc4",
+          "src/Magpie.Core/NativeEffectBackendFactory.cpp": "e813a160c51fbd731b492a10fcadb2915db40187a0af4c2dd3e869908adca1e7",
           "src/Magpie.Core/GroupBHdrRoutes.cpp": "970281df968a0f92276e60c09afd76e0171bb87d57db8fe2bdecc58d595656b3",
-          "src/Magpie.Core/DLSSNRMultiPass.h": "9121bb9d5fdfe5161b59cc237d8dbcac2f63d2a940d8a9a2eb47e2833c9ad684",
-          "src/Magpie.Core/DLSSNRFilter.cpp": "5eb7ba6c55ae2f3c26b9527ccc73130764a0ca71c10dd8b2d8113c7158fbc999",
-          "src/Magpie.Core/include/DLSSNRParameters.h": "e0db6c26d2063924e42167615c9548cf5902dff4661197b7df0fb2115f81b564"
+          "src/Magpie.Core/DLSSNRMultiPass.h": "d621e6a02fead72c01d79e1513b539f3541c461e24d52e2c33212bbacdef8359",
+          "src/Magpie.Core/DLSSNRFilter.cpp": "b661b7241cac113691a05b848a54cc066e50c0579b72daa02b168f280cfcf8e9",
+          "src/Magpie.Core/include/DLSSNRParameters.h": "a97f9d2c06706e187bac6de356e9e208c16612e190bd2aba361d9b9bc6cc7e9a",
+          "src/Magpie.Core/DLSSNRPerformance.inl": "0734291698472096e1a734489ed881d7166541aa5c3944f9769e1e4d86a942b1",
+          "src/Magpie.Core/DLSSNRPerformanceShader.h": "ccbc2f8da7b0ab7191f785ffcf2afe3ec81fe89c241705d4caeda320c48d4b66",
+          "src/Magpie.Core/include/DLSSNRPerformanceState.h": "ded2d1ec41067dad5da80776b99c07540cb6ac6b8981a8c30869ca1fd38ec738",
+          "src/Magpie.Core/include/DLSSNRPerformanceParameters.h": "fea826c8f8d7b91b55891a17ba607674455a2be742bb5b2b67cb5d8ae0604bbd",
+          "src/Magpie.Core/DLSSNRTemporal.cpp": "8f14a9563e46f774da820e982935da9a851230c5e2444afd2460b25ba821fbec",
+          "src/Magpie.Core/DLSSNRTemporalShader.h": "016ad296763a6e3d4510d7163eac1e40c2aece1a31c1f550f0568d295d91cb37",
+          "src/Magpie.Core/Renderer.cpp": "be9ba85dd223c7806299c1be0bf00c1900bfb7b2da6d200ef1c6430a1f9c8556",
+          "src/Magpie.Core/NativeEffectBackend.h": "056cb08f5527e99f6b4030c5243a5087d8a505c021ba4c002b69d89cf12a36ed",
+          "src/Magpie.Core/DLSSNRFilter.h": "4ea07536f64d17d95e468931bc980f860b0c193b787bdbd40ff39ac0769ea00c",
+          "src/Magpie.Core/DLSSNRDetailShader.h": "a0ff54206002d2a36352c69062ee7d6061e87e1019aa63487f9704ec180210fe",
+          "src/Magpie.Core/DLSSNRColorShader.h": "a50f054443d4efc9cd7a93c3bd09daa4a87d29876dc2fe3d1964e644ac1b9f49",
+          "src/Magpie.Core/include/DLSSNRDetailParameters.h": "8c4d5b74c3dcc37917ea8f308df5f62195db1c4dce82aaf704febda36442602b",
+          "src/Magpie.Core/include/EffectParameterRules.h": "d517e2f331ee0c6bcc62655e671d0bff02d35e17587f96224b9d0dca7aede941",
+          "src/Magpie/EffectParametersViewModel.cpp": "83a5f2339af6c9d8de0a20f07259ecb5e7d68d155c394cb20d0ffdb82e30d93d",
+          "src/Magpie/ScalingModesService.cpp": "9d65e105b4609531473a9dd6e30dfba48ed7b5441ecded7e4fd9ef01a0c5bdb1",
+          "src/Magpie/ScalingModesPage.xaml": "4308f6c717613ee2cb5f984589e335faaa4c66894583627c6d4c50efcddb18a1",
+          "src/Magpie.Core/OverlayDrawer.cpp": "5a0730efe2b329a94d483ff3c3ea0bc9a73e41f7a71a47ba600cf8522f96cbcd",
+          "src/Magpie.Core/FrameGuidanceService.cpp": "87b9109f0c88b7b6b71bd8f09ef94a72ba63bc5d4b60d9134edac7b4b6227bcb",
+          "src/Magpie.Core/FrameGuidanceService.h": "5b647610e0f73c99c37c5f6bdb634a0b97f9f7c3d1a6756fcc6c1971256c9019",
+          "src/Magpie.Core/MotionVectorRequest.h": "cbe6febfc4a1c67b571ac65d0aa73f523df4eb2bdac09c43500a163aaf7dddee",
+          "src/Magpie.Core/AmdOpticalFlowProvider.cpp": "f7fa50ac51d5724c5153c5c356458d321d4ea820094f3bbc7761561a8d24c681",
+          "src/Magpie.Core/include/DLSSNRAdaptiveResolution.h": "2f95b693c6861ae29392311aae9136dfa761451c4a6c0154f0f146023990df46",
+          "src/Magpie.Core/include/DLSSNREnhancementPool.h": "8b3541e0042590097732998f92fa95a6ea463764ac8df8c2d3e048b4be5b1be0",
+          "src/Magpie.Core/DLSSNRGpuTimer.h": "03e055f46ac0556c99c55fb56d9fe6cb8e6d3c34fc226d1a47200c7e6df11359",
+          "src/Magpie/EffectParametersViewModel.h": "21ccf0bebff8e163f44ac26913ea34e5c98c013b68697505ad78831e6609a6a4",
+          "src/Magpie.Core/include/EffectParameterLocalization.h": "ade1d3575836a177e5f3ae58e39a02af00574b951a88ddcdd032c8570cd74cd0",
+          "src/Magpie.Core/DLSSNRSparse.h": "6615353b28a5b8240b839c4f58d67914e1733359703072ab058fc3448c6c2cd9",
+          "src/Magpie.Core/DLSSNRSparse.inl": "0d31c5b9204ee1f4436d64ba86d08a3145ff2b9b6940e016587af5c997356d83",
+          "src/Magpie.Core/DLSSNRSparseShader.h": "17d991c30d6cb6e207b5616c573967b84c4dc843ab1428b9ab60cdb44f8da4e8",
+          "src/Magpie.Core/include/DLSSNRSparseState.h": "44ade1a8a1b6eb2332b1883c0bdb4f7df3245d0c084477cf9f75386acbdadf23",
+          "src/Magpie.Core/include/DLSSNRTemporalState.h": "302edbb48d5a76ce4711331066e41ce8673027e2148d3ce404722c8ee8e4683e",
+          "src/Magpie.Core/FrameGuidanceTypes.h": "6d28245b4ef08733f3c7bfa28464efa68219c9ca902a8752bbdbe3c596a65769",
+          "src/Magpie.Core/NvidiaOpticalFlowProvider.cpp": "2814e6a94ef390ae0cfe4a8da838ccfa06eef7ee2cd5978aa84de78130f9356a",
+          "src/Magpie.Core/include/EffectFrameState.h": "e2221eac6b7667f0bd56fa35a8c5dc1f17639758ab84f67a140d3bdc035a59e3",
+          "src/Magpie.Core/PassThroughFrames.cpp": "100b3dc8fc0fd7bd3116422b681d14cce621d93132d208bb6ce3af9903c1f045",
+          "src/Magpie.Core/include/DLSSNRSubmissionWorker.h": "af2ab2c32741d6217c604a886dfcfe7d2239d5f7fa4f3167f06ef148ddc81b06",
+          "src/Magpie.Core/Renderer.h": "cfb07f5176f085953e1375a0d47f8e908f28db027633f684a3afa8b1718c7ace",
+          "src/Magpie/AppSettings.cpp": "87b042e6ef329cfa83cb7a0504b20ec5641e87b83d8b8ab078cc63b2e1a6cfd1",
+          "src/Magpie/ScalingModeItem.cpp": "f0bb9b32c511a4e54f5c80b854a98a1df1fc945efa5f1bdec88419d8abd94fd5"
         },
-        "evidenceBaseline": "cbe2c2cb + UWP fullscreen, HDR overlay, DLSSNR guidance and effect-description integration; copy contracts rechecked",
-        "settingsRevision": "2026-10-22 SR K / FG Auto-A-B-C / NR 5-200ms; native acceptance tracked separately"
+        "evidenceBaseline": "2026-11-01 four-mode implementation: contiguous current values and explicit persisted-schema migration; source/CPU validation and final device acceptance are recorded separately.",
+        "settingsRevision": "2026-10-30 beta2: adaptive/manual complete-chain resolution, fixed capture-space optical flow, retired order key migration, bounded raw enhancement pool, fixed one-capture residual age, separate capture and quality-update rates, typed parameter writes",
+        "beta1IntegrationAudit": "2026-10-28: combined DLSSNR and OKLab parameter surfaces, retained both configuration paths and integrated presenter redraw recovery; fixed FXC temporal return-flow compilation. Effect copy retained.",
+        "beta1FeedbackAudit": "2026-10-28: corrected UI layout and resource-cache ownership, persisted profiler preferences, normalized optical-flow dependencies, simplified NR color controls and fixed confidence-driven history attenuation.",
+        "beta2SourceAudit": "Reviewed DLSSNR parameter metadata, adaptive/manual behavior, shared capture-space optical flow and result publication ownership. Pre-estimation scaling was retired; ordinary consumer adaptation and provider-local quality scaling remain. Source review and isolated tests are separate from vendor optical-flow quality, frame-generation hardware and target-content performance acceptance.",
+        "beta2FollowupSourceAudit": "2026-10-30 follow-up: reviewed capture-space optical flow after estimator pre-scaling removal, retained consumer adaptation and AMD Performance internal half resolution, retired-key migration and performance-row order. Shared Renderer F interfaces were source-reviewed; G candidate lifecycle changes were independently source-reviewed. This evidence refresh does not claim full hardware frame-generation acceptance; existing notVerified items remain.",
+        "beta3SourceAudit": "2026-10-31: complete-residual asynchronous composition, capture-timed recovery, post-publication submission and idle retry, same-resolution Pipeline=3, component-aware adaptive policy and one prewarmed tier. Signed NR Evaluate GPU submissions are ordered by a session fence after a controlled old/new cross-queue regression. Source review, isolated device tests, actual application pacing and target-game image-quality acceptance are recorded separately.",
+        "captureAheadSourceAudit": "2026-11-01: one staged output is enabled only for DLSSNR with ordinary FrontEdge, deferred presentation and no frame generation. Shared-slot acknowledgement, publication fences and presentation accounting are retained; non-NR and FG paths keep their existing admission policy. Production-branch CPU/WARP ownership and legacy FrontendDrop/FrameSync regressions passed.",
+        "twoModeSourceAudit": "2026-11-06: public choices are Every Frame and Alternating Frames. Earlier asynchronous choices migrate to the corresponding synchronous mode through the existing version-aware load/import path. Saved models, ratios and valid update intervals are preserved. Both parameter interfaces use the same metadata; FrameSync Async pacing remains separate. Native parsing no longer selects an asynchronous processing route."
       },
       "zh-Hans": {
         "name": "DLSSNR AI Filter",
         "subcategory": "AI 画面重塑",
         "summary": "用 AI 重塑纹理与细节，保持画面尺寸。",
-        "details": "改变游戏与图像的纹理和细节风格，适合尝试不同画面质感。先用单次处理调节风格与强度，也可选择 1～3 次连续处理。SDR 下开启“调整输入分辨率”可进一步控制整体变化。需要能够初始化该实验功能的 NVIDIA 渲染 GPU 与配套运行库。 抗闪烁响应时间可在 5–200 ms 调整，默认 80 ms；较大值更稳定、响应更慢。",
-        "search": "DLSSNR\\DLSSNR_AI_Filter DLSSNR AI Filter 风格显示 AI 画面重塑 DLSSNR\\DLSSNR_AI_Filter Adjust Input Resolution Input Resolution (%) Overall Strength Chroma Strength Overall Lightness Strength Shadow / Structure Strength Highlight / Glow Strength Advanced Adjustments Optical Flow Method Optical Flow Quality Optical Flow Quality Hue Protection Shadow Protection Highlight Protection Overcorrection Suppression Low-frequency Range Strength High-frequency Range Strength Diagnostic View NR Style NR Intensity Local Tone Strength Local Structure Strength Skin Structure Strength Automatic Mask NR UI Correction Multi Pass Anti-flicker NR Style NR Intensity Local Tone Strength Local Structure Strength Skin Structure Strength Automatic Mask NR UI Correction NR Style NR Intensity Local Tone Strength Local Structure Strength Skin Structure Strength Automatic Mask NR UI Correction 用 AI 重塑纹理与细节，保持画面尺寸。 改变游戏与图像的纹理和细节风格，适合尝试不同画面质感。先用单次处理调节风格与强度，也可选择 1～3 次连续处理。SDR 下开启“调整输入分辨率”可进一步控制整体变化。需要能够初始化该实验功能的 NVIDIA 渲染 GPU 与配套运行库。 抗闪烁响应时间可在 5–200 ms 调整，默认 80 ms；较大值更稳定、响应更慢。"
+        "details": "支持自动、HT、CC Small FP8 模型和 1～3 次连续处理，调整明暗、色度与细节。逐帧完整计算每个新捕获帧；隔帧按每 2／3／4 个新捕获帧更新完整 NR，默认每 2 帧，并连续复用历史增强。可调整输入分辨率、光流和抗闪烁。",
+        "search": "DLSSNR\\DLSSNR_AI_Filter DLSSNR AI Filter AI 画面重塑 Model Preset Adjust Input Resolution Overall Strength Chroma Strength Overall Lightness Strength Shadow / Structure Strength Midtone Strength Highlight / Glow Strength Residual Performance Low-frequency Range Strength High-frequency Range Strength Hue Protection Chroma Protection Shadow Protection Highlight Protection Overcorrection Suppression Diagnostic View Resolution Control Input Resolution (%) Processing Mode NR Update Interval Residual Reuse Optical Flow Method Optical Flow Quality Optical Flow Quality NR Style NR Intensity Local Tone Strength Local Structure Strength Skin Structure Strength Auto mask UI fix Multi Pass Anti-flicker Anti-flicker Response Time (ms) NR Style NR Intensity Local Tone Strength Local Structure Strength Skin Structure Strength Auto mask UI fix NR Style NR Intensity Local Tone Strength Local Structure Strength Skin Structure Strength Auto mask UI fix 逐帧 隔帧 NR 更新间隔 每 2 帧 每 3 帧 每 4 帧 用 AI 重塑纹理与细节，保持画面尺寸。 支持自动、HT、CC Small FP8 模型和 1～3 次连续处理，调整明暗、色度与细节。逐帧完整计算每个新捕获帧；隔帧按每 2／3／4 个新捕获帧更新完整 NR，默认每 2 帧，并连续复用历史增强。可调整输入分辨率、光流和抗闪烁。"
       },
       "en-US": {
         "name": "DLSSNR AI Filter",
         "subcategory": "AI image enhancement",
         "summary": "Reshapes textures and detail with AI at the original image size.",
-        "details": "Changes texture and detail style in games and images for exploring different looks. Start with one pass and adjust style and intensity, or select 1–3 consecutive passes. In SDR, Adjust Input Resolution enables further control over the overall change. Requires an NVIDIA rendering GPU and matching runtime that can initialize this experimental feature. Anti-flicker Response Time ranges from 5 to 200 ms, defaulting to 80 ms. Higher values retain history longer and respond more slowly.",
-        "search": "DLSSNR\\DLSSNR_AI_Filter DLSSNR AI Filter Display styles AI image enhancement DLSSNR\\DLSSNR_AI_Filter Adjust Input Resolution Input Resolution (%) Overall Strength Chroma Strength Overall Lightness Strength Shadow / Structure Strength Highlight / Glow Strength Advanced Adjustments Optical Flow Method Optical Flow Quality Optical Flow Quality Hue Protection Shadow Protection Highlight Protection Overcorrection Suppression Low-frequency Range Strength High-frequency Range Strength Diagnostic View NR Style NR Intensity Local Tone Strength Local Structure Strength Skin Structure Strength Automatic Mask NR UI Correction Multi Pass Anti-flicker NR Style NR Intensity Local Tone Strength Local Structure Strength Skin Structure Strength Automatic Mask NR UI Correction NR Style NR Intensity Local Tone Strength Local Structure Strength Skin Structure Strength Automatic Mask NR UI Correction Reshapes textures and detail with AI at the original image size. Changes texture and detail style in games and images for exploring different looks. Start with one pass and adjust style and intensity, or select 1–3 consecutive passes. In SDR, Adjust Input Resolution enables further control over the overall change. Requires an NVIDIA rendering GPU and matching runtime that can initialize this experimental feature. Anti-flicker Response Time ranges from 5 to 200 ms, defaulting to 80 ms. Higher values retain history longer and respond more slowly."
+        "details": "Choose Automatic, HT or CC Small FP8 and run 1–3 consecutive passes to adjust lightness, chroma and detail. Every Frame fully processes each new capture. Alternating Frames updates full NR every 2, 3 or 4 new captures, defaulting to 2, and continuously reuses historical enhancement. Input resolution, optical flow and anti-flicker can be adjusted.",
+        "search": "DLSSNR\\DLSSNR_AI_Filter DLSSNR AI Filter AI image enhancement Model Preset Adjust Input Resolution Overall Strength Chroma Strength Overall Lightness Strength Shadow / Structure Strength Midtone Strength Highlight / Glow Strength Residual Performance Low-frequency Range Strength High-frequency Range Strength Hue Protection Chroma Protection Shadow Protection Highlight Protection Overcorrection Suppression Diagnostic View Resolution Control Input Resolution (%) Processing Mode NR Update Interval Residual Reuse Optical Flow Method Optical Flow Quality Optical Flow Quality NR Style NR Intensity Local Tone Strength Local Structure Strength Skin Structure Strength Auto mask UI fix Multi Pass Anti-flicker Anti-flicker Response Time (ms) NR Style NR Intensity Local Tone Strength Local Structure Strength Skin Structure Strength Auto mask UI fix NR Style NR Intensity Local Tone Strength Local Structure Strength Skin Structure Strength Auto mask UI fix Every Frame Alternating Frames Every 2 Frames Every 3 Frames Every 4 Frames Reshapes textures and detail with AI at the original image size. Choose Automatic, HT or CC Small FP8 and run 1–3 consecutive passes to adjust lightness, chroma and detail. Every Frame fully processes each new capture. Alternating Frames updates full NR every 2, 3 or 4 new captures, defaulting to 2, and continuously reuses historical enhancement. Input resolution, optical flow and anti-flicker can be adjusted."
       }
     },
     {
@@ -6286,10 +6465,14 @@
         "copyScope": "User-focused bilingual purpose, content and starting steps; shared guidance moved to categories, parameter help and usage docs. Source review only; no build, deployment, UI or GPU acceptance.",
         "runtimeEvidenceSha256": {
           "src/Magpie.Core/HdrEffectBoundary.cpp": "75f166cd9c3c9cddf931b499f445f76c353d51000d1df36894f819a01809a8eb",
-          "src/Magpie.Core/Renderer.cpp": "7646c607945544aeff62515a4933aebe0661476da903d2ca84e4e60a206baab1",
+          "src/Magpie.Core/Renderer.cpp": "be9ba85dd223c7806299c1be0bf00c1900bfb7b2da6d200ef1c6430a1f9c8556",
           "src/Magpie.Core/include/FramePacingOptions.h": "a2706ceaa17b802bfe5e31f489c8af288b5dd9af5765ec9e5b608e9e01764808"
         },
-        "evidenceBaseline": "cbe2c2cb + UWP fullscreen, HDR overlay, DLSSNR guidance and effect-description integration; copy contracts rechecked"
+        "evidenceBaseline": "cbe2c2cb + UWP fullscreen, HDR overlay, DLSSNR guidance and effect-description integration; copy contracts rechecked",
+        "oklabIntegrationAudit": "2026-10-28: reviewed new-effect-only routing/editor integration; existing effect behavior and copy retained.",
+        "beta1IntegrationAudit": "2026-10-28: combined DLSSNR and OKLab parameter surfaces, retained both configuration paths and integrated presenter redraw recovery; fixed FXC temporal return-flow compilation. Effect copy retained.",
+        "beta2FollowupSourceAudit": "2026-10-30: reviewed shared Renderer update reasons, capture/quality pacing separation and publication hooks; ordinary effect Draw contracts remain, and default native maintenance hooks do no work. This refresh records source evidence only, not full hardware frame-generation acceptance; existing notVerified items remain.",
+        "captureAheadSourceAudit": "2026-11-01: one staged output is enabled only for DLSSNR with ordinary FrontEdge, deferred presentation and no frame generation. Shared-slot acknowledgement, publication fences and presentation accounting are retained; non-NR and FG paths keep their existing admission policy. Production-branch CPU/WARP ownership and legacy FrontendDrop/FrameSync regressions passed."
       },
       "zh-Hans": {
         "name": "Frame Rate Filter",
@@ -6516,7 +6699,7 @@
         "copyScope": "User-focused bilingual purpose, content and starting steps; shared guidance moved to categories, parameter help and usage docs. Source review only; no build, deployment, UI or GPU acceptance.",
         "runtimeEvidenceSha256": {
           "src/Magpie.Core/HdrEffectBoundary.cpp": "75f166cd9c3c9cddf931b499f445f76c353d51000d1df36894f819a01809a8eb",
-          "src/Magpie.Core/NativeEffectBackendFactory.cpp": "9e36abc63a3dac84357d2e020f25342257d83b51669b97e9053d73f15adfebc4",
+          "src/Magpie.Core/NativeEffectBackendFactory.cpp": "e813a160c51fbd731b492a10fcadb2915db40187a0af4c2dd3e869908adca1e7",
           "src/Magpie.Core/GroupBHdrRoutes.cpp": "970281df968a0f92276e60c09afd76e0171bb87d57db8fe2bdecc58d595656b3",
           "src/Magpie.Core/FSR2Upscaler.cpp": "6ae1fe1eee6458da98dc6b1f332269dbc07801a13f3cb126053da10d32f44e01"
         },
@@ -6618,7 +6801,7 @@
         "copyScope": "User-focused bilingual purpose, content and starting steps; shared guidance moved to categories, parameter help and usage docs. Source review only; no build, deployment, UI or GPU acceptance.",
         "runtimeEvidenceSha256": {
           "src/Magpie.Core/HdrEffectBoundary.cpp": "75f166cd9c3c9cddf931b499f445f76c353d51000d1df36894f819a01809a8eb",
-          "src/Magpie.Core/NativeEffectBackendFactory.cpp": "9e36abc63a3dac84357d2e020f25342257d83b51669b97e9053d73f15adfebc4",
+          "src/Magpie.Core/NativeEffectBackendFactory.cpp": "e813a160c51fbd731b492a10fcadb2915db40187a0af4c2dd3e869908adca1e7",
           "src/Magpie.Core/GroupBHdrRoutes.cpp": "970281df968a0f92276e60c09afd76e0171bb87d57db8fe2bdecc58d595656b3",
           "src/Magpie.Core/FSR3Upscaler.cpp": "94f6e2aaa7919a21bd82596c217c58c3e023fe93808183b7205f7561fc7edd63"
         },
@@ -6720,7 +6903,7 @@
         "copyScope": "User-focused bilingual purpose, content and starting steps; shared guidance moved to categories, parameter help and usage docs. Source review only; no build, deployment, UI or GPU acceptance.",
         "runtimeEvidenceSha256": {
           "src/Magpie.Core/HdrEffectBoundary.cpp": "75f166cd9c3c9cddf931b499f445f76c353d51000d1df36894f819a01809a8eb",
-          "src/Magpie.Core/NativeEffectBackendFactory.cpp": "9e36abc63a3dac84357d2e020f25342257d83b51669b97e9053d73f15adfebc4",
+          "src/Magpie.Core/NativeEffectBackendFactory.cpp": "e813a160c51fbd731b492a10fcadb2915db40187a0af4c2dd3e869908adca1e7",
           "src/Magpie.Core/GroupBHdrRoutes.cpp": "970281df968a0f92276e60c09afd76e0171bb87d57db8fe2bdecc58d595656b3",
           "src/Magpie.Core/FSR3Upscaler.cpp": "94f6e2aaa7919a21bd82596c217c58c3e023fe93808183b7205f7561fc7edd63"
         },
@@ -11169,9 +11352,13 @@
         "runtimeEvidenceSha256": {
           "src/Magpie.Core/HdrEffectBoundary.cpp": "75f166cd9c3c9cddf931b499f445f76c353d51000d1df36894f819a01809a8eb",
           "src/Magpie.Core/EffectProtocolCatalogC.h": "a2b63ba974d319fd9212377dd1978d2ca9dc19e1f17f666d457b85fb68de171c",
-          "src/Magpie.Core/Renderer.cpp": "7646c607945544aeff62515a4933aebe0661476da903d2ca84e4e60a206baab1",
+          "src/Magpie.Core/Renderer.cpp": "be9ba85dd223c7806299c1be0bf00c1900bfb7b2da6d200ef1c6430a1f9c8556",
           "src/Effects/xBR/xBR_LV2_Common.hlsli": "af2cde9c6c91d04383bb39f0984f251a4d943aa027531abf376aa491d078b174"
-        }
+        },
+        "oklabIntegrationAudit": "2026-10-28: reviewed new-effect-only routing/editor integration; existing effect behavior and copy retained.",
+        "beta1IntegrationAudit": "2026-10-28: combined DLSSNR and OKLab parameter surfaces, retained both configuration paths and integrated presenter redraw recovery; fixed FXC temporal return-flow compilation. Effect copy retained.",
+        "beta2FollowupSourceAudit": "2026-10-30: reviewed shared Renderer update reasons, capture/quality pacing separation and publication hooks; ordinary effect Draw contracts remain, and default native maintenance hooks do no work. This refresh records source evidence only, not full hardware frame-generation acceptance; existing notVerified items remain.",
+        "captureAheadSourceAudit": "2026-11-01: one staged output is enabled only for DLSSNR with ordinary FrontEdge, deferred presentation and no frame generation. Shared-slot acknowledgement, publication fences and presentation accounting are retained; non-NR and FG paths keep their existing admission policy. Production-branch CPU/WARP ownership and legacy FrontendDrop/FrameSync regressions passed."
       },
       "zh-Hans": {
         "name": "xBR 2x",
@@ -11276,9 +11463,13 @@
         "runtimeEvidenceSha256": {
           "src/Magpie.Core/HdrEffectBoundary.cpp": "75f166cd9c3c9cddf931b499f445f76c353d51000d1df36894f819a01809a8eb",
           "src/Magpie.Core/EffectProtocolCatalogC.h": "a2b63ba974d319fd9212377dd1978d2ca9dc19e1f17f666d457b85fb68de171c",
-          "src/Magpie.Core/Renderer.cpp": "7646c607945544aeff62515a4933aebe0661476da903d2ca84e4e60a206baab1",
+          "src/Magpie.Core/Renderer.cpp": "be9ba85dd223c7806299c1be0bf00c1900bfb7b2da6d200ef1c6430a1f9c8556",
           "src/Effects/xBR/xBR_LV2_Common.hlsli": "af2cde9c6c91d04383bb39f0984f251a4d943aa027531abf376aa491d078b174"
-        }
+        },
+        "oklabIntegrationAudit": "2026-10-28: reviewed new-effect-only routing/editor integration; existing effect behavior and copy retained.",
+        "beta1IntegrationAudit": "2026-10-28: combined DLSSNR and OKLab parameter surfaces, retained both configuration paths and integrated presenter redraw recovery; fixed FXC temporal return-flow compilation. Effect copy retained.",
+        "beta2FollowupSourceAudit": "2026-10-30: reviewed shared Renderer update reasons, capture/quality pacing separation and publication hooks; ordinary effect Draw contracts remain, and default native maintenance hooks do no work. This refresh records source evidence only, not full hardware frame-generation acceptance; existing notVerified items remain.",
+        "captureAheadSourceAudit": "2026-11-01: one staged output is enabled only for DLSSNR with ordinary FrontEdge, deferred presentation and no frame generation. Shared-slot acknowledgement, publication fences and presentation accounting are retained; non-NR and FG paths keep their existing admission policy. Production-branch CPU/WARP ownership and legacy FrontendDrop/FrameSync regressions passed."
       },
       "zh-Hans": {
         "name": "xBR 3x",
@@ -11383,9 +11574,13 @@
         "runtimeEvidenceSha256": {
           "src/Magpie.Core/HdrEffectBoundary.cpp": "75f166cd9c3c9cddf931b499f445f76c353d51000d1df36894f819a01809a8eb",
           "src/Magpie.Core/EffectProtocolCatalogC.h": "a2b63ba974d319fd9212377dd1978d2ca9dc19e1f17f666d457b85fb68de171c",
-          "src/Magpie.Core/Renderer.cpp": "7646c607945544aeff62515a4933aebe0661476da903d2ca84e4e60a206baab1",
+          "src/Magpie.Core/Renderer.cpp": "be9ba85dd223c7806299c1be0bf00c1900bfb7b2da6d200ef1c6430a1f9c8556",
           "src/Effects/xBR/xBR_LV2_Common.hlsli": "af2cde9c6c91d04383bb39f0984f251a4d943aa027531abf376aa491d078b174"
-        }
+        },
+        "oklabIntegrationAudit": "2026-10-28: reviewed new-effect-only routing/editor integration; existing effect behavior and copy retained.",
+        "beta1IntegrationAudit": "2026-10-28: combined DLSSNR and OKLab parameter surfaces, retained both configuration paths and integrated presenter redraw recovery; fixed FXC temporal return-flow compilation. Effect copy retained.",
+        "beta2FollowupSourceAudit": "2026-10-30: reviewed shared Renderer update reasons, capture/quality pacing separation and publication hooks; ordinary effect Draw contracts remain, and default native maintenance hooks do no work. This refresh records source evidence only, not full hardware frame-generation acceptance; existing notVerified items remain.",
+        "captureAheadSourceAudit": "2026-11-01: one staged output is enabled only for DLSSNR with ordinary FrontEdge, deferred presentation and no frame generation. Shared-slot acknowledgement, publication fences and presentation accounting are retained; non-NR and FG paths keep their existing admission policy. Production-branch CPU/WARP ownership and legacy FrontendDrop/FrameSync regressions passed."
       },
       "zh-Hans": {
         "name": "xBR 4x",
@@ -11457,8 +11652,12 @@
         "runtimeEvidenceSha256": {
           "src/Magpie.Core/HdrEffectBoundary.cpp": "75f166cd9c3c9cddf931b499f445f76c353d51000d1df36894f819a01809a8eb",
           "src/Magpie.Core/EffectProtocolCatalogC.h": "a2b63ba974d319fd9212377dd1978d2ca9dc19e1f17f666d457b85fb68de171c",
-          "src/Magpie.Core/Renderer.cpp": "7646c607945544aeff62515a4933aebe0661476da903d2ca84e4e60a206baab1"
-        }
+          "src/Magpie.Core/Renderer.cpp": "be9ba85dd223c7806299c1be0bf00c1900bfb7b2da6d200ef1c6430a1f9c8556"
+        },
+        "oklabIntegrationAudit": "2026-10-28: reviewed new-effect-only routing/editor integration; existing effect behavior and copy retained.",
+        "beta1IntegrationAudit": "2026-10-28: combined DLSSNR and OKLab parameter surfaces, retained both configuration paths and integrated presenter redraw recovery; fixed FXC temporal return-flow compilation. Effect copy retained.",
+        "beta2FollowupSourceAudit": "2026-10-30: reviewed shared Renderer update reasons, capture/quality pacing separation and publication hooks; ordinary effect Draw contracts remain, and default native maintenance hooks do no work. This refresh records source evidence only, not full hardware frame-generation acceptance; existing notVerified items remain.",
+        "captureAheadSourceAudit": "2026-11-01: one staged output is enabled only for DLSSNR with ordinary FrontEdge, deferred presentation and no frame generation. Shared-slot acknowledgement, publication fences and presentation accounting are retained; non-NR and FG paths keep their existing admission policy. Production-branch CPU/WARP ownership and legacy FrontendDrop/FrameSync regressions passed."
       },
       "zh-Hans": {
         "name": "xBR NoBlend 3x",
@@ -11520,8 +11719,12 @@
         "runtimeEvidenceSha256": {
           "src/Magpie.Core/HdrEffectBoundary.cpp": "75f166cd9c3c9cddf931b499f445f76c353d51000d1df36894f819a01809a8eb",
           "src/Magpie.Core/EffectProtocolCatalogC.h": "a2b63ba974d319fd9212377dd1978d2ca9dc19e1f17f666d457b85fb68de171c",
-          "src/Magpie.Core/Renderer.cpp": "7646c607945544aeff62515a4933aebe0661476da903d2ca84e4e60a206baab1"
-        }
+          "src/Magpie.Core/Renderer.cpp": "be9ba85dd223c7806299c1be0bf00c1900bfb7b2da6d200ef1c6430a1f9c8556"
+        },
+        "oklabIntegrationAudit": "2026-10-28: reviewed new-effect-only routing/editor integration; existing effect behavior and copy retained.",
+        "beta1IntegrationAudit": "2026-10-28: combined DLSSNR and OKLab parameter surfaces, retained both configuration paths and integrated presenter redraw recovery; fixed FXC temporal return-flow compilation. Effect copy retained.",
+        "beta2FollowupSourceAudit": "2026-10-30: reviewed shared Renderer update reasons, capture/quality pacing separation and publication hooks; ordinary effect Draw contracts remain, and default native maintenance hooks do no work. This refresh records source evidence only, not full hardware frame-generation acceptance; existing notVerified items remain.",
+        "captureAheadSourceAudit": "2026-11-01: one staged output is enabled only for DLSSNR with ordinary FrontEdge, deferred presentation and no frame generation. Shared-slot acknowledgement, publication fences and presentation accounting are retained; non-NR and FG paths keep their existing admission policy. Production-branch CPU/WARP ownership and legacy FrontendDrop/FrameSync regressions passed."
       },
       "zh-Hans": {
         "name": "xBR Hybrid 2x",
@@ -11960,13 +12163,17 @@
         "copyScope": "User-focused bilingual purpose, content and starting steps; shared guidance moved to categories, parameter help and usage docs. Source review only; no build, deployment, UI or GPU acceptance.",
         "runtimeEvidenceSha256": {
           "src/Magpie.Core/HdrEffectBoundary.cpp": "75f166cd9c3c9cddf931b499f445f76c353d51000d1df36894f819a01809a8eb",
-          "src/Magpie.Core/NativeEffectBackendFactory.cpp": "9e36abc63a3dac84357d2e020f25342257d83b51669b97e9053d73f15adfebc4",
+          "src/Magpie.Core/NativeEffectBackendFactory.cpp": "e813a160c51fbd731b492a10fcadb2915db40187a0af4c2dd3e869908adca1e7",
           "src/Magpie.Core/GroupBHdrRoutes.cpp": "970281df968a0f92276e60c09afd76e0171bb87d57db8fe2bdecc58d595656b3",
           "src/Magpie.Core/XeSSUpscaler.cpp": "3b3d0535cad1b2f6f644ad08bf1045202a341b0a6804e3452c9fc15ccaf6ed6d",
           "src/Magpie.Core/EffectProtocolCatalogC.h": "a2b63ba974d319fd9212377dd1978d2ca9dc19e1f17f666d457b85fb68de171c",
-          "src/Magpie.Core/Renderer.cpp": "7646c607945544aeff62515a4933aebe0661476da903d2ca84e4e60a206baab1"
+          "src/Magpie.Core/Renderer.cpp": "be9ba85dd223c7806299c1be0bf00c1900bfb7b2da6d200ef1c6430a1f9c8556"
         },
-        "evidenceBaseline": "cbe2c2cb + UWP fullscreen, HDR overlay, DLSSNR guidance and effect-description integration; copy contracts rechecked"
+        "evidenceBaseline": "cbe2c2cb + UWP fullscreen, HDR overlay, DLSSNR guidance and effect-description integration; copy contracts rechecked",
+        "oklabIntegrationAudit": "2026-10-28: reviewed new-effect-only routing/editor integration; existing effect behavior and copy retained.",
+        "beta1IntegrationAudit": "2026-10-28: combined DLSSNR and OKLab parameter surfaces, retained both configuration paths and integrated presenter redraw recovery; fixed FXC temporal return-flow compilation. Effect copy retained.",
+        "beta2FollowupSourceAudit": "2026-10-30: reviewed shared Renderer update reasons, capture/quality pacing separation and publication hooks; ordinary effect Draw contracts remain, and default native maintenance hooks do no work. This refresh records source evidence only, not full hardware frame-generation acceptance; existing notVerified items remain.",
+        "captureAheadSourceAudit": "2026-11-01: one staged output is enabled only for DLSSNR with ordinary FrontEdge, deferred presentation and no frame generation. Shared-slot acknowledgement, publication fences and presentation accounting are retained; non-NR and FG paths keep their existing admission policy. Production-branch CPU/WARP ownership and legacy FrontendDrop/FrameSync regressions passed."
       },
       "zh-Hans": {
         "name": "XeSS SR",
@@ -12078,12 +12285,16 @@
         "copyScope": "User-focused bilingual purpose, content and starting steps; shared guidance moved to categories, parameter help and usage docs. Source review only; no build, deployment, UI or GPU acceptance.",
         "runtimeEvidenceSha256": {
           "src/Magpie.Core/HdrEffectBoundary.cpp": "75f166cd9c3c9cddf931b499f445f76c353d51000d1df36894f819a01809a8eb",
-          "src/Magpie.Core/Renderer.cpp": "7646c607945544aeff62515a4933aebe0661476da903d2ca84e4e60a206baab1",
+          "src/Magpie.Core/Renderer.cpp": "be9ba85dd223c7806299c1be0bf00c1900bfb7b2da6d200ef1c6430a1f9c8556",
           "src/Magpie.Core/include/FramePacingOptions.h": "a2706ceaa17b802bfe5e31f489c8af288b5dd9af5765ec9e5b608e9e01764808",
           "src/Magpie.Core/XeSSFGPresenter.cpp": "164f977eec870018a8ef7a72562eb9f05b1b5cb0a8750255ec63fc9e951e02cb",
           "src/Magpie.Core/XeSSFGCompatibility.h": "1a3d783c4049fc612e858cff7bd35ee2573617c079a43bd9f48cefe3257a22ee"
         },
-        "evidenceBaseline": "cbe2c2cb + UWP fullscreen, HDR overlay, DLSSNR guidance and effect-description integration; copy contracts rechecked"
+        "evidenceBaseline": "cbe2c2cb + UWP fullscreen, HDR overlay, DLSSNR guidance and effect-description integration; copy contracts rechecked",
+        "oklabIntegrationAudit": "2026-10-28: reviewed new-effect-only routing/editor integration; existing effect behavior and copy retained.",
+        "beta1IntegrationAudit": "2026-10-28: combined DLSSNR and OKLab parameter surfaces, retained both configuration paths and integrated presenter redraw recovery; fixed FXC temporal return-flow compilation. Effect copy retained.",
+        "beta2FollowupSourceAudit": "2026-10-30: reviewed shared Renderer update reasons, capture/quality pacing separation and publication hooks; ordinary effect Draw contracts remain, and default native maintenance hooks do no work. This refresh records source evidence only, not full hardware frame-generation acceptance; existing notVerified items remain.",
+        "captureAheadSourceAudit": "2026-11-01: one staged output is enabled only for DLSSNR with ordinary FrontEdge, deferred presentation and no frame generation. Shared-slot acknowledgement, publication fences and presentation accounting are retained; non-NR and FG paths keep their existing admission policy. Production-branch CPU/WARP ownership and legacy FrontendDrop/FrameSync regressions passed."
       },
       "zh-Hans": {
         "name": "XeSS FrameGeneration",
@@ -12164,13 +12375,17 @@
         "copyScope": "User-focused bilingual purpose, content and starting steps; shared guidance moved to categories, parameter help and usage docs. Source review only; no build, deployment, UI or GPU acceptance.",
         "runtimeEvidenceSha256": {
           "src/Magpie.Core/HdrEffectBoundary.cpp": "75f166cd9c3c9cddf931b499f445f76c353d51000d1df36894f819a01809a8eb",
-          "src/Magpie.Core/NativeEffectBackendFactory.cpp": "9e36abc63a3dac84357d2e020f25342257d83b51669b97e9053d73f15adfebc4",
+          "src/Magpie.Core/NativeEffectBackendFactory.cpp": "e813a160c51fbd731b492a10fcadb2915db40187a0af4c2dd3e869908adca1e7",
           "src/Magpie.Core/GroupBHdrRoutes.cpp": "970281df968a0f92276e60c09afd76e0171bb87d57db8fe2bdecc58d595656b3",
           "src/Magpie.Core/RTXVideoDenoiser.cpp": "16a1677dae90e2c736b8e7ddc8f8ebb6169f7b1851db88553e68355f2969f583",
           "src/Magpie.Core/EffectProtocolCatalogC.h": "a2b63ba974d319fd9212377dd1978d2ca9dc19e1f17f666d457b85fb68de171c",
-          "src/Magpie.Core/Renderer.cpp": "7646c607945544aeff62515a4933aebe0661476da903d2ca84e4e60a206baab1"
+          "src/Magpie.Core/Renderer.cpp": "be9ba85dd223c7806299c1be0bf00c1900bfb7b2da6d200ef1c6430a1f9c8556"
         },
-        "evidenceBaseline": "cbe2c2cb + UWP fullscreen, HDR overlay, DLSSNR guidance and effect-description integration; copy contracts rechecked"
+        "evidenceBaseline": "cbe2c2cb + UWP fullscreen, HDR overlay, DLSSNR guidance and effect-description integration; copy contracts rechecked",
+        "oklabIntegrationAudit": "2026-10-28: reviewed new-effect-only routing/editor integration; existing effect behavior and copy retained.",
+        "beta1IntegrationAudit": "2026-10-28: combined DLSSNR and OKLab parameter surfaces, retained both configuration paths and integrated presenter redraw recovery; fixed FXC temporal return-flow compilation. Effect copy retained.",
+        "beta2FollowupSourceAudit": "2026-10-30: reviewed shared Renderer update reasons, capture/quality pacing separation and publication hooks; ordinary effect Draw contracts remain, and default native maintenance hooks do no work. This refresh records source evidence only, not full hardware frame-generation acceptance; existing notVerified items remain.",
+        "captureAheadSourceAudit": "2026-11-01: one staged output is enabled only for DLSSNR with ordinary FrontEdge, deferred presentation and no frame generation. Shared-slot acknowledgement, publication fences and presentation accounting are retained; non-NR and FG paths keep their existing admission policy. Production-branch CPU/WARP ownership and legacy FrontendDrop/FrameSync regressions passed."
       },
       "zh-Hans": {
         "name": "RTXVideo_Denoise",
@@ -12576,6 +12791,3359 @@
         "details": "Keeps the input size, after the SDR effects section; convert HDR input through HDR → SDR first. AI reshapes brightness and color rather than restoring the original HDR.\n\nRequires a supported NVIDIA RTX GPU, driver, and bundled RTX Video HDR runtime, with Windows HDR enabled on the output display. Set peak brightness for the display, then compare contrast, saturation, and middle gray. All four parameters update live; cost depends on resolution and GPU.",
         "search": "RTXVideo\\RTXVideo_HDR RTX Video HDR HDR components  Expand SDR into HDR using NVIDIA AI. Keeps the input size, after the SDR effects section; convert HDR input through HDR → SDR first. AI reshapes brightness and color rather than restoring the original HDR.  Requires a supported NVIDIA RTX GPU, driver, and bundled RTX Video HDR runtime, with Windows HDR enabled on the output display. Set peak brightness for the display, then compare contrast, saturation, and middle gray. All four parameters update live; cost depends on resolution and GPU. RTXVideo\\RTXVideo_HDR Contrast Saturation Middle gray Peak brightness (nits)"
       }
+    },
+    {
+      "id": "OKLabImageAdjustment",
+      "category": "style",
+      "purposes": [
+        "style"
+      ],
+      "family": null,
+      "subfamily": null,
+      "level": "situational",
+      "source": {
+        "path": "src/Effects/OKLabImageAdjustment.hlsl",
+        "sha256": "a6bbe273727b00f5cb2063b277f72d9383c1b78a3e92ed15f6515d5011e5ef61",
+        "output": {
+          "WIDTH": "INPUT_WIDTH",
+          "HEIGHT": "INPUT_HEIGHT"
+        },
+        "passCount": 3,
+        "parameters": [
+          {
+            "name": "amount",
+            "type": "float",
+            "group": "Basic",
+            "label": "Effect strength",
+            "default": "1",
+            "min": "0",
+            "max": "1",
+            "step": "0.01",
+            "options": []
+          },
+          {
+            "name": "exposure",
+            "type": "float",
+            "group": "Basic",
+            "label": "Exposure (EV)",
+            "default": "0",
+            "min": "-4",
+            "max": "4",
+            "step": "0.01",
+            "options": []
+          },
+          {
+            "name": "lightness",
+            "type": "float",
+            "group": "Basic",
+            "label": "Perceived lightness",
+            "default": "0",
+            "min": "-0.25",
+            "max": "0.25",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "contrast",
+            "type": "float",
+            "group": "Basic",
+            "label": "Contrast",
+            "default": "1",
+            "min": "0",
+            "max": "2",
+            "step": "0.01",
+            "options": []
+          },
+          {
+            "name": "gamma",
+            "type": "float",
+            "group": "Basic",
+            "label": "Midtone gamma",
+            "default": "1",
+            "min": "0.25",
+            "max": "4",
+            "step": "0.01",
+            "options": []
+          },
+          {
+            "name": "shadows",
+            "type": "float",
+            "group": "Basic",
+            "label": "Shadows",
+            "default": "0",
+            "min": "-1",
+            "max": "1",
+            "step": "0.01",
+            "options": []
+          },
+          {
+            "name": "highlights",
+            "type": "float",
+            "group": "Basic",
+            "label": "Highlights",
+            "default": "0",
+            "min": "-1",
+            "max": "1",
+            "step": "0.01",
+            "options": []
+          },
+          {
+            "name": "chroma",
+            "type": "float",
+            "group": "Basic",
+            "label": "Chroma",
+            "default": "1",
+            "min": "0",
+            "max": "2.5",
+            "step": "0.01",
+            "options": []
+          },
+          {
+            "name": "vibrance",
+            "type": "float",
+            "group": "Basic",
+            "label": "Vibrance",
+            "default": "0",
+            "min": "-1",
+            "max": "1",
+            "step": "0.01",
+            "options": []
+          },
+          {
+            "name": "warmth",
+            "type": "float",
+            "group": "Basic",
+            "label": "Warm / cool",
+            "default": "0",
+            "min": "-1",
+            "max": "1",
+            "step": "0.01",
+            "options": []
+          },
+          {
+            "name": "tint",
+            "type": "float",
+            "group": "Basic",
+            "label": "Green / magenta",
+            "default": "0",
+            "min": "-1",
+            "max": "1",
+            "step": "0.01",
+            "options": []
+          },
+          {
+            "name": "pivot",
+            "type": "float",
+            "group": "Tone",
+            "label": "Contrast pivot",
+            "default": "0.5",
+            "min": "0.1",
+            "max": "0.9",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "blackIn",
+            "type": "float",
+            "group": "Tone",
+            "label": "Input black",
+            "default": "0",
+            "min": "0",
+            "max": "0.25",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "whiteIn",
+            "type": "float",
+            "group": "Tone",
+            "label": "Input white",
+            "default": "1",
+            "min": "0.75",
+            "max": "1",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "blackOut",
+            "type": "float",
+            "group": "Tone",
+            "label": "Output black",
+            "default": "0",
+            "min": "0",
+            "max": "0.25",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "whiteOut",
+            "type": "float",
+            "group": "Tone",
+            "label": "Output white",
+            "default": "1",
+            "min": "0.75",
+            "max": "1",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "midtones",
+            "type": "float",
+            "group": "Tone",
+            "label": "Midtones",
+            "default": "0",
+            "min": "-1",
+            "max": "1",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "balance",
+            "type": "float",
+            "group": "Tone",
+            "label": "Zone balance",
+            "default": "0",
+            "min": "-1",
+            "max": "1",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "zoneWidth",
+            "type": "float",
+            "group": "Tone",
+            "label": "Zone transition",
+            "default": "0.15",
+            "min": "0.05",
+            "max": "0.3",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "toe",
+            "type": "float",
+            "group": "Tone",
+            "label": "Shadow softness",
+            "default": "0",
+            "min": "0",
+            "max": "1",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "shoulder",
+            "type": "float",
+            "group": "Tone",
+            "label": "Highlight softness",
+            "default": "0",
+            "min": "0",
+            "max": "1",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "darkProtect",
+            "type": "float",
+            "group": "Tone",
+            "label": "Shadow protection",
+            "default": "0",
+            "min": "0",
+            "max": "1",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "lightProtect",
+            "type": "float",
+            "group": "Tone",
+            "label": "Highlight protection",
+            "default": "0",
+            "min": "0",
+            "max": "1",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "tone25",
+            "type": "float",
+            "group": "Tone",
+            "label": "Curve at 25%",
+            "default": "0.25",
+            "min": "0",
+            "max": "1",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "tone50",
+            "type": "float",
+            "group": "Tone",
+            "label": "Curve at 50%",
+            "default": "0.5",
+            "min": "0",
+            "max": "1",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "tone75",
+            "type": "float",
+            "group": "Tone",
+            "label": "Curve at 75%",
+            "default": "0.75",
+            "min": "0",
+            "max": "1",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "hue",
+            "type": "float",
+            "group": "Color",
+            "label": "Hue rotation (degrees)",
+            "default": "0",
+            "min": "-180",
+            "max": "180",
+            "step": "0.1",
+            "options": []
+          },
+          {
+            "name": "chromaLow",
+            "type": "float",
+            "group": "Color",
+            "label": "Low chroma",
+            "default": "1",
+            "min": "0",
+            "max": "2",
+            "step": "0.01",
+            "options": []
+          },
+          {
+            "name": "chromaMid",
+            "type": "float",
+            "group": "Color",
+            "label": "Medium chroma",
+            "default": "1",
+            "min": "0",
+            "max": "2",
+            "step": "0.01",
+            "options": []
+          },
+          {
+            "name": "chromaHigh",
+            "type": "float",
+            "group": "Color",
+            "label": "High chroma",
+            "default": "1",
+            "min": "0",
+            "max": "2",
+            "step": "0.01",
+            "options": []
+          },
+          {
+            "name": "shadowChroma",
+            "type": "float",
+            "group": "Color",
+            "label": "Shadow chroma",
+            "default": "1",
+            "min": "0",
+            "max": "2",
+            "step": "0.01",
+            "options": []
+          },
+          {
+            "name": "midChroma",
+            "type": "float",
+            "group": "Color",
+            "label": "Midtone chroma",
+            "default": "1",
+            "min": "0",
+            "max": "2",
+            "step": "0.01",
+            "options": []
+          },
+          {
+            "name": "highlightChroma",
+            "type": "float",
+            "group": "Color",
+            "label": "Highlight chroma",
+            "default": "1",
+            "min": "0",
+            "max": "2",
+            "step": "0.01",
+            "options": []
+          },
+          {
+            "name": "neutralProtect",
+            "type": "float",
+            "group": "Color",
+            "label": "Neutral protection",
+            "default": "0",
+            "min": "0",
+            "max": "1",
+            "step": "0.01",
+            "options": []
+          },
+          {
+            "name": "skinProtect",
+            "type": "float",
+            "group": "Color",
+            "label": "Skin color range protection",
+            "default": "0",
+            "min": "0",
+            "max": "1",
+            "step": "0.01",
+            "options": []
+          },
+          {
+            "name": "skinHue",
+            "type": "float",
+            "group": "Color",
+            "label": "Protected hue",
+            "default": "50",
+            "min": "0",
+            "max": "360",
+            "step": "0.1",
+            "options": []
+          },
+          {
+            "name": "skinWidth",
+            "type": "float",
+            "group": "Color",
+            "label": "Protected hue width",
+            "default": "35",
+            "min": "5",
+            "max": "90",
+            "step": "0.1",
+            "options": []
+          },
+          {
+            "name": "skinLightLow",
+            "type": "float",
+            "group": "Color",
+            "label": "Protected minimum lightness",
+            "default": "0.25",
+            "min": "0",
+            "max": "1",
+            "step": "0.01",
+            "options": []
+          },
+          {
+            "name": "skinLightHigh",
+            "type": "float",
+            "group": "Color",
+            "label": "Protected maximum lightness",
+            "default": "0.9",
+            "min": "0",
+            "max": "1",
+            "step": "0.01",
+            "options": []
+          },
+          {
+            "name": "skinChromaLow",
+            "type": "float",
+            "group": "Color",
+            "label": "Protected minimum chroma",
+            "default": "0.015",
+            "min": "0",
+            "max": "0.4",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "skinChromaHigh",
+            "type": "float",
+            "group": "Color",
+            "label": "Protected maximum chroma",
+            "default": "0.2",
+            "min": "0",
+            "max": "0.4",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "biasA",
+            "type": "float",
+            "group": "Color",
+            "label": "Cyan / red bias",
+            "default": "0",
+            "min": "-0.05",
+            "max": "0.05",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "biasB",
+            "type": "float",
+            "group": "Color",
+            "label": "Blue / yellow bias",
+            "default": "0",
+            "min": "-0.05",
+            "max": "0.05",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "mix0Hue",
+            "type": "float",
+            "group": "Mixer",
+            "label": "Red hue",
+            "default": "0",
+            "min": "-45",
+            "max": "45",
+            "step": "0.1",
+            "options": []
+          },
+          {
+            "name": "mix0Chroma",
+            "type": "float",
+            "group": "Mixer",
+            "label": "Red chroma",
+            "default": "1",
+            "min": "0",
+            "max": "2",
+            "step": "0.01",
+            "options": []
+          },
+          {
+            "name": "mix0Light",
+            "type": "float",
+            "group": "Mixer",
+            "label": "Red lightness",
+            "default": "0",
+            "min": "-0.15",
+            "max": "0.15",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "mix1Hue",
+            "type": "float",
+            "group": "Mixer",
+            "label": "Orange hue",
+            "default": "0",
+            "min": "-45",
+            "max": "45",
+            "step": "0.1",
+            "options": []
+          },
+          {
+            "name": "mix1Chroma",
+            "type": "float",
+            "group": "Mixer",
+            "label": "Orange chroma",
+            "default": "1",
+            "min": "0",
+            "max": "2",
+            "step": "0.01",
+            "options": []
+          },
+          {
+            "name": "mix1Light",
+            "type": "float",
+            "group": "Mixer",
+            "label": "Orange lightness",
+            "default": "0",
+            "min": "-0.15",
+            "max": "0.15",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "mix2Hue",
+            "type": "float",
+            "group": "Mixer",
+            "label": "Yellow hue",
+            "default": "0",
+            "min": "-45",
+            "max": "45",
+            "step": "0.1",
+            "options": []
+          },
+          {
+            "name": "mix2Chroma",
+            "type": "float",
+            "group": "Mixer",
+            "label": "Yellow chroma",
+            "default": "1",
+            "min": "0",
+            "max": "2",
+            "step": "0.01",
+            "options": []
+          },
+          {
+            "name": "mix2Light",
+            "type": "float",
+            "group": "Mixer",
+            "label": "Yellow lightness",
+            "default": "0",
+            "min": "-0.15",
+            "max": "0.15",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "mix3Hue",
+            "type": "float",
+            "group": "Mixer",
+            "label": "Green hue",
+            "default": "0",
+            "min": "-45",
+            "max": "45",
+            "step": "0.1",
+            "options": []
+          },
+          {
+            "name": "mix3Chroma",
+            "type": "float",
+            "group": "Mixer",
+            "label": "Green chroma",
+            "default": "1",
+            "min": "0",
+            "max": "2",
+            "step": "0.01",
+            "options": []
+          },
+          {
+            "name": "mix3Light",
+            "type": "float",
+            "group": "Mixer",
+            "label": "Green lightness",
+            "default": "0",
+            "min": "-0.15",
+            "max": "0.15",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "mix4Hue",
+            "type": "float",
+            "group": "Mixer",
+            "label": "Cyan hue",
+            "default": "0",
+            "min": "-45",
+            "max": "45",
+            "step": "0.1",
+            "options": []
+          },
+          {
+            "name": "mix4Chroma",
+            "type": "float",
+            "group": "Mixer",
+            "label": "Cyan chroma",
+            "default": "1",
+            "min": "0",
+            "max": "2",
+            "step": "0.01",
+            "options": []
+          },
+          {
+            "name": "mix4Light",
+            "type": "float",
+            "group": "Mixer",
+            "label": "Cyan lightness",
+            "default": "0",
+            "min": "-0.15",
+            "max": "0.15",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "mix5Hue",
+            "type": "float",
+            "group": "Mixer",
+            "label": "Blue hue",
+            "default": "0",
+            "min": "-45",
+            "max": "45",
+            "step": "0.1",
+            "options": []
+          },
+          {
+            "name": "mix5Chroma",
+            "type": "float",
+            "group": "Mixer",
+            "label": "Blue chroma",
+            "default": "1",
+            "min": "0",
+            "max": "2",
+            "step": "0.01",
+            "options": []
+          },
+          {
+            "name": "mix5Light",
+            "type": "float",
+            "group": "Mixer",
+            "label": "Blue lightness",
+            "default": "0",
+            "min": "-0.15",
+            "max": "0.15",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "mix6Hue",
+            "type": "float",
+            "group": "Mixer",
+            "label": "Purple hue",
+            "default": "0",
+            "min": "-45",
+            "max": "45",
+            "step": "0.1",
+            "options": []
+          },
+          {
+            "name": "mix6Chroma",
+            "type": "float",
+            "group": "Mixer",
+            "label": "Purple chroma",
+            "default": "1",
+            "min": "0",
+            "max": "2",
+            "step": "0.01",
+            "options": []
+          },
+          {
+            "name": "mix6Light",
+            "type": "float",
+            "group": "Mixer",
+            "label": "Purple lightness",
+            "default": "0",
+            "min": "-0.15",
+            "max": "0.15",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "mix7Hue",
+            "type": "float",
+            "group": "Mixer",
+            "label": "Magenta hue",
+            "default": "0",
+            "min": "-45",
+            "max": "45",
+            "step": "0.1",
+            "options": []
+          },
+          {
+            "name": "mix7Chroma",
+            "type": "float",
+            "group": "Mixer",
+            "label": "Magenta chroma",
+            "default": "1",
+            "min": "0",
+            "max": "2",
+            "step": "0.01",
+            "options": []
+          },
+          {
+            "name": "mix7Light",
+            "type": "float",
+            "group": "Mixer",
+            "label": "Magenta lightness",
+            "default": "0",
+            "min": "-0.15",
+            "max": "0.15",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "mixerFeather",
+            "type": "float",
+            "group": "Mixer",
+            "label": "Hue overlap",
+            "default": "0.5",
+            "min": "0",
+            "max": "1",
+            "step": "0.01",
+            "options": []
+          },
+          {
+            "name": "wheel0Hue",
+            "type": "float",
+            "group": "Wheels",
+            "label": "Shadow hue",
+            "default": "0",
+            "min": "0",
+            "max": "360",
+            "step": "0.1",
+            "options": []
+          },
+          {
+            "name": "wheel0Chroma",
+            "type": "float",
+            "group": "Wheels",
+            "label": "Shadow tint amount",
+            "default": "0",
+            "min": "0",
+            "max": "0.1",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "wheel0Light",
+            "type": "float",
+            "group": "Wheels",
+            "label": "Shadow lightness",
+            "default": "0",
+            "min": "-0.1",
+            "max": "0.1",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "wheel1Hue",
+            "type": "float",
+            "group": "Wheels",
+            "label": "Midtone hue",
+            "default": "0",
+            "min": "0",
+            "max": "360",
+            "step": "0.1",
+            "options": []
+          },
+          {
+            "name": "wheel1Chroma",
+            "type": "float",
+            "group": "Wheels",
+            "label": "Midtone tint amount",
+            "default": "0",
+            "min": "0",
+            "max": "0.1",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "wheel1Light",
+            "type": "float",
+            "group": "Wheels",
+            "label": "Midtone lightness",
+            "default": "0",
+            "min": "-0.1",
+            "max": "0.1",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "wheel2Hue",
+            "type": "float",
+            "group": "Wheels",
+            "label": "Highlight hue",
+            "default": "0",
+            "min": "0",
+            "max": "360",
+            "step": "0.1",
+            "options": []
+          },
+          {
+            "name": "wheel2Chroma",
+            "type": "float",
+            "group": "Wheels",
+            "label": "Highlight tint amount",
+            "default": "0",
+            "min": "0",
+            "max": "0.1",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "wheel2Light",
+            "type": "float",
+            "group": "Wheels",
+            "label": "Highlight lightness",
+            "default": "0",
+            "min": "-0.1",
+            "max": "0.1",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "sel0Enabled",
+            "type": "int",
+            "group": "Selection",
+            "label": "A: Enable",
+            "default": "0",
+            "min": "0",
+            "max": "1",
+            "step": "1",
+            "options": []
+          },
+          {
+            "name": "sel0Hue",
+            "type": "float",
+            "group": "Selection",
+            "label": "A: Hue",
+            "default": "50",
+            "min": "0",
+            "max": "360",
+            "step": "0.1",
+            "options": []
+          },
+          {
+            "name": "sel0Width",
+            "type": "float",
+            "group": "Selection",
+            "label": "A: Hue half width",
+            "default": "30",
+            "min": "1",
+            "max": "180",
+            "step": "0.1",
+            "options": []
+          },
+          {
+            "name": "sel0CLow",
+            "type": "float",
+            "group": "Selection",
+            "label": "A: Minimum chroma",
+            "default": "0",
+            "min": "0",
+            "max": "2",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "sel0CHigh",
+            "type": "float",
+            "group": "Selection",
+            "label": "A: Maximum chroma",
+            "default": "2",
+            "min": "0",
+            "max": "2",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "sel0LLow",
+            "type": "float",
+            "group": "Selection",
+            "label": "A: Minimum lightness",
+            "default": "0",
+            "min": "0",
+            "max": "5",
+            "step": "0.01",
+            "options": []
+          },
+          {
+            "name": "sel0LHigh",
+            "type": "float",
+            "group": "Selection",
+            "label": "A: Maximum lightness",
+            "default": "5",
+            "min": "0",
+            "max": "5",
+            "step": "0.01",
+            "options": []
+          },
+          {
+            "name": "sel0Feather",
+            "type": "float",
+            "group": "Selection",
+            "label": "A: Feather",
+            "default": "0.2",
+            "min": "0.01",
+            "max": "1",
+            "step": "0.01",
+            "options": []
+          },
+          {
+            "name": "sel0Invert",
+            "type": "int",
+            "group": "Selection",
+            "label": "A: Invert",
+            "default": "0",
+            "min": "0",
+            "max": "1",
+            "step": "1",
+            "options": []
+          },
+          {
+            "name": "sel0DeltaHue",
+            "type": "float",
+            "group": "Selection",
+            "label": "A: Hue shift",
+            "default": "0",
+            "min": "-180",
+            "max": "180",
+            "step": "0.1",
+            "options": []
+          },
+          {
+            "name": "sel0Chroma",
+            "type": "float",
+            "group": "Selection",
+            "label": "A: Chroma",
+            "default": "1",
+            "min": "0",
+            "max": "2",
+            "step": "0.01",
+            "options": []
+          },
+          {
+            "name": "sel0Light",
+            "type": "float",
+            "group": "Selection",
+            "label": "A: Lightness",
+            "default": "0",
+            "min": "-0.25",
+            "max": "0.25",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "sel0TargetHue",
+            "type": "float",
+            "group": "Selection",
+            "label": "A: Target hue",
+            "default": "50",
+            "min": "0",
+            "max": "360",
+            "step": "0.1",
+            "options": []
+          },
+          {
+            "name": "sel0Unify",
+            "type": "float",
+            "group": "Selection",
+            "label": "A: Hue unification",
+            "default": "0",
+            "min": "0",
+            "max": "1",
+            "step": "0.01",
+            "options": []
+          },
+          {
+            "name": "sel1Enabled",
+            "type": "int",
+            "group": "Selection",
+            "label": "B: Enable",
+            "default": "0",
+            "min": "0",
+            "max": "1",
+            "step": "1",
+            "options": []
+          },
+          {
+            "name": "sel1Hue",
+            "type": "float",
+            "group": "Selection",
+            "label": "B: Hue",
+            "default": "50",
+            "min": "0",
+            "max": "360",
+            "step": "0.1",
+            "options": []
+          },
+          {
+            "name": "sel1Width",
+            "type": "float",
+            "group": "Selection",
+            "label": "B: Hue half width",
+            "default": "30",
+            "min": "1",
+            "max": "180",
+            "step": "0.1",
+            "options": []
+          },
+          {
+            "name": "sel1CLow",
+            "type": "float",
+            "group": "Selection",
+            "label": "B: Minimum chroma",
+            "default": "0",
+            "min": "0",
+            "max": "2",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "sel1CHigh",
+            "type": "float",
+            "group": "Selection",
+            "label": "B: Maximum chroma",
+            "default": "2",
+            "min": "0",
+            "max": "2",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "sel1LLow",
+            "type": "float",
+            "group": "Selection",
+            "label": "B: Minimum lightness",
+            "default": "0",
+            "min": "0",
+            "max": "5",
+            "step": "0.01",
+            "options": []
+          },
+          {
+            "name": "sel1LHigh",
+            "type": "float",
+            "group": "Selection",
+            "label": "B: Maximum lightness",
+            "default": "5",
+            "min": "0",
+            "max": "5",
+            "step": "0.01",
+            "options": []
+          },
+          {
+            "name": "sel1Feather",
+            "type": "float",
+            "group": "Selection",
+            "label": "B: Feather",
+            "default": "0.2",
+            "min": "0.01",
+            "max": "1",
+            "step": "0.01",
+            "options": []
+          },
+          {
+            "name": "sel1Invert",
+            "type": "int",
+            "group": "Selection",
+            "label": "B: Invert",
+            "default": "0",
+            "min": "0",
+            "max": "1",
+            "step": "1",
+            "options": []
+          },
+          {
+            "name": "sel1DeltaHue",
+            "type": "float",
+            "group": "Selection",
+            "label": "B: Hue shift",
+            "default": "0",
+            "min": "-180",
+            "max": "180",
+            "step": "0.1",
+            "options": []
+          },
+          {
+            "name": "sel1Chroma",
+            "type": "float",
+            "group": "Selection",
+            "label": "B: Chroma",
+            "default": "1",
+            "min": "0",
+            "max": "2",
+            "step": "0.01",
+            "options": []
+          },
+          {
+            "name": "sel1Light",
+            "type": "float",
+            "group": "Selection",
+            "label": "B: Lightness",
+            "default": "0",
+            "min": "-0.25",
+            "max": "0.25",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "sel1TargetHue",
+            "type": "float",
+            "group": "Selection",
+            "label": "B: Target hue",
+            "default": "50",
+            "min": "0",
+            "max": "360",
+            "step": "0.1",
+            "options": []
+          },
+          {
+            "name": "sel1Unify",
+            "type": "float",
+            "group": "Selection",
+            "label": "B: Hue unification",
+            "default": "0",
+            "min": "0",
+            "max": "1",
+            "step": "0.01",
+            "options": []
+          },
+          {
+            "name": "backgroundChroma",
+            "type": "float",
+            "group": "Selection",
+            "label": "Outside selection chroma",
+            "default": "1",
+            "min": "0",
+            "max": "1",
+            "step": "0.01",
+            "options": []
+          },
+          {
+            "name": "styleMode",
+            "type": "int",
+            "group": "Style",
+            "label": "Style",
+            "default": "0",
+            "min": null,
+            "max": null,
+            "step": null,
+            "options": [
+              {
+                "value": 0,
+                "label": "None"
+              },
+              {
+                "value": 1,
+                "label": "Black and white"
+              },
+              {
+                "value": 2,
+                "label": "Duotone"
+              },
+              {
+                "value": 3,
+                "label": "Tritone"
+              }
+            ]
+          },
+          {
+            "name": "styleAmount",
+            "type": "float",
+            "group": "Style",
+            "label": "Style strength",
+            "default": "1",
+            "min": "0",
+            "max": "1",
+            "step": "0.01",
+            "options": []
+          },
+          {
+            "name": "bw0",
+            "type": "float",
+            "group": "Style",
+            "label": "Red gray mix",
+            "default": "0",
+            "min": "-1",
+            "max": "1",
+            "step": "0.01",
+            "options": []
+          },
+          {
+            "name": "bw1",
+            "type": "float",
+            "group": "Style",
+            "label": "Orange gray mix",
+            "default": "0",
+            "min": "-1",
+            "max": "1",
+            "step": "0.01",
+            "options": []
+          },
+          {
+            "name": "bw2",
+            "type": "float",
+            "group": "Style",
+            "label": "Yellow gray mix",
+            "default": "0",
+            "min": "-1",
+            "max": "1",
+            "step": "0.01",
+            "options": []
+          },
+          {
+            "name": "bw3",
+            "type": "float",
+            "group": "Style",
+            "label": "Green gray mix",
+            "default": "0",
+            "min": "-1",
+            "max": "1",
+            "step": "0.01",
+            "options": []
+          },
+          {
+            "name": "bw4",
+            "type": "float",
+            "group": "Style",
+            "label": "Cyan gray mix",
+            "default": "0",
+            "min": "-1",
+            "max": "1",
+            "step": "0.01",
+            "options": []
+          },
+          {
+            "name": "bw5",
+            "type": "float",
+            "group": "Style",
+            "label": "Blue gray mix",
+            "default": "0",
+            "min": "-1",
+            "max": "1",
+            "step": "0.01",
+            "options": []
+          },
+          {
+            "name": "bw6",
+            "type": "float",
+            "group": "Style",
+            "label": "Purple gray mix",
+            "default": "0",
+            "min": "-1",
+            "max": "1",
+            "step": "0.01",
+            "options": []
+          },
+          {
+            "name": "bw7",
+            "type": "float",
+            "group": "Style",
+            "label": "Magenta gray mix",
+            "default": "0",
+            "min": "-1",
+            "max": "1",
+            "step": "0.01",
+            "options": []
+          },
+          {
+            "name": "style0Hue",
+            "type": "float",
+            "group": "Style",
+            "label": "Color 1 hue",
+            "default": "240",
+            "min": "0",
+            "max": "360",
+            "step": "0.1",
+            "options": []
+          },
+          {
+            "name": "style0Chroma",
+            "type": "float",
+            "group": "Style",
+            "label": "Color 1 chroma",
+            "default": "0.04",
+            "min": "0",
+            "max": "0.15",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "style1Hue",
+            "type": "float",
+            "group": "Style",
+            "label": "Color 2 hue",
+            "default": "40",
+            "min": "0",
+            "max": "360",
+            "step": "0.1",
+            "options": []
+          },
+          {
+            "name": "style1Chroma",
+            "type": "float",
+            "group": "Style",
+            "label": "Color 2 chroma",
+            "default": "0.04",
+            "min": "0",
+            "max": "0.15",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "style2Hue",
+            "type": "float",
+            "group": "Style",
+            "label": "Color 3 hue",
+            "default": "75",
+            "min": "0",
+            "max": "360",
+            "step": "0.1",
+            "options": []
+          },
+          {
+            "name": "style2Chroma",
+            "type": "float",
+            "group": "Style",
+            "label": "Color 3 chroma",
+            "default": "0.04",
+            "min": "0",
+            "max": "0.15",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "styleBalance",
+            "type": "float",
+            "group": "Style",
+            "label": "Style balance",
+            "default": "0.5",
+            "min": "0.1",
+            "max": "0.9",
+            "step": "0.01",
+            "options": []
+          },
+          {
+            "name": "clarity",
+            "type": "float",
+            "group": "Spatial",
+            "label": "Local contrast",
+            "default": "0",
+            "min": "-1",
+            "max": "1",
+            "step": "0.01",
+            "options": []
+          },
+          {
+            "name": "clarityRadius",
+            "type": "int",
+            "group": "Spatial",
+            "label": "Local contrast radius",
+            "default": "12",
+            "min": "1",
+            "max": "64",
+            "step": "1",
+            "options": []
+          },
+          {
+            "name": "edgeProtect",
+            "type": "float",
+            "group": "Spatial",
+            "label": "Edge protection",
+            "default": "0.1",
+            "min": "0.005",
+            "max": "0.5",
+            "step": "0.005",
+            "options": []
+          },
+          {
+            "name": "textureStrength",
+            "type": "float",
+            "group": "Spatial",
+            "label": "Texture",
+            "default": "0",
+            "min": "-1",
+            "max": "1",
+            "step": "0.01",
+            "options": []
+          },
+          {
+            "name": "textureRadius",
+            "type": "int",
+            "group": "Spatial",
+            "label": "Texture radius",
+            "default": "2",
+            "min": "1",
+            "max": "8",
+            "step": "1",
+            "options": []
+          },
+          {
+            "name": "noiseFloor",
+            "type": "float",
+            "group": "Spatial",
+            "label": "Noise floor",
+            "default": "0.005",
+            "min": "0",
+            "max": "0.1",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "chromaSmooth",
+            "type": "float",
+            "group": "Spatial",
+            "label": "Chroma smoothing",
+            "default": "0",
+            "min": "0",
+            "max": "1",
+            "step": "0.01",
+            "options": []
+          },
+          {
+            "name": "chromaRadius",
+            "type": "int",
+            "group": "Spatial",
+            "label": "Chroma radius",
+            "default": "3",
+            "min": "1",
+            "max": "16",
+            "step": "1",
+            "options": []
+          },
+          {
+            "name": "deband",
+            "type": "float",
+            "group": "Spatial",
+            "label": "Debanding",
+            "default": "0",
+            "min": "0",
+            "max": "1",
+            "step": "0.01",
+            "options": []
+          },
+          {
+            "name": "debandRadius",
+            "type": "int",
+            "group": "Spatial",
+            "label": "Deband radius",
+            "default": "8",
+            "min": "1",
+            "max": "32",
+            "step": "1",
+            "options": []
+          },
+          {
+            "name": "debandThreshold",
+            "type": "float",
+            "group": "Spatial",
+            "label": "Deband threshold",
+            "default": "0.01",
+            "min": "0.001",
+            "max": "0.05",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "bloom",
+            "type": "float",
+            "group": "Spatial",
+            "label": "Bloom",
+            "default": "0",
+            "min": "0",
+            "max": "1",
+            "step": "0.01",
+            "options": []
+          },
+          {
+            "name": "bloomRadius",
+            "type": "int",
+            "group": "Spatial",
+            "label": "Bloom radius",
+            "default": "24",
+            "min": "1",
+            "max": "128",
+            "step": "1",
+            "options": []
+          },
+          {
+            "name": "bloomThreshold",
+            "type": "float",
+            "group": "Spatial",
+            "label": "Bloom threshold",
+            "default": "1",
+            "min": "0",
+            "max": "8",
+            "step": "0.01",
+            "options": []
+          },
+          {
+            "name": "bloomSoftness",
+            "type": "float",
+            "group": "Spatial",
+            "label": "Bloom softness",
+            "default": "0.2",
+            "min": "0.01",
+            "max": "2",
+            "step": "0.01",
+            "options": []
+          },
+          {
+            "name": "dehaze",
+            "type": "float",
+            "group": "Spatial",
+            "label": "Dehaze",
+            "default": "0",
+            "min": "0",
+            "max": "1",
+            "step": "0.01",
+            "options": []
+          },
+          {
+            "name": "dehazeRadius",
+            "type": "int",
+            "group": "Spatial",
+            "label": "Dehaze radius",
+            "default": "24",
+            "min": "1",
+            "max": "128",
+            "step": "1",
+            "options": []
+          },
+          {
+            "name": "dehazeProtect",
+            "type": "float",
+            "group": "Spatial",
+            "label": "Dehaze color protection",
+            "default": "1",
+            "min": "0",
+            "max": "1",
+            "step": "0.01",
+            "options": []
+          },
+          {
+            "name": "curve0Enabled",
+            "type": "int",
+            "group": "Curves",
+            "label": "Lightness: enable",
+            "default": "0",
+            "min": "0",
+            "max": "1",
+            "step": "1",
+            "options": []
+          },
+          {
+            "name": "curve0x0",
+            "type": "float",
+            "group": "Curves",
+            "label": "Point 1 input",
+            "default": "0",
+            "min": "0",
+            "max": "1",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "curve0y0",
+            "type": "float",
+            "group": "Curves",
+            "label": "Point 1 output",
+            "default": "0",
+            "min": "0",
+            "max": "1",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "curve0x1",
+            "type": "float",
+            "group": "Curves",
+            "label": "Point 2 input",
+            "default": "0.142857143",
+            "min": "0",
+            "max": "1",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "curve0y1",
+            "type": "float",
+            "group": "Curves",
+            "label": "Point 2 output",
+            "default": "0.142857143",
+            "min": "0",
+            "max": "1",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "curve0x2",
+            "type": "float",
+            "group": "Curves",
+            "label": "Point 3 input",
+            "default": "0.285714286",
+            "min": "0",
+            "max": "1",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "curve0y2",
+            "type": "float",
+            "group": "Curves",
+            "label": "Point 3 output",
+            "default": "0.285714286",
+            "min": "0",
+            "max": "1",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "curve0x3",
+            "type": "float",
+            "group": "Curves",
+            "label": "Point 4 input",
+            "default": "0.428571429",
+            "min": "0",
+            "max": "1",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "curve0y3",
+            "type": "float",
+            "group": "Curves",
+            "label": "Point 4 output",
+            "default": "0.428571429",
+            "min": "0",
+            "max": "1",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "curve0x4",
+            "type": "float",
+            "group": "Curves",
+            "label": "Point 5 input",
+            "default": "0.571428571",
+            "min": "0",
+            "max": "1",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "curve0y4",
+            "type": "float",
+            "group": "Curves",
+            "label": "Point 5 output",
+            "default": "0.571428571",
+            "min": "0",
+            "max": "1",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "curve0x5",
+            "type": "float",
+            "group": "Curves",
+            "label": "Point 6 input",
+            "default": "0.714285714",
+            "min": "0",
+            "max": "1",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "curve0y5",
+            "type": "float",
+            "group": "Curves",
+            "label": "Point 6 output",
+            "default": "0.714285714",
+            "min": "0",
+            "max": "1",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "curve0x6",
+            "type": "float",
+            "group": "Curves",
+            "label": "Point 7 input",
+            "default": "0.857142857",
+            "min": "0",
+            "max": "1",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "curve0y6",
+            "type": "float",
+            "group": "Curves",
+            "label": "Point 7 output",
+            "default": "0.857142857",
+            "min": "0",
+            "max": "1",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "curve0x7",
+            "type": "float",
+            "group": "Curves",
+            "label": "Point 8 input",
+            "default": "1",
+            "min": "0",
+            "max": "1",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "curve0y7",
+            "type": "float",
+            "group": "Curves",
+            "label": "Point 8 output",
+            "default": "1",
+            "min": "0",
+            "max": "1",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "curve1Enabled",
+            "type": "int",
+            "group": "Curves",
+            "label": "Hue to hue: enable",
+            "default": "0",
+            "min": "0",
+            "max": "1",
+            "step": "1",
+            "options": []
+          },
+          {
+            "name": "curve1x0",
+            "type": "float",
+            "group": "Curves",
+            "label": "Point 1 input",
+            "default": "0",
+            "min": "0",
+            "max": "1",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "curve1y0",
+            "type": "float",
+            "group": "Curves",
+            "label": "Point 1 output",
+            "default": "0",
+            "min": "-1",
+            "max": "1",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "curve1x1",
+            "type": "float",
+            "group": "Curves",
+            "label": "Point 2 input",
+            "default": "0.142857143",
+            "min": "0",
+            "max": "1",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "curve1y1",
+            "type": "float",
+            "group": "Curves",
+            "label": "Point 2 output",
+            "default": "0",
+            "min": "-1",
+            "max": "1",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "curve1x2",
+            "type": "float",
+            "group": "Curves",
+            "label": "Point 3 input",
+            "default": "0.285714286",
+            "min": "0",
+            "max": "1",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "curve1y2",
+            "type": "float",
+            "group": "Curves",
+            "label": "Point 3 output",
+            "default": "0",
+            "min": "-1",
+            "max": "1",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "curve1x3",
+            "type": "float",
+            "group": "Curves",
+            "label": "Point 4 input",
+            "default": "0.428571429",
+            "min": "0",
+            "max": "1",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "curve1y3",
+            "type": "float",
+            "group": "Curves",
+            "label": "Point 4 output",
+            "default": "0",
+            "min": "-1",
+            "max": "1",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "curve1x4",
+            "type": "float",
+            "group": "Curves",
+            "label": "Point 5 input",
+            "default": "0.571428571",
+            "min": "0",
+            "max": "1",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "curve1y4",
+            "type": "float",
+            "group": "Curves",
+            "label": "Point 5 output",
+            "default": "0",
+            "min": "-1",
+            "max": "1",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "curve1x5",
+            "type": "float",
+            "group": "Curves",
+            "label": "Point 6 input",
+            "default": "0.714285714",
+            "min": "0",
+            "max": "1",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "curve1y5",
+            "type": "float",
+            "group": "Curves",
+            "label": "Point 6 output",
+            "default": "0",
+            "min": "-1",
+            "max": "1",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "curve1x6",
+            "type": "float",
+            "group": "Curves",
+            "label": "Point 7 input",
+            "default": "0.857142857",
+            "min": "0",
+            "max": "1",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "curve1y6",
+            "type": "float",
+            "group": "Curves",
+            "label": "Point 7 output",
+            "default": "0",
+            "min": "-1",
+            "max": "1",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "curve1x7",
+            "type": "float",
+            "group": "Curves",
+            "label": "Point 8 input",
+            "default": "1",
+            "min": "0",
+            "max": "1",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "curve1y7",
+            "type": "float",
+            "group": "Curves",
+            "label": "Point 8 output",
+            "default": "0",
+            "min": "-1",
+            "max": "1",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "curve2Enabled",
+            "type": "int",
+            "group": "Curves",
+            "label": "Hue to chroma: enable",
+            "default": "0",
+            "min": "0",
+            "max": "1",
+            "step": "1",
+            "options": []
+          },
+          {
+            "name": "curve2x0",
+            "type": "float",
+            "group": "Curves",
+            "label": "Point 1 input",
+            "default": "0",
+            "min": "0",
+            "max": "1",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "curve2y0",
+            "type": "float",
+            "group": "Curves",
+            "label": "Point 1 output",
+            "default": "0",
+            "min": "-1",
+            "max": "1",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "curve2x1",
+            "type": "float",
+            "group": "Curves",
+            "label": "Point 2 input",
+            "default": "0.142857143",
+            "min": "0",
+            "max": "1",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "curve2y1",
+            "type": "float",
+            "group": "Curves",
+            "label": "Point 2 output",
+            "default": "0",
+            "min": "-1",
+            "max": "1",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "curve2x2",
+            "type": "float",
+            "group": "Curves",
+            "label": "Point 3 input",
+            "default": "0.285714286",
+            "min": "0",
+            "max": "1",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "curve2y2",
+            "type": "float",
+            "group": "Curves",
+            "label": "Point 3 output",
+            "default": "0",
+            "min": "-1",
+            "max": "1",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "curve2x3",
+            "type": "float",
+            "group": "Curves",
+            "label": "Point 4 input",
+            "default": "0.428571429",
+            "min": "0",
+            "max": "1",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "curve2y3",
+            "type": "float",
+            "group": "Curves",
+            "label": "Point 4 output",
+            "default": "0",
+            "min": "-1",
+            "max": "1",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "curve2x4",
+            "type": "float",
+            "group": "Curves",
+            "label": "Point 5 input",
+            "default": "0.571428571",
+            "min": "0",
+            "max": "1",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "curve2y4",
+            "type": "float",
+            "group": "Curves",
+            "label": "Point 5 output",
+            "default": "0",
+            "min": "-1",
+            "max": "1",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "curve2x5",
+            "type": "float",
+            "group": "Curves",
+            "label": "Point 6 input",
+            "default": "0.714285714",
+            "min": "0",
+            "max": "1",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "curve2y5",
+            "type": "float",
+            "group": "Curves",
+            "label": "Point 6 output",
+            "default": "0",
+            "min": "-1",
+            "max": "1",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "curve2x6",
+            "type": "float",
+            "group": "Curves",
+            "label": "Point 7 input",
+            "default": "0.857142857",
+            "min": "0",
+            "max": "1",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "curve2y6",
+            "type": "float",
+            "group": "Curves",
+            "label": "Point 7 output",
+            "default": "0",
+            "min": "-1",
+            "max": "1",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "curve2x7",
+            "type": "float",
+            "group": "Curves",
+            "label": "Point 8 input",
+            "default": "1",
+            "min": "0",
+            "max": "1",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "curve2y7",
+            "type": "float",
+            "group": "Curves",
+            "label": "Point 8 output",
+            "default": "0",
+            "min": "-1",
+            "max": "1",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "curve3Enabled",
+            "type": "int",
+            "group": "Curves",
+            "label": "Hue to lightness: enable",
+            "default": "0",
+            "min": "0",
+            "max": "1",
+            "step": "1",
+            "options": []
+          },
+          {
+            "name": "curve3x0",
+            "type": "float",
+            "group": "Curves",
+            "label": "Point 1 input",
+            "default": "0",
+            "min": "0",
+            "max": "1",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "curve3y0",
+            "type": "float",
+            "group": "Curves",
+            "label": "Point 1 output",
+            "default": "0",
+            "min": "-1",
+            "max": "1",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "curve3x1",
+            "type": "float",
+            "group": "Curves",
+            "label": "Point 2 input",
+            "default": "0.142857143",
+            "min": "0",
+            "max": "1",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "curve3y1",
+            "type": "float",
+            "group": "Curves",
+            "label": "Point 2 output",
+            "default": "0",
+            "min": "-1",
+            "max": "1",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "curve3x2",
+            "type": "float",
+            "group": "Curves",
+            "label": "Point 3 input",
+            "default": "0.285714286",
+            "min": "0",
+            "max": "1",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "curve3y2",
+            "type": "float",
+            "group": "Curves",
+            "label": "Point 3 output",
+            "default": "0",
+            "min": "-1",
+            "max": "1",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "curve3x3",
+            "type": "float",
+            "group": "Curves",
+            "label": "Point 4 input",
+            "default": "0.428571429",
+            "min": "0",
+            "max": "1",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "curve3y3",
+            "type": "float",
+            "group": "Curves",
+            "label": "Point 4 output",
+            "default": "0",
+            "min": "-1",
+            "max": "1",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "curve3x4",
+            "type": "float",
+            "group": "Curves",
+            "label": "Point 5 input",
+            "default": "0.571428571",
+            "min": "0",
+            "max": "1",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "curve3y4",
+            "type": "float",
+            "group": "Curves",
+            "label": "Point 5 output",
+            "default": "0",
+            "min": "-1",
+            "max": "1",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "curve3x5",
+            "type": "float",
+            "group": "Curves",
+            "label": "Point 6 input",
+            "default": "0.714285714",
+            "min": "0",
+            "max": "1",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "curve3y5",
+            "type": "float",
+            "group": "Curves",
+            "label": "Point 6 output",
+            "default": "0",
+            "min": "-1",
+            "max": "1",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "curve3x6",
+            "type": "float",
+            "group": "Curves",
+            "label": "Point 7 input",
+            "default": "0.857142857",
+            "min": "0",
+            "max": "1",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "curve3y6",
+            "type": "float",
+            "group": "Curves",
+            "label": "Point 7 output",
+            "default": "0",
+            "min": "-1",
+            "max": "1",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "curve3x7",
+            "type": "float",
+            "group": "Curves",
+            "label": "Point 8 input",
+            "default": "1",
+            "min": "0",
+            "max": "1",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "curve3y7",
+            "type": "float",
+            "group": "Curves",
+            "label": "Point 8 output",
+            "default": "0",
+            "min": "-1",
+            "max": "1",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "curve4Enabled",
+            "type": "int",
+            "group": "Curves",
+            "label": "Lightness to chroma: enable",
+            "default": "0",
+            "min": "0",
+            "max": "1",
+            "step": "1",
+            "options": []
+          },
+          {
+            "name": "curve4x0",
+            "type": "float",
+            "group": "Curves",
+            "label": "Point 1 input",
+            "default": "0",
+            "min": "0",
+            "max": "1",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "curve4y0",
+            "type": "float",
+            "group": "Curves",
+            "label": "Point 1 output",
+            "default": "0",
+            "min": "-1",
+            "max": "1",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "curve4x1",
+            "type": "float",
+            "group": "Curves",
+            "label": "Point 2 input",
+            "default": "0.142857143",
+            "min": "0",
+            "max": "1",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "curve4y1",
+            "type": "float",
+            "group": "Curves",
+            "label": "Point 2 output",
+            "default": "0",
+            "min": "-1",
+            "max": "1",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "curve4x2",
+            "type": "float",
+            "group": "Curves",
+            "label": "Point 3 input",
+            "default": "0.285714286",
+            "min": "0",
+            "max": "1",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "curve4y2",
+            "type": "float",
+            "group": "Curves",
+            "label": "Point 3 output",
+            "default": "0",
+            "min": "-1",
+            "max": "1",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "curve4x3",
+            "type": "float",
+            "group": "Curves",
+            "label": "Point 4 input",
+            "default": "0.428571429",
+            "min": "0",
+            "max": "1",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "curve4y3",
+            "type": "float",
+            "group": "Curves",
+            "label": "Point 4 output",
+            "default": "0",
+            "min": "-1",
+            "max": "1",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "curve4x4",
+            "type": "float",
+            "group": "Curves",
+            "label": "Point 5 input",
+            "default": "0.571428571",
+            "min": "0",
+            "max": "1",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "curve4y4",
+            "type": "float",
+            "group": "Curves",
+            "label": "Point 5 output",
+            "default": "0",
+            "min": "-1",
+            "max": "1",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "curve4x5",
+            "type": "float",
+            "group": "Curves",
+            "label": "Point 6 input",
+            "default": "0.714285714",
+            "min": "0",
+            "max": "1",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "curve4y5",
+            "type": "float",
+            "group": "Curves",
+            "label": "Point 6 output",
+            "default": "0",
+            "min": "-1",
+            "max": "1",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "curve4x6",
+            "type": "float",
+            "group": "Curves",
+            "label": "Point 7 input",
+            "default": "0.857142857",
+            "min": "0",
+            "max": "1",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "curve4y6",
+            "type": "float",
+            "group": "Curves",
+            "label": "Point 7 output",
+            "default": "0",
+            "min": "-1",
+            "max": "1",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "curve4x7",
+            "type": "float",
+            "group": "Curves",
+            "label": "Point 8 input",
+            "default": "1",
+            "min": "0",
+            "max": "1",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "curve4y7",
+            "type": "float",
+            "group": "Curves",
+            "label": "Point 8 output",
+            "default": "0",
+            "min": "-1",
+            "max": "1",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "curve5Enabled",
+            "type": "int",
+            "group": "Curves",
+            "label": "Chroma to chroma: enable",
+            "default": "0",
+            "min": "0",
+            "max": "1",
+            "step": "1",
+            "options": []
+          },
+          {
+            "name": "curve5x0",
+            "type": "float",
+            "group": "Curves",
+            "label": "Point 1 input",
+            "default": "0",
+            "min": "0",
+            "max": "1",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "curve5y0",
+            "type": "float",
+            "group": "Curves",
+            "label": "Point 1 output",
+            "default": "0",
+            "min": "-1",
+            "max": "1",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "curve5x1",
+            "type": "float",
+            "group": "Curves",
+            "label": "Point 2 input",
+            "default": "0.142857143",
+            "min": "0",
+            "max": "1",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "curve5y1",
+            "type": "float",
+            "group": "Curves",
+            "label": "Point 2 output",
+            "default": "0",
+            "min": "-1",
+            "max": "1",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "curve5x2",
+            "type": "float",
+            "group": "Curves",
+            "label": "Point 3 input",
+            "default": "0.285714286",
+            "min": "0",
+            "max": "1",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "curve5y2",
+            "type": "float",
+            "group": "Curves",
+            "label": "Point 3 output",
+            "default": "0",
+            "min": "-1",
+            "max": "1",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "curve5x3",
+            "type": "float",
+            "group": "Curves",
+            "label": "Point 4 input",
+            "default": "0.428571429",
+            "min": "0",
+            "max": "1",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "curve5y3",
+            "type": "float",
+            "group": "Curves",
+            "label": "Point 4 output",
+            "default": "0",
+            "min": "-1",
+            "max": "1",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "curve5x4",
+            "type": "float",
+            "group": "Curves",
+            "label": "Point 5 input",
+            "default": "0.571428571",
+            "min": "0",
+            "max": "1",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "curve5y4",
+            "type": "float",
+            "group": "Curves",
+            "label": "Point 5 output",
+            "default": "0",
+            "min": "-1",
+            "max": "1",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "curve5x5",
+            "type": "float",
+            "group": "Curves",
+            "label": "Point 6 input",
+            "default": "0.714285714",
+            "min": "0",
+            "max": "1",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "curve5y5",
+            "type": "float",
+            "group": "Curves",
+            "label": "Point 6 output",
+            "default": "0",
+            "min": "-1",
+            "max": "1",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "curve5x6",
+            "type": "float",
+            "group": "Curves",
+            "label": "Point 7 input",
+            "default": "0.857142857",
+            "min": "0",
+            "max": "1",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "curve5y6",
+            "type": "float",
+            "group": "Curves",
+            "label": "Point 7 output",
+            "default": "0",
+            "min": "-1",
+            "max": "1",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "curve5x7",
+            "type": "float",
+            "group": "Curves",
+            "label": "Point 8 input",
+            "default": "1",
+            "min": "0",
+            "max": "1",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "curve5y7",
+            "type": "float",
+            "group": "Curves",
+            "label": "Point 8 output",
+            "default": "0",
+            "min": "-1",
+            "max": "1",
+            "step": "0.001",
+            "options": []
+          },
+          {
+            "name": "maskMode",
+            "type": "int",
+            "group": "Mask",
+            "label": "Local mask",
+            "default": "0",
+            "min": null,
+            "max": null,
+            "step": null,
+            "options": [
+              {
+                "value": 0,
+                "label": "Off"
+              },
+              {
+                "value": 1,
+                "label": "Linear gradient"
+              },
+              {
+                "value": 2,
+                "label": "Radial gradient"
+              }
+            ]
+          },
+          {
+            "name": "maskX",
+            "type": "float",
+            "group": "Mask",
+            "label": "Center X",
+            "default": "0.5",
+            "min": "0",
+            "max": "1",
+            "step": "0.01",
+            "options": []
+          },
+          {
+            "name": "maskY",
+            "type": "float",
+            "group": "Mask",
+            "label": "Center Y",
+            "default": "0.5",
+            "min": "0",
+            "max": "1",
+            "step": "0.01",
+            "options": []
+          },
+          {
+            "name": "maskAngle",
+            "type": "float",
+            "group": "Mask",
+            "label": "Angle",
+            "default": "0",
+            "min": "-180",
+            "max": "180",
+            "step": "0.01",
+            "options": []
+          },
+          {
+            "name": "maskWidth",
+            "type": "float",
+            "group": "Mask",
+            "label": "Width",
+            "default": "0.5",
+            "min": "0.01",
+            "max": "2",
+            "step": "0.01",
+            "options": []
+          },
+          {
+            "name": "maskHeight",
+            "type": "float",
+            "group": "Mask",
+            "label": "Height",
+            "default": "0.5",
+            "min": "0.01",
+            "max": "2",
+            "step": "0.01",
+            "options": []
+          },
+          {
+            "name": "maskFeather",
+            "type": "float",
+            "group": "Mask",
+            "label": "Feather",
+            "default": "0.25",
+            "min": "0.001",
+            "max": "1",
+            "step": "0.01",
+            "options": []
+          },
+          {
+            "name": "maskInvert",
+            "type": "int",
+            "group": "Mask",
+            "label": "Invert",
+            "default": "0",
+            "min": "0",
+            "max": "1",
+            "step": "1",
+            "options": []
+          },
+          {
+            "name": "autoExposure",
+            "type": "int",
+            "group": "Automatic",
+            "label": "Auto exposure",
+            "default": "0",
+            "min": "0",
+            "max": "1",
+            "step": "1",
+            "options": []
+          },
+          {
+            "name": "autoWhite",
+            "type": "int",
+            "group": "Automatic",
+            "label": "Auto white balance",
+            "default": "0",
+            "min": "0",
+            "max": "1",
+            "step": "1",
+            "options": []
+          },
+          {
+            "name": "autoLock",
+            "type": "int",
+            "group": "Automatic",
+            "label": "Lock automatic adjustment",
+            "default": "0",
+            "min": "0",
+            "max": "1",
+            "step": "1",
+            "options": []
+          },
+          {
+            "name": "autoTarget",
+            "type": "float",
+            "group": "Automatic",
+            "label": "Target linear luminance",
+            "default": "0.18",
+            "min": "0.02",
+            "max": "0.8",
+            "step": "0.01",
+            "options": []
+          },
+          {
+            "name": "autoLimit",
+            "type": "float",
+            "group": "Automatic",
+            "label": "Exposure limit (EV)",
+            "default": "2",
+            "min": "0",
+            "max": "4",
+            "step": "0.01",
+            "options": []
+          },
+          {
+            "name": "autoSpeed",
+            "type": "float",
+            "group": "Automatic",
+            "label": "Adaptation time (seconds)",
+            "default": "1",
+            "min": "0.05",
+            "max": "10",
+            "step": "0.01",
+            "options": []
+          },
+          {
+            "name": "sceneThreshold",
+            "type": "float",
+            "group": "Automatic",
+            "label": "Scene cut threshold (EV)",
+            "default": "2",
+            "min": "0.5",
+            "max": "6",
+            "step": "0.01",
+            "options": []
+          },
+          {
+            "name": "temperatureEnabled",
+            "type": "int",
+            "group": "Calibration",
+            "label": "Calibrated white balance",
+            "default": "0",
+            "min": "0",
+            "max": "1",
+            "step": "1",
+            "options": []
+          },
+          {
+            "name": "sourceKelvin",
+            "type": "int",
+            "group": "Calibration",
+            "label": "Source white (K)",
+            "default": "6504",
+            "min": "2000",
+            "max": "25000",
+            "step": "1",
+            "options": []
+          },
+          {
+            "name": "targetKelvin",
+            "type": "int",
+            "group": "Calibration",
+            "label": "Target white (K)",
+            "default": "6504",
+            "min": "2000",
+            "max": "25000",
+            "step": "1",
+            "options": []
+          },
+          {
+            "name": "whiteTint",
+            "type": "float",
+            "group": "Calibration",
+            "label": "Target white tint (delta y)",
+            "default": "0",
+            "min": "-0.05",
+            "max": "0.05",
+            "step": "0.0001",
+            "options": []
+          },
+          {
+            "name": "gain0",
+            "type": "float",
+            "group": "Calibration",
+            "label": "Red gain",
+            "default": "1",
+            "min": "0",
+            "max": "2",
+            "step": "0.01",
+            "options": []
+          },
+          {
+            "name": "matrix00",
+            "type": "float",
+            "group": "Calibration",
+            "label": "Red from red",
+            "default": "1",
+            "min": "-2",
+            "max": "2",
+            "step": "0.01",
+            "options": []
+          },
+          {
+            "name": "matrix01",
+            "type": "float",
+            "group": "Calibration",
+            "label": "Red from green",
+            "default": "0",
+            "min": "-2",
+            "max": "2",
+            "step": "0.01",
+            "options": []
+          },
+          {
+            "name": "matrix02",
+            "type": "float",
+            "group": "Calibration",
+            "label": "Red from blue",
+            "default": "0",
+            "min": "-2",
+            "max": "2",
+            "step": "0.01",
+            "options": []
+          },
+          {
+            "name": "gain1",
+            "type": "float",
+            "group": "Calibration",
+            "label": "Green gain",
+            "default": "1",
+            "min": "0",
+            "max": "2",
+            "step": "0.01",
+            "options": []
+          },
+          {
+            "name": "matrix10",
+            "type": "float",
+            "group": "Calibration",
+            "label": "Green from red",
+            "default": "0",
+            "min": "-2",
+            "max": "2",
+            "step": "0.01",
+            "options": []
+          },
+          {
+            "name": "matrix11",
+            "type": "float",
+            "group": "Calibration",
+            "label": "Green from green",
+            "default": "1",
+            "min": "-2",
+            "max": "2",
+            "step": "0.01",
+            "options": []
+          },
+          {
+            "name": "matrix12",
+            "type": "float",
+            "group": "Calibration",
+            "label": "Green from blue",
+            "default": "0",
+            "min": "-2",
+            "max": "2",
+            "step": "0.01",
+            "options": []
+          },
+          {
+            "name": "gain2",
+            "type": "float",
+            "group": "Calibration",
+            "label": "Blue gain",
+            "default": "1",
+            "min": "0",
+            "max": "2",
+            "step": "0.01",
+            "options": []
+          },
+          {
+            "name": "matrix20",
+            "type": "float",
+            "group": "Calibration",
+            "label": "Blue from red",
+            "default": "0",
+            "min": "-2",
+            "max": "2",
+            "step": "0.01",
+            "options": []
+          },
+          {
+            "name": "matrix21",
+            "type": "float",
+            "group": "Calibration",
+            "label": "Blue from green",
+            "default": "0",
+            "min": "-2",
+            "max": "2",
+            "step": "0.01",
+            "options": []
+          },
+          {
+            "name": "matrix22",
+            "type": "float",
+            "group": "Calibration",
+            "label": "Blue from blue",
+            "default": "1",
+            "min": "-2",
+            "max": "2",
+            "step": "0.01",
+            "options": []
+          },
+          {
+            "name": "gamutSoft",
+            "type": "float",
+            "group": "Output",
+            "label": "Gamut compression",
+            "default": "0",
+            "min": "0",
+            "max": "1",
+            "step": "0.01",
+            "options": []
+          },
+          {
+            "name": "referenceWhite",
+            "type": "int",
+            "group": "Output",
+            "label": "HDR reference white (nits)",
+            "default": "203",
+            "min": "80",
+            "max": "500",
+            "step": "1",
+            "options": []
+          },
+          {
+            "name": "peakNits",
+            "type": "int",
+            "group": "Output",
+            "label": "HDR peak (nits)",
+            "default": "1000",
+            "min": "500",
+            "max": "10000",
+            "step": "1",
+            "options": []
+          },
+          {
+            "name": "outputGamut",
+            "type": "int",
+            "group": "Output",
+            "label": "HDR output gamut",
+            "default": "2",
+            "min": null,
+            "max": null,
+            "step": null,
+            "options": [
+              {
+                "value": 0,
+                "label": "Rec.709"
+              },
+              {
+                "value": 1,
+                "label": "Display P3"
+              },
+              {
+                "value": 2,
+                "label": "Rec.2020"
+              }
+            ]
+          },
+          {
+            "name": "dither",
+            "type": "float",
+            "group": "Output",
+            "label": "Output dither",
+            "default": "0",
+            "min": "0",
+            "max": "1",
+            "step": "0.01",
+            "options": []
+          },
+          {
+            "name": "ditherBits",
+            "type": "int",
+            "group": "Output",
+            "label": "Output quantization",
+            "default": "0",
+            "min": null,
+            "max": null,
+            "step": null,
+            "options": [
+              {
+                "value": 0,
+                "label": "8-bit"
+              },
+              {
+                "value": 1,
+                "label": "10-bit"
+              },
+              {
+                "value": 2,
+                "label": "16-bit"
+              }
+            ]
+          },
+          {
+            "name": "view",
+            "type": "int",
+            "group": "Output",
+            "label": "Preview",
+            "default": "0",
+            "min": null,
+            "max": null,
+            "step": null,
+            "options": [
+              {
+                "value": 0,
+                "label": "Normal"
+              },
+              {
+                "value": 1,
+                "label": "Lightness"
+              },
+              {
+                "value": 2,
+                "label": "Chroma"
+              },
+              {
+                "value": 3,
+                "label": "Difference"
+              },
+              {
+                "value": 4,
+                "label": "Out of gamut"
+              },
+              {
+                "value": 5,
+                "label": "Compression"
+              },
+              {
+                "value": 6,
+                "label": "Selection A"
+              },
+              {
+                "value": 7,
+                "label": "Selection B"
+              },
+              {
+                "value": 8,
+                "label": "Local mask"
+              },
+              {
+                "value": 9,
+                "label": "Clipping"
+              },
+              {
+                "value": 10,
+                "label": "Grayscale"
+              }
+            ]
+          },
+          {
+            "name": "split",
+            "type": "int",
+            "group": "Output",
+            "label": "Before / after split",
+            "default": "0",
+            "min": "0",
+            "max": "1",
+            "step": "1",
+            "options": []
+          },
+          {
+            "name": "splitPosition",
+            "type": "float",
+            "group": "Output",
+            "label": "Split position",
+            "default": "0.5",
+            "min": "0",
+            "max": "1",
+            "step": "0.01",
+            "options": []
+          },
+          {
+            "name": "lutAmount",
+            "type": "float",
+            "group": "Lut",
+            "label": "LUT strength",
+            "default": "0",
+            "min": "0",
+            "max": "1",
+            "step": "0.01",
+            "options": []
+          },
+          {
+            "name": "lutDomain",
+            "type": "int",
+            "group": "Lut",
+            "label": "LUT input encoding",
+            "default": "0",
+            "min": null,
+            "max": null,
+            "step": null,
+            "options": [
+              {
+                "value": 0,
+                "label": "sRGB"
+              },
+              {
+                "value": 1,
+                "label": "Linear RGB"
+              }
+            ]
+          }
+        ],
+        "includes": [
+          "OKLab/Adapt.hlsli",
+          "OKLab/Adjust.hlsli",
+          "OKLab/Color.hlsli",
+          "OKLab/Statistics.hlsli",
+          "OKLab/Tables.hlsli"
+        ]
+      },
+      "review": {
+        "status": "source-reviewed",
+        "previousLevel": null,
+        "issuesAddressed": [
+          "oklab-image-adjustment"
+        ],
+        "recommendationBasis": "content-specific-choice",
+        "runtimeEvidence": [
+          "src/Effects/OKLab/Color.hlsli",
+          "src/Effects/OKLab/Adjust.hlsli",
+          "src/Effects/OKLab/Tables.hlsli",
+          "src/Effects/OKLab/Statistics.hlsli",
+          "src/Effects/OKLab/Adapt.hlsli",
+          "src/Magpie.Core/OKLabRuntime.h",
+          "src/Magpie.Core/include/OKLabParameters.h",
+          "src/Magpie.Core/include/OKLabLut.h",
+          "src/Magpie/OKLabConfig.h",
+          "src/Magpie.Core/EffectDrawer.cpp",
+          "src/Magpie.Core/Renderer.cpp",
+          "src/Magpie.Core/Renderer.OKLab.cpp",
+          "src/Magpie/EffectParametersViewModel.OKLab.cpp",
+          "src/Magpie.Core/OKLabOverlayEditor.h",
+          "src/Magpie.Core/include/LocalizedStringCache.h",
+          "src/Magpie.Core/OverlayDrawer.cpp",
+          "src/Magpie/ScalingModesPage.xaml",
+          "src/Magpie/EffectHelper.h"
+        ],
+        "runtimeEvidenceSha256": {
+          "src/Effects/OKLab/Color.hlsli": "683af12d2c76b6d74df499183eac20c662260e80a156a5fac1e3c89e2a8de30b",
+          "src/Effects/OKLab/Adjust.hlsli": "9d11d2fd36648095df389fe7245085daee530f18f74f2db968dc647ad4f842ff",
+          "src/Effects/OKLab/Tables.hlsli": "ea107598faf44831baba93e75d50908b0d4e47f1123adeade55f899a230bd540",
+          "src/Effects/OKLab/Statistics.hlsli": "e80605a187dd369ff4f648afec1231a6a949bf2d74f0c8ad36177a4246336102",
+          "src/Effects/OKLab/Adapt.hlsli": "d0d4c9bbf40d89d765608322d02d397440689e8cb6b94842e2e99615e6c04809",
+          "src/Magpie.Core/OKLabRuntime.h": "5f63c59dbd26d1aed9554d6b9c2c3695dcfde001c5ba4847d791e397e0b5313d",
+          "src/Magpie.Core/include/OKLabParameters.h": "3ea7bc6b395ce9b1fc01e114ee1dd4355977b9c75b6e57bc477939a30bc08c67",
+          "src/Magpie.Core/include/OKLabLut.h": "3604558ebcf9bc2c63bcea092b0d0b9a83c376842aad8f55c552514d796b977c",
+          "src/Magpie/OKLabConfig.h": "f440195094530eb25400a3a2627249b4dbc5bad6654cc77210f89aaee3eb7ba9",
+          "src/Magpie.Core/EffectDrawer.cpp": "d0e0a678443f58f098fc8dbd2b7e5162450ebbcab024ed2cebf9b251bed4b3b9",
+          "src/Magpie.Core/Renderer.cpp": "be9ba85dd223c7806299c1be0bf00c1900bfb7b2da6d200ef1c6430a1f9c8556",
+          "src/Magpie.Core/Renderer.OKLab.cpp": "3f7ab6a2c99ff3db8c425c7841ddcb16c9c27d331882887c1edcd5f68823033d",
+          "src/Magpie/EffectParametersViewModel.OKLab.cpp": "248115fd1d2900b3d9741f189928ae247b1862fd85b9e2f50317136162578f82",
+          "src/Magpie.Core/OKLabOverlayEditor.h": "1431dd840cf700e2eeeec35e71d470b33837918c871081907af1d9edb708f895",
+          "src/Magpie.Core/include/LocalizedStringCache.h": "558abae18c202123b6ec45325305d091f40fa01233babaedafa71638d68bc1ce",
+          "src/Magpie.Core/OverlayDrawer.cpp": "5a0730efe2b329a94d483ff3c3ea0bc9a73e41f7a71a47ba600cf8522f96cbcd",
+          "src/Magpie/ScalingModesPage.xaml": "4308f6c717613ee2cb5f984589e335faaa4c66894583627c6d4c50efcddb18a1",
+          "src/Magpie/EffectHelper.h": "59140f02de1cd3f10c088bea17ff0fc6146262b12b503944935b5d219bfcd8ce"
+        },
+        "externalReferences": [
+          "https://bottosson.github.io/posts/oklab/",
+          "https://bottosson.github.io/posts/gamutclipping/"
+        ],
+        "notVerified": [
+          "application-release-build",
+          "native-ui-runtime",
+          "target-content-image-quality",
+          "application-integrated-performance",
+          "hdr-display-output"
+        ],
+        "copyReviewedOn": "2026-10-28",
+        "copyDisposition": "new",
+        "copyScope": "Source, isolated C++/XAML, actual EffectCompiler/WARP and RTX 5070 Ti timestamp checks; release compilation/deployment and live acceptance are separate.",
+        "beta1IntegrationAudit": "2026-10-28: combined DLSSNR and OKLab parameter surfaces, retained both configuration paths and integrated presenter redraw recovery; fixed FXC temporal return-flow compilation. Effect copy retained.",
+        "beta1FeedbackAudit": "2026-10-28: corrected UI layout and resource-cache ownership, persisted profiler preferences, normalized optical-flow dependencies, simplified NR color controls and fixed confidence-driven history attenuation.",
+        "beta2FollowupSourceAudit": "2026-10-30: reviewed shared Renderer update reasons, capture/quality pacing separation and publication hooks; ordinary effect Draw contracts remain, and default native maintenance hooks do no work. This refresh records source evidence only, not full hardware frame-generation acceptance; existing notVerified items remain.",
+        "captureAheadSourceAudit": "2026-11-01: one staged output is enabled only for DLSSNR with ordinary FrontEdge, deferred presentation and no frame generation. Shared-slot acknowledgement, publication fences and presentation accounting are retained; non-NR and FG paths keep their existing admission policy. Production-branch CPU/WARP ownership and legacy FrontendDrop/FrameSync regressions passed."
+      },
+      "zh-Hans": {
+        "name": "OKLab Image Adjustment",
+        "subcategory": "图像调整",
+        "summary": "分别调整明暗、色度和色相，支持选色、曲线与局部处理。",
+        "details": "适合视频、游戏和图像调色。先从曝光、对比度和自然饱和度开始，再按需要进入八色混合、选色、曲线或局部处理区域。支持前后分屏、预设及 LUT，保持输入尺寸；LUT 文件变更需重新开始缩放。",
+        "search": "OKLab Image Adjustment OKLab 图像调整 OKLabImageAdjustment Oklab Image Adjustment 曝光 明度 对比度 饱和度 色相 白平衡 选色 曲线 LUT 黑白 去色带 去雾 辉光 HDR 分别调整明暗、色度和色相，支持选色、曲线与局部处理。 适合视频、游戏和图像调色。先从曝光、对比度和自然饱和度开始，再按需要进入八色混合、选色、曲线或局部处理区域。支持前后分屏、预设及 LUT，保持输入尺寸；LUT 文件变更需重新开始缩放。"
+      },
+      "en-US": {
+        "name": "OKLab Image Adjustment",
+        "subcategory": "Image adjustment",
+        "summary": "Adjusts lightness, chroma and hue, with selections, curves and local processing.",
+        "details": "Grades video, games and images. Start with exposure, contrast and vibrance, then open the color mixer, selections, curves or local processing as needed. Includes a comparison split, presets and LUTs while keeping the input size. Restart scaling after changing a LUT file.",
+        "search": "OKLab Oklab Image Adjustment exposure lightness contrast chroma vibrance hue white balance selection curves LUT monochrome debanding dehaze bloom HDR Adjusts lightness, chroma and hue, with selections, curves and local processing. Grades video, games and images. Start with exposure, contrast and vibrance, then open the color mixer, selections, curves or local processing as needed. Includes a comparison split, presets and LUTs while keeping the input size. Restart scaling after changing a LUT file."
+      }
     }
   ],
   "references": [
@@ -12637,7 +16205,7 @@
     },
     {
       "path": "src/Magpie.Core/DLSSNRFilter.cpp",
-      "sha256": "94ffb9fb8ba1b70bcc9c1ace60a0f71b0145c2e6f87a9878fcab479f1b4610c0"
+      "sha256": "88fcc426b1639aa2abb3806f3b6a4c6701ff8ccf952a0622232244632824d3ba"
     },
     {
       "path": "src/Magpie.Core/DLSSNRMultiPass.h",
@@ -12697,7 +16265,7 @@
     },
     {
       "path": "src/Magpie.Core/Renderer.cpp",
-      "sha256": "d9f283982769785336f2051766f7f6e8167a23ac04c986599e9f057db3fba0e2"
+      "sha256": "be9ba85dd223c7806299c1be0bf00c1900bfb7b2da6d200ef1c6430a1f9c8556"
     },
     {
       "path": "src/Magpie.Core/XeSSFGCompatibility.h",

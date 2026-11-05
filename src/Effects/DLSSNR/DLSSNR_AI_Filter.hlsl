@@ -7,21 +7,21 @@
 
 //!PARAMETER
 //!GROUP Detail Control
-//!LABEL Adjust Input Resolution
+//!LABEL Model Preset
 //!DEFAULT 0
+//!OPTION 0 Automatic (DLL Default)
+//!OPTION 1 HT
+//!OPTION 2 CC Small FP8
+int modelPreset;
+
+//!PARAMETER
+//!GROUP Detail Control
+//!LABEL Adjust Input Resolution
+//!DEFAULT 1
 //!MIN 0
 //!MAX 1
 //!STEP 1
 int enableInputResolutionScaling;
-
-//!PARAMETER
-//!GROUP Detail Control
-//!LABEL Input Resolution (%)
-//!DEFAULT 100
-//!MIN 25
-//!MAX 100
-//!STEP 1
-int inputResolutionPercent;
 
 //!PARAMETER
 //!GROUP Detail Control
@@ -61,6 +61,15 @@ float shadowStructureMultiplier;
 
 //!PARAMETER
 //!GROUP Detail Control
+//!LABEL Midtone Strength
+//!DEFAULT 1
+//!MIN 0
+//!MAX 2
+//!STEP 0.05
+float residualMidtoneStrength;
+
+//!PARAMETER
+//!GROUP Detail Control
 //!LABEL Highlight / Glow Strength
 //!DEFAULT 1
 //!MIN 0
@@ -70,7 +79,7 @@ float reflectionGlowMultiplier;
 
 //!PARAMETER
 //!GROUP Detail Control
-//!LABEL Advanced Adjustments
+//!LABEL Residual
 //!DEFAULT 0
 //!MIN 0
 //!MAX 1
@@ -79,70 +88,15 @@ int residualShowAdvanced;
 
 //!PARAMETER
 //!GROUP Detail Control
-//!LABEL Optical Flow Method
-//!DEFAULT 0
-//!OPTION 0 None
-//!OPTION 1 AMDOF
-//!OPTION 2 NVOF
-int opticalFlowMethod;
-
-//!PARAMETER
-//!GROUP Detail Control
-//!LABEL Optical Flow Quality
-//!DEFAULT 1
-//!OPTION 0 Performance
-//!OPTION 1 Quality
-int amdOpticalFlowMode;
-
-//!PARAMETER
-//!GROUP Detail Control
-//!LABEL Optical Flow Quality
-//!DEFAULT 2
-//!OPTION 1 Performance
-//!OPTION 2 Balanced
-//!OPTION 3 Quality
-//!OPTION 4 High Quality (High Cost)
-//!OPTION 5 Highest Quality (Very High Cost)
-int nvidiaOpticalFlowQuality;
-
-//!PARAMETER
-//!GROUP Advanced Adjustments
-//!LABEL Hue Protection
+//!LABEL Performance
 //!DEFAULT 0
 //!MIN 0
 //!MAX 1
-//!STEP 0.05
-float residualHueProtection;
+//!STEP 1
+int performanceShowAdvanced;
 
 //!PARAMETER
-//!GROUP Advanced Adjustments
-//!LABEL Shadow Protection
-//!DEFAULT 0
-//!MIN 0
-//!MAX 1
-//!STEP 0.05
-float residualDarkProtection;
-
-//!PARAMETER
-//!GROUP Advanced Adjustments
-//!LABEL Highlight Protection
-//!DEFAULT 0
-//!MIN 0
-//!MAX 1
-//!STEP 0.05
-float residualHighlightProtection;
-
-//!PARAMETER
-//!GROUP Advanced Adjustments
-//!LABEL Overcorrection Suppression
-//!DEFAULT 0
-//!MIN 0
-//!MAX 1
-//!STEP 0.05
-float residualLocalCompression;
-
-//!PARAMETER
-//!GROUP Advanced Adjustments
+//!GROUP Residual Advanced Adjustments
 //!LABEL Low-frequency Range Strength
 //!DEFAULT 1
 //!MIN 0
@@ -151,7 +105,7 @@ float residualLocalCompression;
 float residualLowFrequencyGain;
 
 //!PARAMETER
-//!GROUP Advanced Adjustments
+//!GROUP Residual Advanced Adjustments
 //!LABEL High-frequency Range Strength
 //!DEFAULT 1
 //!MIN 0
@@ -160,7 +114,52 @@ float residualLowFrequencyGain;
 float residualDetailGain;
 
 //!PARAMETER
-//!GROUP Advanced Adjustments
+//!GROUP Residual Advanced Adjustments
+//!LABEL Hue Protection
+//!DEFAULT 0
+//!MIN 0
+//!MAX 1
+//!STEP 0.05
+float residualHueProtection;
+
+//!PARAMETER
+//!GROUP Residual Advanced Adjustments
+//!LABEL Chroma Protection
+//!DEFAULT 0
+//!MIN 0
+//!MAX 1
+//!STEP 0.05
+float residualChromaProtection;
+
+//!PARAMETER
+//!GROUP Residual Advanced Adjustments
+//!LABEL Shadow Protection
+//!DEFAULT 0
+//!MIN 0
+//!MAX 1
+//!STEP 0.05
+float residualDarkProtection;
+
+//!PARAMETER
+//!GROUP Residual Advanced Adjustments
+//!LABEL Highlight Protection
+//!DEFAULT 0
+//!MIN 0
+//!MAX 1
+//!STEP 0.05
+float residualHighlightProtection;
+
+//!PARAMETER
+//!GROUP Residual Advanced Adjustments
+//!LABEL Overcorrection Suppression
+//!DEFAULT 0
+//!MIN 0
+//!MAX 1
+//!STEP 0.05
+float residualLocalCompression;
+
+//!PARAMETER
+//!GROUP Residual Advanced Adjustments
 //!LABEL Diagnostic View
 //!DEFAULT 0
 //!OPTION 0 Final Image
@@ -172,6 +171,76 @@ float residualDetailGain;
 //!OPTION 6 Gamut Scale
 //!OPTION 7 Compression Scale
 int residualDebugView;
+
+//!PARAMETER
+//!GROUP Performance Advanced Adjustments
+//!LABEL Resolution Control
+//!DEFAULT 0
+//!OPTION 0 Adaptive
+//!OPTION 1 Manual
+int resolutionControl;
+
+//!PARAMETER
+//!GROUP Performance Advanced Adjustments
+//!LABEL Input Resolution (%)
+//!DEFAULT 100
+//!MIN 25
+//!MAX 100
+//!STEP 1
+int inputResolutionPercent;
+
+//!PARAMETER
+//!GROUP Performance Advanced Adjustments
+//!LABEL Processing Mode
+//!DEFAULT 0
+//!OPTION 0 Every Frame
+//!OPTION 1 Alternating Frames
+int processingMode;
+
+//!PARAMETER
+//!GROUP Performance Advanced Adjustments
+//!LABEL NR Update Interval
+//!DEFAULT 2
+//!OPTION 2 Every 2 Frames
+//!OPTION 3 Every 3 Frames
+//!OPTION 4 Every 4 Frames
+int sparseUpdateInterval;
+
+//!PARAMETER
+//!GROUP Performance Advanced Adjustments
+//!LABEL Residual Reuse
+//!DEFAULT 0
+//!OPTION 0 Historical Residual in Place
+//!OPTION 1 Historical Residual Reprojection
+int residualTransfer;
+
+//!PARAMETER
+//!GROUP Performance Advanced Adjustments
+//!LABEL Optical Flow Method
+//!DEFAULT 0
+//!OPTION 0 None
+//!OPTION 1 AMDOF
+//!OPTION 2 NVOF
+int opticalFlowMethod;
+
+//!PARAMETER
+//!GROUP Performance Advanced Adjustments
+//!LABEL Optical Flow Quality
+//!DEFAULT 1
+//!OPTION 0 Performance
+//!OPTION 1 Quality
+int amdOpticalFlowMode;
+
+//!PARAMETER
+//!GROUP Performance Advanced Adjustments
+//!LABEL Optical Flow Quality
+//!DEFAULT 2
+//!OPTION 1 Performance
+//!OPTION 2 Balanced
+//!OPTION 3 Quality
+//!OPTION 4 High Quality
+//!OPTION 5 Highest Quality
+int nvidiaOpticalFlowQuality;
 
 //!PARAMETER
 //!GROUP DLSSNR · Pass 1
@@ -220,7 +289,7 @@ float skinStructureStrength;
 
 //!PARAMETER
 //!GROUP DLSSNR · Pass 1
-//!LABEL Automatic Mask
+//!LABEL Auto mask
 //!DEFAULT 0
 //!MIN 0
 //!MAX 1
@@ -229,7 +298,7 @@ int useAutoMask;
 
 //!PARAMETER
 //!GROUP DLSSNR · Pass 1
-//!LABEL NR UI Correction
+//!LABEL UI fix
 //!DEFAULT 0
 //!MIN 0
 //!MAX 1
@@ -312,7 +381,7 @@ float pass2_skinStructureStrength;
 
 //!PARAMETER
 //!GROUP DLSSNR · Pass 2
-//!LABEL Automatic Mask
+//!LABEL Auto mask
 //!DEFAULT 0
 //!MIN 0
 //!MAX 1
@@ -321,7 +390,7 @@ int pass2_useAutoMask;
 
 //!PARAMETER
 //!GROUP DLSSNR · Pass 2
-//!LABEL NR UI Correction
+//!LABEL UI fix
 //!DEFAULT 0
 //!MIN 0
 //!MAX 1
@@ -375,7 +444,7 @@ float pass3_skinStructureStrength;
 
 //!PARAMETER
 //!GROUP DLSSNR · Pass 3
-//!LABEL Automatic Mask
+//!LABEL Auto mask
 //!DEFAULT 0
 //!MIN 0
 //!MAX 1
@@ -384,7 +453,7 @@ int pass3_useAutoMask;
 
 //!PARAMETER
 //!GROUP DLSSNR · Pass 3
-//!LABEL NR UI Correction
+//!LABEL UI fix
 //!DEFAULT 0
 //!MIN 0
 //!MAX 1

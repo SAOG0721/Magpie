@@ -29,8 +29,10 @@ dispatch = block(render, '\n\tif (!stableBaseOnly) {')
 assert '_UpdateFrontendBase(sharedTextureSlot)' in dispatch
 dlss = block(s, 'DLSSFGFrameRenderResult Renderer::RenderDLSSFGFrame(')
 drop = block(dlss, 'if (droppedFrame) {')
-wait_start = s.index('if (_frameSyncEnabled && _frameSyncUsesSharedSlot &&\n\t\t\t_frameSyncAcknowledgedKey.load(std::memory_order_acquire) !=\n\t\t\t_sharedTextureMutexKeys[0].load(std::memory_order_acquire)) continue;')
-wait = s[wait_start:s.index(' continue;', wait_start)].removeprefix('if (')[:-1]
+renderer_header = (repo / 'src/Magpie.Core/Renderer.h').read_text(encoding='utf-8-sig')
+capture_guards = '\n'.join(block(renderer_header, signature) for signature in (
+    'bool _IsFrameSyncPublicationPending()', 'bool _FrameSyncBlocksCapture()'))
+assert 'if (_FrameSyncBlocksCapture()) continue;' in s
 nr = (repo / 'src/Magpie.Core/DLSSNRFilter.cpp').read_text(encoding='utf-8-sig')
 nr_header = (repo / 'src/Magpie.Core/DLSSNRFilter.h').read_text(encoding='utf-8-sig')
 settings = block(nr_header, 'struct DLSSNRSettings {') + ';'
@@ -53,6 +55,8 @@ prefix = r'''
 #include <mutex>
 #include <string>
 #include <string_view>
+#include "DLSSNRPerformanceParameters.h"
+using namespace Magpie;
 using HRESULT = int;
 constexpr int WAIT_TIMEOUT = 258;
 bool FAILED(int x) { return x < 0; }
@@ -69,7 +73,7 @@ HRESULT ReleasePresentationTextures(const std::array<IDXGIKeyedMutex*,3>&, uint6
 namespace fmt { template<class... T> int format(T...) { return 0; } }
 struct Logger { static Logger& Get() { static Logger l; return l; } void Info(int) {} void ComError(const char*, int) {} };
 namespace FrameTrace {
-enum class Event { FrontendBase, FrontendAcquireBusy, FrontendAcquire };
+enum class Event { FrontendBase, FrontendAcquireBusy, FrontendAcquire, FrameSyncAck };
 struct Scope { template<class... T> Scope(T...) {} void Data(int, int64_t) {} void End() {} };
 template<class... T> void Mark(T...) {}
 }
@@ -95,6 +99,7 @@ struct Renderer {
   std::array<uint64_t,2> _lastAccessMutexKeys{}, _discardedFrontendKeys{};
   std::atomic<uint64_t> _activeCaptureSequence{2}, _activeResourceGeneration{1}, _frameSyncAcknowledgedKey{2};
   bool _frameSyncEnabled=true, _frameSyncUsesSharedSlot=true, _frontendBaseValid=true, _frontendBaseNeedsPresent=false;
+  bool _frameSyncCaptureAheadEnabled=false, _pendingFrameSyncOutput=false;
   Event _frameSyncConsumedEvent;
   std::array<Event,2> _sharedTextureAvailableEvents;
   int pending = 1;
@@ -113,7 +118,8 @@ struct Renderer {
 ''' + drop + r'''
     return presented ? DLSSFGFrameRenderResult::Presented : DLSSFGFrameRenderResult::Retry;
   }
-  bool backendBlocked() { return ''' + wait + r'''; }
+''' + capture_guards + r'''
+  bool backendBlocked() { return _FrameSyncBlocksCapture(); }
 };
 ''' + update + r'''
 struct MotionVectorRequest {};

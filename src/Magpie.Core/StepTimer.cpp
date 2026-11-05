@@ -38,7 +38,7 @@ void StepTimer::Initialize(float minFrameRate, std::optional<float> maxFrameRate
 //    wait │ capture │ render │ wait │ capture
 //
 StepTimerStatus StepTimer::WaitForNextFrame(bool waitForNewFrame, bool& fpsUpdated,
-	HANDLE frameArrivedEvent) noexcept {
+	HANDLE frameArrivedEvent, std::optional<nanoseconds> outputRefreshDelay) noexcept {
 	fpsUpdated = false;
 
 	// 不断更新 _nextFrameStartTime 直到新帧到达
@@ -47,6 +47,7 @@ StepTimerStatus StepTimer::WaitForNextFrame(bool waitForNewFrame, bool& fpsUpdat
 	if (_thisFrameStartTime == time_point<steady_clock>{}) {
 		// 等待第一帧，无需更新 FPS
 		if (waitForNewFrame) {
+			FrameTrace::Scope traceSource(FrameTrace::Event::CaptureSourceWait, -1, frameArrivedEvent != nullptr);
 			const DWORD result = MsgWaitForMultipleObjectsEx(frameArrivedEvent ? 1 : 0,
 				frameArrivedEvent ? &frameArrivedEvent : nullptr, INFINITE,
 				QS_ALLINPUT, MWMO_INPUTAVAILABLE);
@@ -58,24 +59,38 @@ StepTimerStatus StepTimer::WaitForNextFrame(bool waitForNewFrame, bool& fpsUpdat
 
 	// 包括当前帧的捕获时间和渲染时间以及渲染完成后已经等待的时间
 	const nanoseconds delta = _nextFrameStartTime - _thisFrameStartTime;
+	const nanoseconds renderDelta = _nextFrameStartTime - _lastRenderStartTime;
 
-	if (delta >= _maxInterval) {
+	if (renderDelta >= _maxInterval) {
 		return StepTimerStatus::ForceNewFrame;
 	}
 
 	// 没有新帧也应更新 FPS。作为性能优化，强制帧无需更新，因为 PrepareForRender 必定会执行
 	fpsUpdated = _UpdateFPS(_nextFrameStartTime);
+	// a is the signed remaining nanoseconds at this observation, b the software
+	// minimum period. Together with CaptureStart these expose scheduler
+	// lateness without treating a source notification as capture acceptance.
+	FrameTrace::Mark(FrameTrace::Event::CaptureDeadline,
+		(_HasMinInterval() ? _minInterval - delta : 0ns).count(), _minInterval.count());
 
 	if (delta < _minInterval) {
+		FrameTrace::Scope traceTimer(FrameTrace::Event::CaptureTimerWait, (_minInterval - delta).count(), _strictStart);
 		_WaitForMsgAndTimer(_minInterval - delta);
 		return StepTimerStatus::WaitForFPSLimiter;
 	}
 
 	// 有的捕获方法当有新帧时会有消息到达
 	if (waitForNewFrame) {
-		if (_HasMaxInterval()) {
-			_WaitForMsgAndTimer(_maxInterval - delta, frameArrivedEvent);
+		FrameTrace::Scope traceSource(FrameTrace::Event::CaptureSourceWait);
+		if (outputRefreshDelay) {
+			const auto wait = std::max(0ns, std::min(*outputRefreshDelay, _maxInterval-renderDelta));
+			traceSource.Data(wait.count(), frameArrivedEvent != nullptr);
+			_WaitForMsgAndTimer(wait, frameArrivedEvent);
+		} else if (_HasMaxInterval()) {
+			traceSource.Data((_maxInterval - renderDelta).count(), frameArrivedEvent != nullptr);
+			_WaitForMsgAndTimer(_maxInterval - renderDelta, frameArrivedEvent);
 		} else {
+			traceSource.Data(nanoseconds(500ms).count(), frameArrivedEvent != nullptr);
 			// 没有最小帧率限制则只需等待消息。为了及时更新 FPS，每次等待 500ms
 			const DWORD result = MsgWaitForMultipleObjectsEx(frameArrivedEvent ? 1 : 0,
 				frameArrivedEvent ? &frameArrivedEvent : nullptr, 500,
@@ -87,18 +102,20 @@ StepTimerStatus StepTimer::WaitForNextFrame(bool waitForNewFrame, bool& fpsUpdat
 	return StepTimerStatus::WaitForNewFrame;
 }
 
-void StepTimer::PrepareForRender() noexcept {
+void StepTimer::PrepareForRender(bool isNewCaptureFrame) noexcept {
 	// 进入新一帧，计算此帧的开始时间
-	if (_HasMinInterval() && !_strictStart) {
+	if (isNewCaptureFrame && _HasMinInterval() && !_strictStart) {
 		// 限制最大帧率时帧间隔必须是最小帧间隔的整数倍，_nextFrameStartTime 需要稍微向前修正。
 		// 出于同样的原因，最大帧间隔应是最小帧间隔的整数倍。
 		_thisFrameStartTime = _nextFrameStartTime -
 			(_nextFrameStartTime - _thisFrameStartTime) % _minInterval;
-	} else {
+	} else if (isNewCaptureFrame) {
 		_thisFrameStartTime = _nextFrameStartTime;
 	}
+	_lastRenderStartTime = _nextFrameStartTime;
 
-	++_framesThisSecond;
+	if (isNewCaptureFrame) ++_framesThisSecond;
+	++_updatesThisSecond;
 	++_frameCount;
 
 	_UpdateFPS(steady_clock::now());
@@ -106,31 +123,9 @@ void StepTimer::PrepareForRender() noexcept {
 
 void StepTimer::_WaitForMsgAndTimer(std::chrono::nanoseconds time,
 	HANDLE frameArrivedEvent) noexcept {
-	if (_strictStart) {
-		WaitForFramePacing(time, _strictTimer, frameArrivedEvent);
-		return;
-	}
-	if (time > 1ms) {
-		if (!_hTimer) {
-			_hTimer.reset(CreateWaitableTimerEx(nullptr, nullptr,
-				CREATE_WAITABLE_TIMER_HIGH_RESOLUTION, TIMER_ALL_ACCESS));
-		}
-
-		// Sleep 精度太低，我们使用 WaitableTimer 睡眠。负值表示相对时间
-		LARGE_INTEGER liDueTime{
-			.QuadPart = (time - 1ms).count() / -100
-		};
-		SetWaitableTimerEx(_hTimer.get(), &liDueTime, 0, NULL, NULL, 0, 0);
-
-		// 新消息到达则中止等待
-		HANDLE handles[]{ _hTimer.get(), frameArrivedEvent };
-		const DWORD result = MsgWaitForMultipleObjectsEx(frameArrivedEvent ? 2 : 1,
-			handles, INFINITE, QS_ALLINPUT, MWMO_INPUTAVAILABLE);
-		FrameTrace::Mark(FrameTrace::Event::CaptureWake, result, frameArrivedEvent ? 3 : 2);
-	} else {
-		// 剩余时间在 1ms 以内则“忙等待”
-		Sleep(0);
-	}
+	if (time.count() <= 0) return;
+	const DWORD result = WaitForFramePacing(time, _hTimer, frameArrivedEvent);
+	FrameTrace::Mark(FrameTrace::Event::CaptureWake, result, frameArrivedEvent ? 3 : 2);
 }
 
 // FPS 更新时返回 true
@@ -148,8 +143,10 @@ bool StepTimer::_UpdateFPS(time_point<steady_clock> now) noexcept {
 	}
 
 	const uint32_t oldFPS = _framesPerSecond.exchange(_framesThisSecond, std::memory_order_relaxed);
+	_updatesPerSecond.store(_updatesThisSecond, std::memory_order_relaxed);
 	const bool changed = oldFPS != _framesThisSecond;
 	_framesThisSecond = 0;
+	_updatesThisSecond = 0;
 
 	return changed;
 }

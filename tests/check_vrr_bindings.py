@@ -20,7 +20,7 @@ group = next(node for node in xaml.iter() if node.get(x + "Name") == "FrameRefre
 card = next(node for node in group if node.get(x + "Uid") == "FrameRefresh_VRR")
 assert "Visibility" not in card.attrib, "VRR is shared by both modes"
 assert not any(node.get(x + "Uid") == "FrameRefresh_Advanced" for node in group.iter())
-toggle = next(iter(card))
+toggle = next(node for node in card.iter() if node.get(x + "Uid") == "FrameRefresh_VRR_Input")
 assert toggle.get("IsOn") == "{x:Bind ViewModel.IsVRREnabled, Mode=TwoWay}"
 assert toggle.get(x + "Uid") == "FrameRefresh_VRR_Input"
 assert "Boolean IsVRREnabled;" in read("src/Magpie/ProfileViewModel.idl")

@@ -11,6 +11,7 @@
     [switch]$AllowDirtySource,
     [switch]$IncludeSymbols,
     [switch]$SkipBuild,
+    [switch]$PrepareRelease,
     [switch]$RequireMagpieClosed,
     [switch]$EnableFrameTrace,
     [ValidateSet('Minimal', 'Full')]
@@ -209,6 +210,9 @@ if (!$ReleaseDirectory) {
     }
 }
 $releaseContainer = [System.IO.Path]::GetFullPath((Join-Path $releaseRoot $ReleaseDirectory))
+if (!$PrepareRelease -and $ReleaseDirectory -ne ("v" + $Version.TrimStart('v'))) {
+    throw 'Daily deployments use release/v<Version>; do not add task-name suffixes.'
+}
 $stagingDir = [System.IO.Path]::GetFullPath((Join-Path $releaseContainer $PackageName))
 $buildOutput = $stagingDir
 $intermediateRoot = Join-Path $releaseContainer "obj/$Platform/$Configuration"
@@ -235,7 +239,7 @@ if (!$stagingDir.StartsWith($releaseContainer + [System.IO.Path]::DirectorySepar
 Write-Host "Source directory:  $sourceRoot"
 Write-Host "Workspace root:    $workspaceRoot"
 Write-Host "Release directory: $stagingDir"
-Write-Host "Release ZIP:       $zipPath"
+if ($PrepareRelease) { Write-Host "Release ZIP:       $zipPath" }
 
 function Stop-RunningMagpie {
     $running = Get-Process -Name "Magpie" -ErrorAction SilentlyContinue
@@ -262,7 +266,7 @@ function Stop-RunningMagpie {
 # Magpie and its PRI must come from the same complete build. Stop the running
 # application before Rebuild so MSBuild never falls back to deploying a lone
 # replacement executable around a locked output directory.
-if ($RequireMagpieClosed) {
+if ($RequireMagpieClosed -or !$PrepareRelease) {
     # Only the package being rebuilt must be closed. A different local release
     # may remain running while a new distribution is prepared in its own folder.
     $targetExecutable = Join-Path $buildOutput 'Magpie.exe'
@@ -279,29 +283,37 @@ if ($RequireMagpieClosed) {
     Stop-RunningMagpie
 }
 
-if (!$SkipBuild) {
-	# MSBuild Rebuild removes known project outputs but leaves arbitrary runtime
-	# files copied by older feature sets. Start from an empty configuration
-	# directory so removed optional components cannot leak into a new package.
-	$buildRoot = $releaseContainer
-	if (!$buildOutput.StartsWith(
-		$buildRoot + [System.IO.Path]::DirectorySeparatorChar,
-		[System.StringComparison]::OrdinalIgnoreCase)) {
-		throw "Build output escaped the release version directory: $buildOutput"
-	}
-	if (Test-Path -LiteralPath $buildOutput) {
-		Get-ChildItem -LiteralPath $buildOutput -Force |
-			Remove-Item -Recurse -Force
-	}
+# Local iterations update the version's existing runtime directly. A recovery
+# copy is outside release/, and runtime settings/logs/cache stay in place.
+$runtimeStateNames = @("cache", "logs", "config", "PortableAppData", "config.json")
+$backupDirectory = Join-Path $workspaceRoot ("backups/local-deploy/" + (Get-Date -Format 'yyyyMMdd-HHmmss-fff') + "-" + (Split-Path $releaseContainer -Leaf))
+if (!$SkipBuild -and (Test-Path -LiteralPath $buildOutput)) {
+    New-Item -ItemType Directory -Path $backupDirectory -Force | Out-Null
+    Copy-Item -LiteralPath $buildOutput -Destination (Join-Path $backupDirectory $PackageName) -Recurse
+    Write-Host "Previous runtime:  $backupDirectory"
+}
 
+if (!$SkipBuild) {
+    if ($PrepareRelease -and (Test-Path -LiteralPath $buildOutput)) {
+        # Explicit distribution preparation starts from clean payload, while
+        # keeping local runtime state excluded from the resulting archive.
+        if (!(Resolve-Path -LiteralPath $buildOutput).Path.StartsWith(
+                $releaseContainer + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase) -or
+            ((Get-Item -LiteralPath $buildOutput).Attributes -band [IO.FileAttributes]::ReparsePoint)) {
+            throw 'Refusing to clean an output outside the version directory.'
+        }
+        Get-ChildItem -LiteralPath $buildOutput -Force | Where-Object { $_.Name -notin $runtimeStateNames } |
+            ForEach-Object { Remove-Item -LiteralPath $_.FullName -Recurse -Force }
+    }
     $msbuild = Find-MSBuild
     Add-ConanToPath
     Add-CMakeToPath
 
     $disablePdb = if ($IncludeSymbols) { "false" } else { "true" }
     $multiToolTask = if ($MaxCompilerProcesses -gt 1) { "true" } else { "false" }
+    $buildTarget = if ($PrepareRelease) { 'Rebuild' } else { 'Build' }
     $msbuildArgs = @(
-        "Magpie.slnx", "/m:$MaxCpuCount", "/nr:false", "/v:minimal", "/t:Rebuild",
+        "Magpie.slnx", "/m:$MaxCpuCount", "/nr:false", "/v:minimal", "/t:$buildTarget",
         "/p:Configuration=$Configuration", "/p:Platform=$Platform",
         "/p:MajorVersion=$($versionMatch.Groups[1].Value)",
         "/p:MinorVersion=$($versionMatch.Groups[2].Value)",
@@ -391,13 +403,8 @@ Get-ChildItem -LiteralPath $stagingDir -File | Where-Object {
     $_.Extension -in ".pdb", ".map", ".lib", ".exp" -or $_.Name -eq "Magpie.next.exe"
 } | Remove-Item -Force
 
-# Never package per-user runtime state left by local test launches.
-foreach ($runtimeStateName in @("cache", "logs", "config", "PortableAppData", "config.json")) {
-    $runtimeStatePath = Join-Path $stagingDir $runtimeStateName
-    if (Test-Path -LiteralPath $runtimeStatePath) {
-        Remove-Item -LiteralPath $runtimeStatePath -Recurse -Force
-    }
-}
+# Runtime state is retained for direct deployment and excluded from manifests
+# and archives below, including when explicitly preparing distribution files.
 
 Copy-Item -LiteralPath (Join-Path $sourceRoot "LICENSE") `
     -Destination (Join-Path $stagingDir "LICENSE-Magpie.txt")
@@ -414,7 +421,7 @@ $versionNotes = Join-Path $sourceRoot "docs\RELEASE_NOTES_v$Version.md"
 if (!(Test-Path -LiteralPath $versionNotes)) {
     $versionNotes = Join-Path $sourceRoot "docs\RELEASE_NOTES_v$Version-experimental.md"
 }
-if (Test-Path -LiteralPath $versionNotes) {
+if ($PrepareRelease -and (Test-Path -LiteralPath $versionNotes)) {
     Copy-Item -LiteralPath $versionNotes -Destination (Join-Path $stagingDir "RELEASE-NOTES.md")
 }
 $frameSyncGuide = Join-Path $sourceRoot "docs\FRAME_SYNC_GUIDE.md"
@@ -459,7 +466,10 @@ if ($featureOptions["EnableFrameTrace"] -eq "true") {
     Copy-Item -LiteralPath (Join-Path $sourceRoot "docs\FRAME_TRACE_GUIDE.md") -Destination (Join-Path $diagnosticsDir "README.md")
 }
 
-$fileRecords = Get-ChildItem -LiteralPath $stagingDir -File -Recurse | Sort-Object FullName | ForEach-Object {
+$fileRecords = Get-ChildItem -LiteralPath $stagingDir -File -Recurse | Where-Object {
+    $relative = $_.FullName.Substring($stagingDir.Length).TrimStart('\', '/').Replace('\', '/')
+    ($relative.Split('/')[0] -notin $runtimeStateNames) -and $relative -ne 'build-manifest.json'
+} | Sort-Object FullName | ForEach-Object {
     $relativePath = $_.FullName.Substring($stagingDir.Length).TrimStart('\', '/')
     [ordered]@{
         path = $relativePath.Replace('\', '/')
@@ -490,11 +500,34 @@ $manifest = [ordered]@{
 $manifest | ConvertTo-Json -Depth 8 | Set-Content `
     -LiteralPath (Join-Path $stagingDir "build-manifest.json") -Encoding utf8
 
+if (!$PrepareRelease) {
+    # Move obsolete release assets out of the active version instead of leaving
+    # an old ZIP/note beside a newer executable. Nothing is regenerated here.
+    $oldAssets = @($zipPath, (Join-Path $stagingDir 'RELEASE-NOTES.md')) + @(
+        'RELEASE_BODY.md', 'RELEASE-REVIEW.md', 'SHA256SUMS.txt', 'PACKAGE-AUDIT.json', 'DLSSNR-DLL-Options.zip'
+    | ForEach-Object { Join-Path $releaseContainer $_ })
+    foreach ($asset in $oldAssets) {
+        if (Test-Path -LiteralPath $asset -PathType Leaf) {
+            $archiveDirectory = Join-Path $backupDirectory 'release-materials'
+            New-Item -ItemType Directory -Path $archiveDirectory -Force | Out-Null
+            Move-Item -LiteralPath $asset -Destination (Join-Path $archiveDirectory (Split-Path $asset -Leaf))
+        }
+    }
+    # RELEASE-NOTES may have been present before this local build's manifest.
+    $manifest.files = @($manifest.files | Where-Object { $_.path -ne 'RELEASE-NOTES.md' })
+    $manifest | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $stagingDir 'build-manifest.json') -Encoding utf8
+    [ordered]@{ commit=$commit; version=$Version; runtime=$stagingDir; backup=$backupDirectory;
+        distributionPrepared=$false; userStatePreserved=$true } | ConvertTo-Json |
+        Set-Content -LiteralPath (Join-Path $releaseContainer 'LOCAL-DEPLOYMENT.json') -Encoding utf8
+    Write-Host "Local deployment complete: $stagingDir ($commit)"
+    return
+}
+
 # Normalize staging timestamps to the source commit time. Combined with the
 # manifest this makes repeated packages comparable and avoids local wall-clock
 # metadata in the archive.
-Get-ChildItem -LiteralPath $stagingDir -Recurse -Force | ForEach-Object {
-    $item = $_
+@($fileRecords.path) + 'build-manifest.json' | ForEach-Object {
+    $item = Get-Item -LiteralPath (Join-Path $stagingDir $_)
     $normalized = $false
     for ($attempt = 1; $attempt -le 5; ++$attempt) {
         try {
@@ -527,14 +560,14 @@ Add-Type -AssemblyName System.IO.Compression.FileSystem
 $archive = [System.IO.Compression.ZipFile]::Open(
     $zipPath, [System.IO.Compression.ZipArchiveMode]::Create)
 try {
-    Get-ChildItem -LiteralPath $stagingDir -File -Recurse | Sort-Object FullName | ForEach-Object {
-        $relativePath = $_.FullName.Substring($stagingDir.Length).TrimStart('\', '/').Replace('\', '/')
+    @($fileRecords.path) + 'build-manifest.json' | Sort-Object | ForEach-Object {
+        $relativePath = $_
         $entryName = "$PackageName/$relativePath"
         $entry = $archive.CreateEntry(
             $entryName, [System.IO.Compression.CompressionLevel]::Optimal)
         $entry.LastWriteTime = [DateTimeOffset]$sourceDate
 
-        $inputStream = [System.IO.File]::OpenRead($_.FullName)
+        $inputStream = [System.IO.File]::OpenRead((Join-Path $stagingDir $relativePath))
         $outputStream = $entry.Open()
         try {
             $inputStream.CopyTo($outputStream)

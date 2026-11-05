@@ -63,6 +63,7 @@ struct Timer {
     void Initialize(float minimumValue, std::optional<float> value, bool strictValue=false) { minimum=minimumValue; limit=value; strict=strictValue; }
 };
 struct Driver : ReflexDriver {
+    ReflexSleepStatus QueryStatus() noexcept override { return {0,true}; }
     bool failed=false, actualOn=true, failClear=false;
     uint32_t interval=0;
     ReflexConfigurationResult Configure(ReflexSettings value) noexcept override {
@@ -88,6 +89,7 @@ struct Renderer {
     std::vector<EffectOption> _runtimeEffectOptions;
     float _frameRateFilterTarget=0;
     std::atomic<double> _presentationRefreshRate=240, _existingBaseFrameRateLimit=0;
+	std::atomic<double> _idleRedrawRate=0;
     unsigned _configuredFrameGenerationMultiplier=1;
     bool _frameSyncEnabled=true, _frameSyncUsesSharedSlot=true;
     std::unique_ptr<FG> _dlssFrameGenerator;
@@ -258,6 +260,24 @@ int main() {
     reported._captureMaxFrameRate=20.0f; reported._UpdateFrameRateLimits();
     assert(reported._baseFrameRateLimit==20 && reported._stepTimer.limit==20);
     options.contentTargetChanged={};
+	// NR processing and frame synchronization are independent dimensions. The
+	// common overlay/trace changes must never install another base limiter.
+	options.minFrameRate=0; options.maxFrameRate.reset();
+	for (auto backend : {FrameSyncBackend::None, FrameSyncBackend::FrontEdge, FrameSyncBackend::Async, FrameSyncBackend::Reflex})
+	for (unsigned nrMode=0; nrMode<4; ++nrMode) for (float rate : {60.f,90.f,120.f}) {
+		Renderer cell;
+		cell._frameSyncBackend=backend;
+		cell._frameSyncEnabled=backend!=FrameSyncBackend::None;
+		cell._runtimeEffectOptions={{"DLSSNR\\DLSSNR_AI_Filter",{{"processingMode",float(nrMode)}}}};
+		options.isFrontEdgeSyncEnabled=cell._frameSyncEnabled;
+		options.frontEdgeSyncFrameRate=rate;
+		cell._UpdateFrameRateLimits();
+		assert(cell._appliedFrameSyncBackend==backend);
+		assert(cell._stepTimer.limit==(backend==FrameSyncBackend::Async ? std::optional(rate) : std::nullopt));
+		assert(cell._stepTimer.strict==(backend==FrameSyncBackend::Async || backend==FrameSyncBackend::Reflex));
+		assert(cell._reflex.driver->interval==(backend==FrameSyncBackend::Reflex ? FrameSyncIntervalUs(rate) : 0));
+	}
+	std::cout << "PASS: all 12 synchronized NR combinations at 60/90/120 plus source-following keep one base limiter owner\n";
     std::cout << "PASS: production content-target notifications use base FPS, track FG/capture/mode changes, deduplicate and isolate callback failures\n";
     std::cout << "PASS: production renderer single limiter ownership, lower profile cap, Reflex failure fallback, DLSS recovery, XeLL handoff, idle clamp/FG disable and unsupported-strategy targets\n";
 }
@@ -280,6 +300,6 @@ needle = 'if (settings.mode == FrameSyncMode::Reflex)\n\t\treturn FrameSyncBacke
 assert needle in policy
 (policy_dir/'FramePacingOptions.h').write_text(policy.replace(needle, 'if (settings.mode == FrameSyncMode::Reflex)\n\t\treturn dlssFG ? FrameSyncBackend::Async : FrameSyncBackend::Reflex;'), encoding='utf-8')
 (policy_dir/'runtime.cpp').write_text(runtime, encoding='utf-8')
-needle = '_stepTimer.Initialize(minFrameRate, consumerPacing ? std::nullopt : fallbackLimit,'
+needle = '_stepTimer.Initialize(useFrameGeneration ? 0.0f : minFrameRate, consumerPacing ? std::nullopt : fallbackLimit,'
 assert needle in runtime
-(output/'negative_double.cpp').write_text(runtime.replace(needle, '_stepTimer.Initialize(minFrameRate, consumerPacing && _appliedFrameSyncBackend != FrameSyncBackend::Reflex ? std::nullopt : fallbackLimit,'), encoding='utf-8')
+(output/'negative_double.cpp').write_text(runtime.replace(needle, '_stepTimer.Initialize(useFrameGeneration ? 0.0f : minFrameRate, consumerPacing && _appliedFrameSyncBackend != FrameSyncBackend::Reflex ? std::nullopt : fallbackLimit,'), encoding='utf-8')

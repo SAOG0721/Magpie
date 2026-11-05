@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <iostream>
 #include <vector>
+#include "FrameGuidanceAvailability.h"
 
 struct ID3D11Texture2D {};
 struct ID3D11Fence {};

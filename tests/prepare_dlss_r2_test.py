@@ -25,6 +25,7 @@ content = ['#include <string>\n#include "DLSSNRColorShader.h"\n#include "DLSSNRD
 for name, body in shaders:
     content.append(f'constexpr char {name}_HLSL[] = R"({body})";')
 content.append('inline const std::string RESIDUAL_PREPARE_SHADER = std::string(Magpie::DLSSNR_COLOR_HLSL) + RESIDUAL_PREPARE_HLSL + std::string(Magpie::DLSSNR_DETAIL_HLSL);')
+content.append('inline const std::string RESIDUAL_VERTICAL_COMPOSITE_SHADER = std::string(Magpie::DLSSNR_COLOR_HLSL) + RESIDUAL_VERTICAL_COMPOSITE_HLSL;')
 content.extend(function(nr, signature) for signature in (
     'static bool CreateCompositeOutput(',
     'static bool CompositeResidual('))

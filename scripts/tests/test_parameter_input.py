@@ -189,6 +189,9 @@ fixture = r'''
 namespace Magpie {
 ENUM
 SESSION
+// Relocation lifecycle is covered by CursorRepositionTests; this fixture tests
+// the parameter transition and its existing coordinate/input-host routing.
+namespace FrameTrace { enum class CursorRepositionReason { ParameterInput }; }
 enum class OverlayAction { Profiler };
 class OverlayDrawer {
 public:
@@ -223,6 +226,7 @@ public:
     bool _StopCapture(POINT& point, bool) { point=SrcToScaling(point,false); _isUnderCapture=false; return true; }
     void _RestoreClipCursor() { FakeClip(nullptr); }
     void _ReliableSetCursorPos(POINT point) { cursor=point; }
+    bool _FinishCursorReposition(FrameTrace::CursorRepositionReason) { return true; }
     void _ClearHitTestResult() {}
     void _ShowSystemCursor(bool show) { nativeCursorShown=show; }
     void Update() { ++updates; }
@@ -311,10 +315,13 @@ static float numericValue = 0.5f;
 static bool checkbox = false;
 static POINT choicePoint{}, childPoint{}, checkboxPoint{};
 static ImVec2 panelPos{20,20};
+static bool freePanelPlacement=false;
 static bool drawToolbar=false;
 static phmap::flat_hash_map<std::string,OverlayWindowOption> windows;
+static std::vector<std::pair<bool,bool>> wheelModifiers;
 static void Frame(bool present=true) {
     overlay->_imguiImpl.NewFrame(windows,0,1);
+    if(ImGui::GetIO().MouseWheel!=0)wheelModifiers.emplace_back(ImGui::GetIO().KeyCtrl,ImGui::GetIO().KeyShift);
     if (drawToolbar) {
         ImGui::SetNextWindowPos({500,10}); ImGui::SetNextWindowSize({200,70});
         ImGui::Begin("##toolbar",nullptr,ImGuiWindowFlags_NoMove|ImGuiWindowFlags_NoResize);
@@ -322,7 +329,7 @@ static void Frame(bool present=true) {
         ImGui::End();
     }
     if (overlay->_isEffectParametersVisible) {
-    ImGui::SetNextWindowPos(panelPos); ImGui::SetNextWindowSize({300,260});
+    ImGui::SetNextWindowPos(panelPos,freePanelPlacement?ImGuiCond_Appearing:ImGuiCond_Always); ImGui::SetNextWindowSize({300,260});
     if (ImGui::Begin(overlay->_parameterFocusSwitchingEnabled ? "Parameters - mode###effectParameters" : "Parameters##effectParameters",
         overlay->_parameterFocusSwitchingEnabled ? nullptr : &overlay->_isEffectParametersVisible,
         !overlay->_parameterFocusSwitchingEnabled || overlay->IsEditingParameters() ? 0 : ImGuiWindowFlags_NoInputs)) {
@@ -853,7 +860,39 @@ int RunHandoffBoundaries() {
     std::cout << "PASS input handoff boundaries: denied thread focus, activation reentry, output layer following, normal held input, capture/cancel, old run, source death, hidden output and destroyed host\n";
     return 0;
 }
-int main() { RunFocusMode(); RunLegacyMode(); RunToolbarEdgeInput(); RunSourceForeground(); return RunHandoffBoundaries(); }
+int RunFastTitleDrag() {
+    foreground=game; inputHost=capture=nullptr; keys.fill(false); windows.clear();
+    panelPos={20,20};drawToolbar=false;freePanelPlacement=true;
+    OverlayDrawer panel;overlay=&panel;panel._isEffectParametersVisible=true;
+    DeviceResources resources;assert(panel._imguiImpl.Initialize(resources));
+    auto& io=ImGui::GetIO();unsigned char* pixels;int w,h;io.Fonts->GetTexDataAsRGBA32(&pixels,&w,&h);
+    io.DisplaySize={800,600};io.DeltaTime=1.0f/60;Frames();
+    // A complete fast gesture may arrive between two frontend renders.
+    // Dispatch can lag behind the physical pointer: DOWN still belongs to the
+    // title even when the native cursor has already reached the drag endpoint.
+    ScalingMouse(WM_LBUTTONDOWN,{100,29},{300,129});
+    ScalingMouse(WM_MOUSEMOVE,{300,129},{300,129});
+    ScalingMouse(WM_LBUTTONUP,{300,129},{300,129});
+    Frames(10);
+    const auto rect=panel._imguiImpl.GetWindowRect("effectParameters");
+    assert(rect && std::abs(rect->x-220)<1 && std::abs(rect->y-120)<1);
+    assert(!capture && !ImGui::GetCurrentContext()->MovingWindow);
+    // The unfocused/default mouse route receives modifiers from WM_MOUSEWHEEL,
+    // not a keyboard hook. Different modifier gestures may not be coalesced.
+    cursor={250,160};messagePoint=cursor;
+    panel._imguiImpl.MessageHandler(WM_MOUSEWHEEL,MAKEWPARAM(MK_CONTROL,WHEEL_DELTA),0);
+    panel._imguiImpl.MessageHandler(WM_MOUSEWHEEL,MAKEWPARAM(MK_SHIFT,WHEEL_DELTA),0);
+    wheelModifiers.clear();Frames(8);
+    bool controlSeen=false,shiftSeen=false;
+    for(auto [ctrl,shift]:wheelModifiers){controlSeen|=ctrl&&!shift;shiftSeen|=shift&&!ctrl;}
+    assert(controlSeen && shiftSeen);
+    Frames();assert(!io.KeyCtrl && !io.KeyShift);
+    std::cout<<"PASS wheel modifiers: default no-focus route preserves Ctrl/Shift gestures and releases, without coalescing them\n";
+    freePanelPlacement=false;
+    std::cout<<"PASS queued title drag: move position survives a press/move/release between renders\n";
+    return 0;
+}
+int main() { RunFocusMode(); RunLegacyMode(); RunToolbarEdgeInput(); RunSourceForeground(); RunHandoffBoundaries(); return RunFastTitleDrag(); }
 
 '''
 

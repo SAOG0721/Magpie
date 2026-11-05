@@ -13,6 +13,9 @@ namespace Magpie {
 
 namespace {
 
+// FFX 2.3.0 allocates level-6 luma with input dimensions >> 6.
+constexpr uint32_t AMD_OPTICAL_FLOW_MIN_ESTIMATION_DIMENSION = 64;
+
 constexpr char PREPARE_INPUT_HLSL[] = R"(
 Texture2D<float4> Source : register(t0);
 RWTexture2D<float4> Target : register(u0);
@@ -275,6 +278,15 @@ struct AmdOpticalFlowProvider::Impl {
 		opticalFlowExtent = mode == AmdOpticalFlowMode::Performance ?
 			FrameGuidanceExtent{ (extent.width + 1) / 2, (extent.height + 1) / 2 } :
 			extent;
+		if (opticalFlowExtent.width < AMD_OPTICAL_FLOW_MIN_ESTIMATION_DIMENSION ||
+			opticalFlowExtent.height < AMD_OPTICAL_FLOW_MIN_ESTIMATION_DIMENSION) {
+			Logger::Get().Warn(fmt::format(
+				"AMD OF input too small: mode={} source={}x{} estimator={}x{} minimum={}x{}",
+				static_cast<uint32_t>(mode), extent.width, extent.height, opticalFlowExtent.width,
+				opticalFlowExtent.height, AMD_OPTICAL_FLOW_MIN_ESTIMATION_DIMENSION,
+				AMD_OPTICAL_FLOW_MIN_ESTIMATION_DIMENSION));
+			return false;
+		}
 		if (!device11 || !context11 || !extent.IsValid() || FAILED(
 			D3D12CreateDevice(resources.GetGraphicsAdapter(), D3D_FEATURE_LEVEL_12_0,
 				IID_PPV_ARGS(device12.put()))) || !CheckCapabilities()) {

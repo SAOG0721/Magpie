@@ -5,6 +5,7 @@ namespace Magpie {
 
 struct EffectHelper {
 	static std::wstring_view GetDisplayName(std::wstring_view fullName) noexcept {
+		if (fullName == L"OKLabImageAdjustment") return L"OKLab Image Adjustment";
 		if (fullName == L"NvidiaVFX\\Upscale") return L"Nvidia VFX Upscale";
 		if (fullName == L"NvidiaVFX\\VFG") return L"Nvidia VFX VFG";
 		if (fullName == L"RTXVideo\\RTXVideo_HDR") return L"Nvidia VFX TrueHDR";

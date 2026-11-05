@@ -104,12 +104,17 @@
           "src/Magpie.Core/NvidiaVfxImageBackend.cpp": "1598100bf522bae5c9add579477d8ed2d9d5ce14534da63d7ae4f5e811f87842",
           "src/Magpie.Core/include/NvidiaVfxParameterPolicy.h": "1c1e36befa857dfbdeb5dc2f02d047fafdee72253139c287341ff98ce46ba1c8",
           "src/Magpie.Core/include/NvidiaVfxParameters.h": "d7e192c7447ab2da701a70cee6075a09c6dc89af926cdc66ad844a9f0a4df6ac",
-          "src/Magpie.Core/ScalingRuntime.cpp": "b6ebadc2ed6fb6314fbc2d99bff2cbda480b06ed26f4a44a0b052ec1d41ef356",
+          "src/Magpie.Core/ScalingRuntime.cpp": "df901ff19620b811d86987132636557eedd168fa02023f59d243d332299c77d3",
           "src/Magpie.Core/NvidiaVfxRuntime.cpp": "2d3f620c5a564f84dd6d819ecc8b9a9a36e4c22f53da40bea5e6f9e0afb916b8",
           "src/Magpie.Core/HdrEffectBoundary.cpp": "75f166cd9c3c9cddf931b499f445f76c353d51000d1df36894f819a01809a8eb",
-          "src/Magpie.Core/Renderer.cpp": "7646c607945544aeff62515a4933aebe0661476da903d2ca84e4e60a206baab1"
+          "src/Magpie.Core/Renderer.cpp": "be9ba85dd223c7806299c1be0bf00c1900bfb7b2da6d200ef1c6430a1f9c8556"
         },
-        "evidenceBaseline": "cbe2c2cb + UWP fullscreen, HDR overlay, DLSSNR guidance and effect-description integration; copy contracts rechecked"
+        "evidenceBaseline": "cbe2c2cb + UWP fullscreen, HDR overlay, DLSSNR guidance and effect-description integration; copy contracts rechecked",
+        "oklabIntegrationAudit": "2026-10-28: reviewed new-effect-only routing/editor integration; existing effect behavior and copy retained.",
+        "beta1IntegrationAudit": "2026-10-28: combined DLSSNR and OKLab parameter surfaces, retained both configuration paths and integrated presenter redraw recovery; fixed FXC temporal return-flow compilation. Effect copy retained.",
+        "beta1FeedbackAudit": "2026-10-28: corrected UI layout and resource-cache ownership, persisted profiler preferences, normalized optical-flow dependencies, simplified NR color controls and fixed confidence-driven history attenuation.",
+        "beta2FollowupSourceAudit": "2026-10-30: reviewed shared Renderer update reasons, capture/quality pacing separation and publication hooks; ordinary effect Draw contracts remain, and default native maintenance hooks do no work. This refresh records source evidence only, not full hardware frame-generation acceptance; existing notVerified items remain.",
+        "captureAheadSourceAudit": "2026-11-01: bounded capture-ahead applies only to ordinary FrontEdge DLSSNR without any frame generation. This effect retains its existing generated-frame/shared-slot ownership and acknowledgement paths. The guarded non-NR/FG paths and legacy FrameSync/FrontendDrop regressions were reviewed."
       },
       "zh-Hans": {
         "name": "Nvidia VFX VSR",
@@ -227,9 +232,13 @@
           "src/Magpie.Core/include/HdrComponents.h": "79d19e95eb13769c7ba58a92809b5441376ef2d2a02554621e15f59af8250ed2",
           "src/Magpie.Core/NvidiaVfxRuntime.cpp": "2d3f620c5a564f84dd6d819ecc8b9a9a36e4c22f53da40bea5e6f9e0afb916b8",
           "src/Magpie.Core/HdrEffectBoundary.cpp": "75f166cd9c3c9cddf931b499f445f76c353d51000d1df36894f819a01809a8eb",
-          "src/Magpie.Core/Renderer.cpp": "7646c607945544aeff62515a4933aebe0661476da903d2ca84e4e60a206baab1"
+          "src/Magpie.Core/Renderer.cpp": "be9ba85dd223c7806299c1be0bf00c1900bfb7b2da6d200ef1c6430a1f9c8556"
         },
-        "evidenceBaseline": "cbe2c2cb + UWP fullscreen, HDR overlay, DLSSNR guidance and effect-description integration; copy contracts rechecked"
+        "evidenceBaseline": "cbe2c2cb + UWP fullscreen, HDR overlay, DLSSNR guidance and effect-description integration; copy contracts rechecked",
+        "oklabIntegrationAudit": "2026-10-28: reviewed new-effect-only routing/editor integration; existing effect behavior and copy retained.",
+        "beta1IntegrationAudit": "2026-10-28: combined DLSSNR and OKLab parameter surfaces, retained both configuration paths and integrated presenter redraw recovery; fixed FXC temporal return-flow compilation. Effect copy retained.",
+        "beta2FollowupSourceAudit": "2026-10-30: reviewed shared Renderer update reasons, capture/quality pacing separation and publication hooks; ordinary effect Draw contracts remain, and default native maintenance hooks do no work. This refresh records source evidence only, not full hardware frame-generation acceptance; existing notVerified items remain.",
+        "captureAheadSourceAudit": "2026-11-01: bounded capture-ahead applies only to ordinary FrontEdge DLSSNR without any frame generation. This effect retains its existing generated-frame/shared-slot ownership and acknowledgement paths. The guarded non-NR/FG paths and legacy FrameSync/FrontendDrop regressions were reviewed."
       },
       "zh-Hans": {
         "name": "Nvidia VFX TrueHDR",
@@ -316,9 +325,13 @@
           "src/Magpie.Core/include/NvidiaVfxParameters.h": "d7e192c7447ab2da701a70cee6075a09c6dc89af926cdc66ad844a9f0a4df6ac",
           "src/Magpie.Core/NvidiaVfxRuntime.cpp": "2d3f620c5a564f84dd6d819ecc8b9a9a36e4c22f53da40bea5e6f9e0afb916b8",
           "src/Magpie.Core/HdrEffectBoundary.cpp": "75f166cd9c3c9cddf931b499f445f76c353d51000d1df36894f819a01809a8eb",
-          "src/Magpie.Core/Renderer.cpp": "7646c607945544aeff62515a4933aebe0661476da903d2ca84e4e60a206baab1"
+          "src/Magpie.Core/Renderer.cpp": "be9ba85dd223c7806299c1be0bf00c1900bfb7b2da6d200ef1c6430a1f9c8556"
         },
-        "evidenceBaseline": "cbe2c2cb + UWP fullscreen, HDR overlay, DLSSNR guidance and effect-description integration; copy contracts rechecked"
+        "evidenceBaseline": "cbe2c2cb + UWP fullscreen, HDR overlay, DLSSNR guidance and effect-description integration; copy contracts rechecked",
+        "oklabIntegrationAudit": "2026-10-28: reviewed new-effect-only routing/editor integration; existing effect behavior and copy retained.",
+        "beta1IntegrationAudit": "2026-10-28: combined DLSSNR and OKLab parameter surfaces, retained both configuration paths and integrated presenter redraw recovery; fixed FXC temporal return-flow compilation. Effect copy retained.",
+        "beta2FollowupSourceAudit": "2026-10-30: reviewed shared Renderer update reasons, capture/quality pacing separation and publication hooks; ordinary effect Draw contracts remain, and default native maintenance hooks do no work. This refresh records source evidence only, not full hardware frame-generation acceptance; existing notVerified items remain.",
+        "captureAheadSourceAudit": "2026-11-01: bounded capture-ahead applies only to ordinary FrontEdge DLSSNR without any frame generation. This effect retains its existing generated-frame/shared-slot ownership and acknowledgement paths. The guarded non-NR/FG paths and legacy FrameSync/FrontendDrop regressions were reviewed."
       }
     },
     {
@@ -421,11 +434,15 @@
           "src/Magpie.Core/NvidiaVfxFrameGenerator.cpp": "801a58fbd0d468087f04f099f7c78283414227e420d247dda7cd5fdf5b6d284b",
           "src/Magpie.Core/include/NvidiaVfxExecutionPlan.h": "fefa7a5209c35e481f2921d768b660b534ac08803dbef66beef56a71fbef0e0a",
           "src/Magpie.Core/include/NvidiaVfxParameters.h": "d7e192c7447ab2da701a70cee6075a09c6dc89af926cdc66ad844a9f0a4df6ac",
-          "src/Magpie.Core/Renderer.cpp": "7646c607945544aeff62515a4933aebe0661476da903d2ca84e4e60a206baab1",
+          "src/Magpie.Core/Renderer.cpp": "be9ba85dd223c7806299c1be0bf00c1900bfb7b2da6d200ef1c6430a1f9c8556",
           "src/Magpie.Core/NvidiaVfxRuntime.cpp": "2d3f620c5a564f84dd6d819ecc8b9a9a36e4c22f53da40bea5e6f9e0afb916b8",
           "src/Magpie.Core/HdrEffectBoundary.cpp": "75f166cd9c3c9cddf931b499f445f76c353d51000d1df36894f819a01809a8eb"
         },
-        "evidenceBaseline": "cbe2c2cb + UWP fullscreen, HDR overlay, DLSSNR guidance and effect-description integration; copy contracts rechecked"
+        "evidenceBaseline": "cbe2c2cb + UWP fullscreen, HDR overlay, DLSSNR guidance and effect-description integration; copy contracts rechecked",
+        "oklabIntegrationAudit": "2026-10-28: reviewed new-effect-only routing/editor integration; existing effect behavior and copy retained.",
+        "beta1IntegrationAudit": "2026-10-28: combined DLSSNR and OKLab parameter surfaces, retained both configuration paths and integrated presenter redraw recovery; fixed FXC temporal return-flow compilation. Effect copy retained.",
+        "beta2FollowupSourceAudit": "2026-10-30: reviewed shared Renderer update reasons, capture/quality pacing separation and publication hooks; ordinary effect Draw contracts remain, and default native maintenance hooks do no work. This refresh records source evidence only, not full hardware frame-generation acceptance; existing notVerified items remain.",
+        "captureAheadSourceAudit": "2026-11-01: bounded capture-ahead applies only to ordinary FrontEdge DLSSNR without any frame generation. This effect retains its existing generated-frame/shared-slot ownership and acknowledgement paths. The guarded non-NR/FG paths and legacy FrameSync/FrontendDrop regressions were reviewed."
       }
     }
   ],

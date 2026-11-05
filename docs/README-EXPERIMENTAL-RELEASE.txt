@@ -1,39 +1,35 @@
-Magpie Experimental v0.6.11 x64
+Magpie Experimental v0.6.12-beta5 x64
 
 安装或升级
-备份设置并从托盘完全退出 Magpie，将 Magpie-Experimental-x64.zip 完整解压到新目录，再运行 Magpie.exe。
-普通配置：%LOCALAPPDATA%\Magpie\config\v4e\config.json。没有 v4e 时导入旧 v4，后续保存到 v4e。
-便携配置：程序目录内的 config\v4e\config.json。保留旧程序和原配置，以便回退。
+备份设置并从托盘完全退出旧版 Magpie，将完整 Magpie-Experimental-x64.zip 解压到新目录，再运行 Magpie.exe。
+普通配置：%LOCALAPPDATA%\Magpie\config\v4e\config.json。
+便携配置：程序目录内的 config\v4e\config.json。
+保留 Beta 4 程序目录和升级前的设置备份。回退前完全退出 Beta 5，恢复原设置后从 Beta 4 目录运行。
 
-0.6.11 使用要点
-性能分析默认显示各效果器耗时及总计，手动展开“图表”查看捕获／输出帧率和帧间隔、效果器总耗时。拖动右下角可调整浮窗大小并记忆。XeSS 2×～4×使用真实输出事件间隔；无法观测的后端显示缺测。
-在效果组页面的效果器参数中选择 DLSS SR／FG 模型预设。SR 默认 K，A–F 为 CNN，J/K 为 Transformer 1代，L/M 为 Transformer 2代；FG 默认自动，可选 A/B/C。修改模型后重新开始缩放。
-FG 的 A 为标准，C 为性能模式；B 的 UI 重建在当前接入中不生效。
-DLSSNR 抗闪烁响应时间为 5–200 ms，步进 5 ms，默认 80 ms；关闭抗闪烁时隐藏并保留数值。下一有效捕获帧生效，较大值更稳定、响应更慢。
-主包默认携带 310.9.16 社区兼容 DLSSNR；可选包原样保留 NVIDIA 原版 RTX 50 和社区兼容 RTX 20/30/40 两个选项。
-截图可选输入＋输出、仅输出（默认）或仅输入；暂停时通过保留画面保存快照。
-截图名为 Magpie_YYYYMMDD_HHmmss_SSS_input.png / _output.png，时间取请求时的本地时间，精确到毫秒；同组共用时间戳，重名加短序号。右键导出带效果／Pass／纹理后缀，PNG／DDS 格式保持原样。
+本次更新
+DLSSNR 仅保留逐帧和隔帧。旧配置中的异步逐帧自动回退为逐帧，异步隔帧自动回退为隔帧；保留已保存的有效 NR 更新间隔、模型、输入比例。“帧率与刷新”中的独立 Async 节奏继续保留。
+在支持的 Graphics Capture（WGC）＋DLSSNR＋Front Edge、无补帧输出路径，开启 VRR 且 tearing 支持实际可用时，自动补交短暂空档中的已完成画面。
+约两个目标帧周期没有新内容提交后可开始补交；待提交的新画面及正在处理的内容优先，约 250 ms 没有新内容提交后停止。
+补交复用已完成画面，不重跑 DLSSNR。实际新内容帧率取决于源程序、捕获和效果处理速度。更改捕获、节奏或 VRR 设置后重新开始缩放。
+继承 Beta 4 捕获、等待与恢复修复，并保留 DLSSNR 自适应分辨率。
 
-完整更新、安装与限制见 RELEASE-NOTES.md；帧率说明见 FRAME_SYNC_GUIDE.md。
+完整更新与限制见 RELEASE-NOTES.md；刷新设置见 FRAME_SYNC_GUIDE.md。
 保留 LICENSE-Magpie.txt、THIRD-PARTY-NOTICES.md、组件许可证及 build-manifest.json。
-可选附件：DLSSNR-DLL-Options.zip、NGX_OTA_Switch.bat。普通安装无需运行 OTA 工具。
 
 English
 
 Install or upgrade
-Back up settings, fully exit Magpie from the tray, extract the complete Magpie-Experimental-x64.zip into a new folder and run Magpie.exe.
-Normal settings: %LOCALAPPDATA%\Magpie\config\v4e\config.json. If v4e is absent, import v4 and save subsequent changes to v4e.
-Portable settings: config\v4e\config.json under the program folder. Keep the previous program and settings for rollback.
+Back up settings and fully exit the previous Magpie version from the tray. Extract the complete Magpie-Experimental-x64.zip into a new folder, then run Magpie.exe.
+Normal settings: %LOCALAPPDATA%\Magpie\config\v4e\config.json.
+Portable settings: config\v4e\config.json under the program folder.
+Keep the Beta 4 program folder and a pre-upgrade settings backup. Before rolling back, fully exit Beta 5, restore the previous settings and run Magpie from the Beta 4 folder.
 
-0.6.11 essentials
-The profiler shows effect timings and their total by default. Expand Charts to compare capture/output FPS and frame intervals, plus total measured effect time. Resize with the lower-right grip; size is retained. XeSS 2x–4x uses actual output-event intervals; unavailable observations remain explicitly missing.
-Choose DLSS SR/FG model presets in each effect's parameter settings on the Scaling modes page. SR defaults to K: A–F are CNN, J/K are Transformer 1, and L/M are Transformer 2. FG defaults to Auto with A/B/C choices. Restart scaling after changing a model preset.
-FG preset A is Standard and C is Performance Mode. Preset B's UI Recomposition has no effect in the current integration.
-DLSSNR anti-flicker response time ranges from 5 to 200 ms in 5-ms steps, defaulting to 80 ms. Turning anti-flicker Off hides the control and retains its value. Changes apply on the next valid captured frame; higher values favor stability with slower adaptation.
-The main package includes the 310.9.16 community compatibility DLSSNR. The unchanged optional ZIP contains the NVIDIA original for RTX 50 and the community version for RTX 20/30/40.
-Screenshots offer input + output, output only (default), or input only, with snapshots of retained content while paused.
-Files use Magpie_YYYYMMDD_HHmmss_SSS_input.png / _output.png with the request's local time to millisecond precision. Pairs share a timestamp; collisions add a short sequence number. Right-click exports include effect/pass/texture suffixes and keep their PNG/DDS formats.
+Changes
+DLSSNR now offers only Every Frame and Alternating Frames. Old configurations automatically fall back from Async Every Frame to Every Frame and from Async Alternating Frames to Alternating Frames, retaining valid saved NR update intervals, models and input scales. The separate Async pacing option under Frame rate and refresh remains available.
+On supported Graphics Capture (WGC) + DLSSNR + Front Edge output paths without frame generation, enabling VRR with tearing support available automatically permits refreshes of completed pictures across short gaps.
+Refreshes can begin after roughly two target frame periods without a new content submission. Pending new pictures and processing in progress take priority; refreshes stop after roughly 250 ms without a new content submission.
+Refreshes reuse completed pictures without rerunning DLSSNR. New-content FPS depends on the source application, capture and effect processing. Restart scaling after changing capture, pacing or VRR settings.
+Includes Beta 4's capture, waiting and recovery fixes, and retains DLSSNR adaptive resolution.
 
-See RELEASE-NOTES.md for updates, installation and limitations, and FRAME_SYNC_GUIDE.md for refresh settings.
+See RELEASE-NOTES.md for complete changes and limitations, and FRAME_SYNC_GUIDE.md for refresh settings.
 Retain LICENSE-Magpie.txt, THIRD-PARTY-NOTICES.md, component licenses and build-manifest.json.
-Optional assets: DLSSNR-DLL-Options.zip and NGX_OTA_Switch.bat. Normal installation does not require the OTA tool.

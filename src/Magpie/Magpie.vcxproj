@@ -117,6 +117,7 @@
       <SubType>Code</SubType>
     </ClInclude>
     <ClInclude Include="AdaptersService.h" />
+    <ClInclude Include="OKLabConfig.h" />
     <ClInclude Include="AdminStartupSettings.h" />
     <ClInclude Include="RtssProfileExpression.h" />
     <ClInclude Include="AppSettings.h" />
@@ -357,6 +358,7 @@
       <DependentUpon>EffectParametersViewModel.idl</DependentUpon>
       <SubType>Code</SubType>
     </ClCompile>
+    <ClCompile Include="EffectParametersViewModel.OKLab.cpp" />
     <ClCompile Include="EffectsService.cpp" />
     <ClCompile Include="FileDialogHelper.cpp" />
     <ClCompile Include="HomeViewModel.cpp">
@@ -704,6 +706,7 @@
     <ClInclude Include="EffectPickerModel.h" />
     <ClInclude Include="EffectPickerLayout.h" />
     <ClInclude Include="EffectChoiceItems.h" />
+    <ClInclude Include="ParameterItems.h" />
     <None Include="EffectCatalog\zh-Hans.json" />
     <None Include="EffectCatalog\en-US.json" />
   </ItemGroup>

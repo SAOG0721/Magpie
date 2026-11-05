@@ -23,7 +23,7 @@ struct EffectFrameKey {
 };
 
 inline bool UsesCaptureFrameClock(std::string_view name) noexcept {
-	return name == "SMAA\\SMAA_T2x_Experimental" ||
+	return name == "OKLabImageAdjustment" || name == "SMAA\\SMAA_T2x_Experimental" ||
 		name == "SMAA\\SMAA_T2x_NoJitter_Experimental" ||
 		name == "SMAA\\SMAA_4x_Experimental" ||
 		name == "SMAA\\SMAA_4x_NoJitter_Experimental";
@@ -52,15 +52,31 @@ public:
 	bool ParametersDiffer(const EffectFrameKey& key) const noexcept {
 		return key.parameterRevision != _key.parameterRevision;
 	}
-	void Commit(const EffectFrameKey& key, bool succeeded) noexcept {
-		if (RequiresHistoryReset(key) || ParametersDiffer(key)) ++_outputHistoryRevision;
-		++_outputRevision;
+	void Commit(const EffectFrameKey& key, bool succeeded,
+		uint64_t nativeContentVersion = 0, uint64_t nativeHistoryVersion = 0) noexcept {
+		const bool boundaryReset = RequiresHistoryReset(key) || ParametersDiffer(key);
+		if (nativeContentVersion) {
+			// A buffered producer can consume a new input epoch while still
+			// presenting the preceding target. Only its published target may
+			// advance downstream history; the physical key still controls Draw.
+			const bool outputReset = !_valid || !_nativeOutputTracked || key.output != _key.output;
+			if (outputReset || nativeHistoryVersion != _nativeOutputHistoryVersion) ++_outputHistoryRevision;
+			if (outputReset || !succeeded || nativeContentVersion != _nativeOutputVersion) ++_outputRevision;
+		} else {
+			if (boundaryReset) ++_outputHistoryRevision;
+			++_outputRevision;
+		}
+		_nativeOutputTracked = nativeContentVersion != 0;
+		_nativeOutputVersion = nativeContentVersion;
+		_nativeOutputHistoryVersion = nativeHistoryVersion;
 		_key = key;
 		_valid = succeeded;
 	}
 private:
 	EffectFrameKey _key{};
 	uint64_t _parameterRevision = 0, _outputRevision = 0, _outputHistoryRevision = 0;
+	uint64_t _nativeOutputVersion = 0, _nativeOutputHistoryVersion = 0;
+	bool _nativeOutputTracked = false;
 	bool _valid = false;
 };
 

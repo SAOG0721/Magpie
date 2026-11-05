@@ -52,11 +52,15 @@ public:
 	// Called only from the outer message pump, after BeginFrame found no capacity.
 	virtual bool WaitForFrameCapacity(DWORD) noexcept { return false; }
 	virtual bool WasFrameCapacityBusy() const noexcept { return false; }
+	// A bounded presentation recovery may need a replay even when content and
+	// UI are unchanged. Polled by the frontend; no callbacks outlive the session.
+	virtual bool NeedsRedraw() const noexcept { return false; }
 	// Fatal SDK/device errors must stop the session instead of retrying forever.
 	virtual bool HasFatalError() const noexcept { return false; }
 	virtual const PresenterFailure* GetFailure() const noexcept { return nullptr; }
 	std::chrono::steady_clock::time_point LastSubmissionTime() const noexcept { return _lastSubmissionTime; }
 	std::optional<uint32_t> LastPresentedFrameCount() const noexcept { return _lastPresentedFrameCount; }
+	bool IsVRREligible() const noexcept { return _vrr.PresentFlags() != 0; }
 
 	virtual ContentFrameCount LastContentFrameCount() const noexcept {
 		return { _lastPresentedFrameCount, ContentFrameCountSource::Reported };

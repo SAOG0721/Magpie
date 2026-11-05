@@ -92,6 +92,7 @@ private:
 		uint64_t timestampUs = 0;
 		bool dragged = false;
 		bool controlDown = false;
+		bool shiftDown = false;
 		ImGuiKey key = ImGuiKey_None;
 		unsigned int character = 0;
 	};

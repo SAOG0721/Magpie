@@ -55,6 +55,43 @@ int main() {
 		assert(IsEffectParameterVisible("DLSSNR\\DLSSNR_AI_Filter", "antiFlickerTimeMs", get) == (mode != 0));
 		assert(IsEffectParameterVisible("Custom", "antiFlickerTimeMs", get));
 	}
+	// Both parameter editors enumerate these shipped choices. Retired modes
+	// cannot appear as choices or survive descriptor normalization.
+	const auto nrMode = NrModeDescriptor();
+	assert(nrMode.choices.size() == 2);
+	assert(nrMode.choices[0].value == 0 && nrMode.choices[1].value == 1);
+	for (float mode : {0.f, 1.f}) assert(NormalizeEffectParameterValue(nrMode, mode) == mode);
+	for (float retired : {2.f, 3.f}) assert(NormalizeEffectParameterValue(nrMode, retired) == 0);
+	const auto interval = NrIntervalDescriptor();
+	assert(interval.choices.size() == 3);
+	for (size_t i = 0; i < interval.choices.size(); ++i) {
+		assert(interval.choices[i].value == int(i) + 2);
+		assert(NormalizeEffectParameterValue(interval, float(i) + 2) == float(i) + 2);
+	}
+	constexpr auto nrEffect = "DLSSNR\\DLSSNR_AI_Filter";
+	for (float mode : {0.f, 1.f}) {
+		option.parameters = {{"processingMode", mode}, {"performanceShowAdvanced", 1.f},
+			{"resolutionControl", 0.f}, {"opticalFlowMethod", 0.f}, {"antiFlicker", 2.f}};
+		assert(IsEffectParameterVisible(nrEffect, "processingMode", get));
+		assert(IsEffectParameterVisible(nrEffect, "sparseUpdateInterval", get) == (mode == 1));
+		assert(IsEffectParameterVisible(nrEffect, "residualTransfer", get) == (mode == 1));
+		assert(IsEffectParameterVisible(nrEffect, "antiFlickerTimeMs", get));
+		assert(IsDLSSNRChoiceEnabled("resolutionControl", 0, get));
+		assert(IsDLSSNRChoiceEnabled("resolutionControl", 1, get));
+		assert(IsDLSSNRChoiceEnabled("residualTransfer", 0, get));
+		assert(!IsDLSSNRChoiceEnabled("residualTransfer", 1, get));
+		option.parameters["opticalFlowMethod"] = 1;
+		assert(IsDLSSNRChoiceEnabled("residualTransfer", 1, get));
+		option.parameters["performanceShowAdvanced"] = 0;
+		assert(!IsEffectParameterVisible(nrEffect, "processingMode", get));
+		assert(!IsEffectParameterVisible(nrEffect, "sparseUpdateInterval", get));
+		assert(IsEffectParameterVisible("Custom", "sparseUpdateInterval", get));
+	}
+	option.parameters = {{"processingMode", 1.f}, {"resolutionControl", 0.f}};
+	NormalizeDLSSNRParameterEdit("processingMode", get, [&](std::string_view name, float value) {
+		option.parameters[std::string(name)] = value;
+	});
+	assert(option.parameters.at("resolutionControl") == 0); // Alternating retains adaptive resolution.
 	// Time-only edits leave the renderer cache/epoch untouched on a duplicate.
 	EffectFrameState frame;
 	EffectFrameKey key{.frameId=1, .inputRevision=1, .captureSequence=1, .resourceGeneration=1};
@@ -67,5 +104,5 @@ int main() {
 	assert(frame.NeedsDraw(key, false) && !frame.RequiresHistoryReset(key));
 	assert(DLSSNRParameterChangesCurrentOutput("intensity", 1));
 	assert(!DLSSNRParameterChangesCurrentOutput("pass3_intensity", 1));
-	std::cout << "DLSS preset identities/defaults, UI/backend normalization, NR visibility and duplicate-frame history preservation passed.\n";
+	std::cout << "DLSS preset identities/defaults, shipped two-mode NR choices, interval visibility, independent resolution/flow controls, UI/backend normalization and duplicate-frame history preservation passed.\n";
 }

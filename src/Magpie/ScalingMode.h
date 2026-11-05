@@ -11,6 +11,7 @@ struct EffectItem {
 	bool isRecoveryInvalid = false;
 	std::string recoveryOriginal;
 	std::shared_ptr<const uint8_t> runtimeIdentity = std::make_shared<const uint8_t>(uint8_t{0});
+	std::string oklabLut;
 
 	bool HasScale() const noexcept {
 		return scalingType != ScalingType::Normal ||

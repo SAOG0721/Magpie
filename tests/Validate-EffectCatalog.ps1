@@ -7,7 +7,7 @@ function Get-CanonicalHash([string]$Path) {
     $bytes = [Text.Encoding]::UTF8.GetBytes([Text.Encoding]::UTF8.GetString([IO.File]::ReadAllBytes($Path)).Replace("`r`n", "`n"))
     [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($bytes))
 }
-if ($review.effects.Count -ne 165 -or $review.families.Count -ne 13 -or $review.subfamilies.Count -ne 2) { throw 'Current review coverage differs.' }
+if ($review.effects.Count -ne 166 -or $review.families.Count -ne 13 -or $review.subfamilies.Count -ne 2) { throw 'Current review coverage differs.' }
 foreach ($entry in $review.effects) {
     if ($entry.review.status -ne 'source-reviewed') { throw "Unreviewed effect: $($entry.id)" }
     $sourcePath = Join-Path $repoRoot $entry.source.path

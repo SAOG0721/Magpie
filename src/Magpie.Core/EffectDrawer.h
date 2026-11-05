@@ -5,6 +5,7 @@
 #include "HdrComponentRuntime.h"
 #include <utility>
 #include "SmallVector.h"
+#include "OKLabRuntime.h"
 // Conan 的 muparser 不含 UNICODE 支持
 #pragma push_macro("_UNICODE")
 #undef _UNICODE
@@ -79,6 +80,7 @@ public:
 	ID3D11Texture2D* GetTexture(uint32_t idx) const noexcept {
 		return _textures[idx].get();
 	}
+	bool IsOKLabLinearInput() const noexcept { return _oklab && _oklab->LinearInput(); }
 
 	// Source-equivalent matrix tests use the exact production drawer and expose
 	// its actual canonical handoff rather than reimplementing effect formulas.
@@ -138,6 +140,7 @@ private:
 	bool _hdrEnabled = false;
 	HdrComponentStage _component;
 	HdrTransformParameters _componentTransform;
+	std::unique_ptr<OKLabRuntime> _oklab;
 
 	static inline mu::Parser _exprParser;
 };

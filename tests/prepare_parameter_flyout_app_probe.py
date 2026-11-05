@@ -2,7 +2,9 @@
 import pathlib
 import sys
 
-source, output = map(pathlib.Path, sys.argv[1:])
+source, output = map(pathlib.Path, sys.argv[1:3])
+probe_header = {'choices': 'ParameterChoiceAppProbe.h', 'checkboxes': 'ParameterCheckboxAppProbe.h',
+                'vsr': 'ParameterFlyoutAppProbe.h'}[sys.argv[3] if len(sys.argv) > 3 else 'vsr']
 text = (source / 'src/Magpie/App.cpp').read_text(encoding='utf-8-sig')
 
 def replace_function(signature, replacement):
@@ -18,7 +20,7 @@ def replace_function(signature, replacement):
 
 text = text.replace('CommonSharedConstants::WM_MAGPIE_SHOWME', 'L"Magpie.ParameterFlyoutProbe.Show"')
 text = text.replace('CommonSharedConstants::WM_MAGPIE_QUIT', 'L"Magpie.ParameterFlyoutProbe.Quit"')
-text = text.replace('#include <CoreWindow.h>', '#include <CoreWindow.h>\n#include "ParameterFlyoutAppProbe.h"')
+text = text.replace('#include <CoreWindow.h>', '#include <CoreWindow.h>\n#include "' + probe_header + '"')
 replace_function('bool App::Initialize(const wchar_t* arguments)', r'''bool App::Initialize(const wchar_t*) {
     IncreaseTimerResolution();
     // Refuse startup before reading any user configuration or global services.

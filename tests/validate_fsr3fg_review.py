@@ -43,7 +43,7 @@ check('publicationMetadata.contentRedraw = _HasProxyFrameGenerator() && _backend
       'live parameter publication selects non-FG frontend path')
 check('const bool contentFrame = !stableBaseOnly && !idleRedraw && _frontendBaseNeedsPresent' in renderer,
       'non-capture revision redraw cannot count as real input')
-check('if (!stableBaseOnly && !idleRedraw) {\n\t\t_presenter->SetSourceTiming' in renderer,
+check('if (!stableBaseOnly && !idleRedraw && IsContentUpdate(sourceMetadata.updateReason)) {\n\t\t_presenter->SetSourceTiming' in renderer,
       'redraw does not supply fabricated timing/motion samples')
 check('submitted && !stableBaseOnly && _frameSyncEnabled && _frameSyncUsesSharedSlot' in renderer,
       'a consumed revision redraw acknowledges its slot')

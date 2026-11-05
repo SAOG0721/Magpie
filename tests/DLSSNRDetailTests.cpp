@@ -34,11 +34,12 @@ ComPtr<ID3DBlob> Compile(const std::string& s,const char* entry) {
 struct Harness {
     ComPtr<ID3D11Device> device; ComPtr<ID3D11DeviceContext> dc;
     ComPtr<ID3D11InfoQueue> debug;
-    ComPtr<ID3D11ComputeShader> shader; ComPtr<ID3D11Buffer> cb;
+    ComPtr<ID3D11ComputeShader> shader, finalShader; ComPtr<ID3D11Buffer> cb;
     std::array<ComPtr<ID3D11Texture2D>,2> input;
     std::array<ComPtr<ID3D11ShaderResourceView>,2> srv;
-    ComPtr<ID3D11Texture2D> output,staging;
-    ComPtr<ID3D11UnorderedAccessView> uav;
+    ComPtr<ID3D11Texture2D> output,finalOutput,staging;
+    ComPtr<ID3D11UnorderedAccessView> uav,finalUav;
+    ComPtr<ID3D11ShaderResourceView> residualSrv;
     bool half;
     Harness(bool fp16) : half(fp16) {
         auto hr=D3D11CreateDevice(nullptr,D3D_DRIVER_TYPE_WARP,nullptr,D3D11_CREATE_DEVICE_DEBUG,nullptr,0,D3D11_SDK_VERSION,&device,nullptr,&dc);
@@ -51,16 +52,19 @@ struct Harness {
         D3D11_SHADER_BUFFER_DESC reflected{};
         Check(reflection->GetConstantBufferByName("ResampleParams")->GetDesc(&reflected));
         assert(reflected.Size==sizeof(ResampleConstants));
-        for (auto [name,offset] : std::array<std::pair<const char*,size_t>,7>{{
+        for (auto [name,offset] : std::array<std::pair<const char*,size_t>,9>{{
             {"HueProtection",offsetof(ResampleConstants,hueProtection)},
             {"DarkProtection",offsetof(ResampleConstants,darkProtection)}, {"HighlightProtection",offsetof(ResampleConstants,highlightProtection)},
             {"LocalCompression",offsetof(ResampleConstants,localCompression)}, {"LowFrequencyGain",offsetof(ResampleConstants,lowFrequencyGain)},
-            {"DetailGain",offsetof(ResampleConstants,detailGain)}, {"DebugView",offsetof(ResampleConstants,debugView)}}}) {
+            {"DetailGain",offsetof(ResampleConstants,detailGain)}, {"DebugView",offsetof(ResampleConstants,debugView)},
+            {"ChromaProtection",offsetof(ResampleConstants,chromaProtection)}, {"FinalizeOutput",offsetof(ResampleConstants,finalizeOutput)}}}) {
             D3D11_SHADER_VARIABLE_DESC variable{};
             Check(reflection->GetConstantBufferByName("ResampleParams")->GetVariableByName(name)->GetDesc(&variable));
             assert(variable.StartOffset==offset);
         }
         Check(device->CreateComputeShader(code->GetBufferPointer(),code->GetBufferSize(),nullptr,&shader));
+        code=Compile(verticalShader,"CompositeResidualVertical");
+        Check(device->CreateComputeShader(code->GetBufferPointer(),code->GetBufferSize(),nullptr,&finalShader));
         D3D11_TEXTURE2D_DESC desc{}; desc.Width=W; desc.Height=1;
         desc.MipLevels=desc.ArraySize=desc.SampleDesc.Count=1;
         desc.Format=DXGI_FORMAT_R32G32B32A32_FLOAT; desc.BindFlags=D3D11_BIND_SHADER_RESOURCE;
@@ -69,15 +73,18 @@ struct Harness {
             Check(device->CreateShaderResourceView(input[i].Get(),nullptr,&srv[i]));
         }
         if (half) desc.Format=DXGI_FORMAT_R16G16B16A16_FLOAT;
-        desc.BindFlags=D3D11_BIND_UNORDERED_ACCESS;
+        desc.BindFlags=D3D11_BIND_UNORDERED_ACCESS|D3D11_BIND_SHADER_RESOURCE;
         Check(device->CreateTexture2D(&desc,nullptr,&output));
         Check(device->CreateUnorderedAccessView(output.Get(),nullptr,&uav));
+        Check(device->CreateShaderResourceView(output.Get(),nullptr,&residualSrv));
+        Check(device->CreateTexture2D(&desc,nullptr,&finalOutput));
+        Check(device->CreateUnorderedAccessView(finalOutput.Get(),nullptr,&finalUav));
         desc.BindFlags=0; desc.Usage=D3D11_USAGE_STAGING; desc.CPUAccessFlags=D3D11_CPU_ACCESS_READ;
         Check(device->CreateTexture2D(&desc,nullptr,&staging));
         D3D11_BUFFER_DESC bd{}; bd.ByteWidth=sizeof(ResampleConstants); bd.BindFlags=D3D11_BIND_CONSTANT_BUFFER;
         Check(device->CreateBuffer(&bd,nullptr,&cb));
     }
-    Image Run(const Image& o,const Image& n,ResampleConstants params) {
+    Image Run(const Image& o,const Image& n,ResampleConstants params, bool finalize=true) {
         params.sourceWidth=params.targetWidth=W; params.sourceHeight=params.targetHeight=1;
         dc->UpdateSubresource(input[0].Get(),0,nullptr,o.data(),sizeof(o),0);
         dc->UpdateSubresource(input[1].Get(),0,nullptr,n.data(),sizeof(n),0);
@@ -88,12 +95,19 @@ struct Harness {
         dc->Dispatch((W+7)/8,1,1);
         ID3D11ShaderResourceView* ns[2]{}; ID3D11UnorderedAccessView* nt=nullptr;
         dc->CSSetShaderResources(0,2,ns); dc->CSSetUnorderedAccessViews(0,1,&nt,nullptr);
-        dc->CopyResource(staging.Get(),output.Get()); D3D11_MAPPED_SUBRESOURCE mapped{};
+        if (finalize) {
+            ID3D11ShaderResourceView* finalSources[]{srv[0].Get(),residualSrv.Get()};
+            target=finalUav.Get(); dc->CSSetShader(finalShader.Get(),nullptr,0);
+            dc->CSSetShaderResources(0,2,finalSources); dc->CSSetUnorderedAccessViews(0,1,&target,nullptr);
+            dc->Dispatch((W+7)/8,1,1);
+            dc->CSSetShaderResources(0,2,ns); dc->CSSetUnorderedAccessViews(0,1,&nt,nullptr);
+        }
+        dc->CopyResource(staging.Get(),finalize?finalOutput.Get():output.Get()); D3D11_MAPPED_SUBRESOURCE mapped{};
         Check(dc->Map(staging.Get(),0,D3D11_MAP_READ,0,&mapped));
         Image result{};
         for (unsigned i=0;i<W;++i) for (unsigned c=0;c<4;++c) {
             const auto delta=half ? DirectX::PackedVector::XMConvertHalfToFloat(static_cast<const DirectX::PackedVector::HALF*>(mapped.pData)[i*4+c]) : static_cast<const float*>(mapped.pData)[i*4+c];
-            assert(std::isfinite(delta)); result[i][c]=c==3 ? delta : o[i][c]+delta;
+            assert(std::isfinite(delta)); result[i][c]=finalize || c==3 ? delta : o[i][c]+delta;
         }
         dc->Unmap(staging.Get(),0);
         if (debug) {
@@ -116,16 +130,23 @@ int main(int argc,char** argv) {
     for (float mode : {0.f,1.f,.5f,-1.f,std::numeric_limits<float>::quiet_NaN()}) {
         std::map<std::wstring,float> old{{L"residualChromaTemporalStrength",mode},{L"residualColorMode",mode},{L"residualShowProtection",1.f},
             {L"residualShowAdvanced",0.f},{L"residualSaturation",.65f},{L"residualMultiplier",1.8f},
-            {L"residualHueProtection",.35f},{L"pass2_intensity",.7f},{L"multiPass",3.f}};
+            {L"residualChromaProtection",.6f},{L"residualNeutralProtection",50.f},{L"residualSkinProtection",75.f},
+            {L"residualShowColorZones",1.f},{L"residualShadowChroma",0.f},{L"residualMidtoneChroma",.5f},
+            {L"residualHighlightChroma",2.f},{L"residualMaxAgeFrames",3.f},{L"residualHueProtection",.35f},{L"pass2_intensity",.7f},{L"multiPass",3.f}};
         assert(Magpie::NormalizeDLSSNRDetailParameters(old));
         assert(!old.contains(L"residualChromaTemporalStrength") && !old.contains(L"residualColorMode") && !old.contains(L"residualShowProtection"));
+        for (const auto key : {L"residualNeutralProtection",L"residualSkinProtection",L"residualShowColorZones",
+            L"residualShadowChroma",L"residualMidtoneChroma",L"residualHighlightChroma"}) assert(!old.contains(key));
+        assert(!old.contains(L"residualMaxAgeFrames"));
+        assert(old.at(L"residualChromaProtection")==.6f);
         assert(old.at(L"residualShowAdvanced")==1 && old.at(L"residualSaturation")==.65f);
         assert(old.at(L"residualMultiplier")==1.8f && old.at(L"residualHueProtection")==.35f);
         assert(old.at(L"pass2_intensity")==.7f && old.at(L"multiPass")==3);
         auto copy=old; assert(!Magpie::NormalizeDLSSNRDetailParameters(copy) && copy==old);
     }
     std::map<std::wstring,float> empty;
-    assert(!Magpie::NormalizeDLSSNRDetailParameters(empty) && empty.empty());
+    assert(Magpie::NormalizeDLSSNRDetailParameters(empty));
+    assert(empty.at(L"enableInputResolutionScaling")==1 && empty.at(L"inputResolutionPercent")==100);
     std::map<std::string,float> values{{"enableInputResolutionScaling",1.f}};
     auto get=[&](std::string_view name,float fallback) { auto i=values.find(std::string(name)); return i==values.end() ? fallback : i->second; };
     for (auto name : Magpie::DLSSNR_RESIDUAL_PARAMETERS) {
@@ -146,12 +167,71 @@ int main(int argc,char** argv) {
     Compile(COLOR_DOWNSAMPLE_HLSL,"DownsampleColorHorizontal");
     Compile(GUIDANCE_DOWNSAMPLE_HLSL,"DownsampleGuidance");
     Compile(RESIDUAL_HORIZONTAL_HLSL,"UpsampleResidualHorizontal");
-    Compile(RESIDUAL_VERTICAL_COMPOSITE_HLSL,"CompositeResidualVertical");
+    Compile(verticalShader,"CompositeResidualVertical");
     Harness h(false), half(true);
     auto o=Filled({.2f,.4f,.8f,1}), n=Filled({.5f,.5f,.5f,1});
     ResampleConstants p;
     auto neutral=h.Run(o,n,p);
     assert(Difference(neutral[0],n[0])<1e-7f);
+    auto fromLab=[](ColorReference::Color lab) {
+        const auto rgb=ColorReference::FromLab(lab);
+        return Pixel{float(rgb[0]),float(rgb[1]),float(rgb[2]),1};
+    };
+    auto toLab=[](Pixel rgb) { return ColorReference::ToLab({rgb[0],rgb[1],rgb[2]}); };
+    {
+        // Global color protection must preserve L and suppress both a/b changes
+        // equally for gray, skin-range and non-skin colors, including FP16.
+        for (const auto lab : {ColorReference::Color{.55,0,0}, {.65,.064,.076},
+                {.55,-.06,.03}, {.55,.04,-.08}, {.25,.015,.02}}) {
+            const auto base=Filled(fromLab(lab));
+            const auto nr=Filled(fromLab({lab[0]+.025,lab[1]+.012,lab[2]-.009}));
+            const auto originalLab=toLab(base[0]), candidateLab=toLab(nr[0]);
+            for (float amount : {0.f,.25f,.5f,1.f}) {
+                p={}; p.chromaProtection=amount;
+                for (auto* harness : {&h,&half}) {
+                    const auto actual=toLab(harness->Run(base,nr,p,false)[0]);
+                    const double tolerance=harness->half ? 2e-4 : 2e-5;
+                    assert(std::abs(actual[0]-candidateLab[0])<tolerance);
+                    for (int c=1;c<=2;++c) {
+                        const double expected=originalLab[c]+(1-amount)*(candidateLab[c]-originalLab[c]);
+                        assert(std::abs(actual[c]-expected)<tolerance);
+                    }
+                }
+            }
+            p={}; p.chromaProtection=1; p.hueProtection=1;
+            const auto both=toLab(h.Run(base,nr,p,false)[0]);
+            for (int c=1;c<=2;++c) assert(std::abs(both[c]-originalLab[c])<2e-5);
+        }
+        // A constant low band is equivalent to changing the candidate first;
+        // compression must constrain that reconstructed candidate, not vice versa.
+        const auto grayBase=Filled({.2f,.2f,.2f,1}), grayNr=Filled({.6f,.6f,.6f,1});
+        p={}; p.lowFrequencyGain=2; p.localCompression=1;
+        const auto frequencyThenCompression=h.Run(grayBase,grayNr,p);
+        p.lowFrequencyGain=1;
+        const auto combined=h.Run(grayBase,Filled({1,1,1,1}),p);
+        assert(Difference(frequencyThenCompression[0],combined[0])<2e-5f);
+        // Signed/over-range intermediate corrections survive until final mapping.
+        const auto brightBase=Filled({.9f,.2f,.05f,1}), brightNr=Filled({.98f,.12f,.35f,1});
+        p={}; p.residualMultiplier=2;
+        const auto raw=h.Run(brightBase,brightNr,p,false), mapped=h.Run(brightBase,brightNr,p);
+        assert(raw[0][0]>1 && mapped[0][0]<=1);
+        const auto a=toLab(raw[0]), b=toLab(mapped[0]);
+        assert(std::abs(a[1]*b[2]-a[2]*b[1])<2e-5);
+        p={};
+    }
+    // Gray midtones have no chroma: gain zero removes only their NR lightness
+    // correction; gain one is the exact neutral fast path.
+    auto midOriginal=Filled({.4f,.4f,.4f,1}), midNr=Filled({.48f,.48f,.48f,1});
+    p.midtoneStrength=0;
+    auto midZero=h.Run(midOriginal,midNr,p);
+    assert(Difference(midZero[0],midOriginal[0])<2e-5f);
+    p.midtoneStrength=2;
+    auto midDouble=h.Run(midOriginal,midNr,p);
+    const auto originalLab=ColorReference::ToLab({.4,.4,.4});
+    const auto nrLab=ColorReference::ToLab({.48,.48,.48});
+    const auto doubledLab=ColorReference::ToLab({midDouble[0][0],midDouble[0][1],midDouble[0][2]});
+    assert(std::abs((doubledLab[0]-originalLab[0])-2*(nrLab[0]-originalLab[0]))<2e-5);
+    p={};
     p.residualMultiplier=0; p.hueProtection=p.darkProtection=p.highlightProtection=p.localCompression=1;
     p.lowFrequencyGain=2; p.detailGain=0;
     auto zero=h.Run(o,n,p); assert(Difference(zero[0],o[0])==0);
@@ -192,12 +272,13 @@ int main(int argc,char** argv) {
     // Continuous slider probes around activation/default points. This includes
     // out-of-gamut candidates, where a default fast path could otherwise jump.
     float worstSliderJump=0;
-    const std::array<float ResampleConstants::*,11> sliders{
+    const std::array<float ResampleConstants::*,13> sliders{
         &ResampleConstants::residualMultiplier,&ResampleConstants::residualSaturation,
         &ResampleConstants::residualLightness,&ResampleConstants::shadowStructureMultiplier,
-        &ResampleConstants::reflectionGlowMultiplier,&ResampleConstants::hueProtection,
+        &ResampleConstants::reflectionGlowMultiplier,&ResampleConstants::midtoneStrength,&ResampleConstants::hueProtection,
         &ResampleConstants::darkProtection,&ResampleConstants::highlightProtection,
-        &ResampleConstants::localCompression,&ResampleConstants::lowFrequencyGain,&ResampleConstants::detailGain};
+        &ResampleConstants::localCompression,&ResampleConstants::lowFrequencyGain,&ResampleConstants::detailGain,
+        &ResampleConstants::chromaProtection};
     o=Filled({.9f,.2f,.05f,1}); n=Filled({.98f,.12f,.35f,1});
     for (auto slider:sliders) for (float boundary:{0.f,.04f,.5f,1.f,1.5f,2.f}) {
         p={}; p.residualMultiplier=1.6f;

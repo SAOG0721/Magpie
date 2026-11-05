@@ -45,6 +45,7 @@ foreach ($class in @('EffectParametersViewModel','EffectParameterGroupViewModel'
 }
 $sourceChecks = 0
 foreach ($project in @('Magpie','Magpie.Core','RtxVideoBridge')) {
+    if ($SourceFiles -and !@($SourceFiles | Where-Object { $_.StartsWith("$project/") }).Count) { continue }
     $commands = Get-Content -LiteralPath (Join-Path $CachedIntermediateRoot "x64/Release/$project/$project.tlog/CL.command.1.tlog") -Raw
     $includes = @("/I$generated", "/I$repo/src/$project", "/I$repo/src/Shared", "/I$repo/src/Magpie.Core/include")
     foreach ($match in [regex]::Matches($commands, '(?i)/(?:external:)?I(?:"(?<quoted>[^"]+)"|(?<bare>[^\s]+))')) {
@@ -60,8 +61,8 @@ foreach ($project in @('Magpie','Magpie.Core','RtxVideoBridge')) {
         $defines += "/D$define"
     }
     $files = switch ($project) {
-        'Magpie' { @('AppSettings.cpp','EffectParametersViewModel.cpp','ScalingModesPage.cpp','ScalingMode.cpp','ScalingModeItem.cpp','ScalingModeEffectItem.cpp','ScalingModesService.cpp','ScalingService.cpp') }
-        'Magpie.Core' { @('TextureHelper.cpp','RTXVideoHdr.cpp','EffectCompiler.cpp','EffectCacheManager.cpp','OverlayDrawer.cpp','Renderer.cpp','ScalingWindow.cpp','ScalingRuntime.cpp') }
+        'Magpie' { @('AppSettings.cpp','EffectParametersViewModel.cpp','EffectParametersViewModel.OKLab.cpp','ScalingModesPage.cpp','ScalingMode.cpp','ScalingModeItem.cpp','ScalingModeEffectItem.cpp','ScalingModesService.cpp','ScalingService.cpp') }
+        'Magpie.Core' { @('TextureHelper.cpp','RTXVideoHdr.cpp','EffectCompiler.cpp','EffectCacheManager.cpp','EffectDrawer.cpp','OverlayDrawer.cpp','Renderer.cpp','Renderer.OKLab.cpp','ScalingWindow.cpp','ScalingRuntime.cpp') }
         'RtxVideoBridge' { @('RtxVideoBridge.cpp') }
     }
     foreach ($file in $files) {

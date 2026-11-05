@@ -1,8 +1,8 @@
 #Requires -Version 7.0
+param([string]$OutputDirectory)
 $ErrorActionPreference = 'Stop'
 $reflexRepo = Split-Path $PSScriptRoot -Parent
-$reflexWorkspace = Split-Path $reflexRepo -Parent
-$reflexOutput = Join-Path $reflexWorkspace '.tools/067-r2-reflex'
+$reflexOutput = if ($OutputDirectory) { [IO.Path]::GetFullPath($OutputDirectory) } else { Join-Path $env:TEMP ('Magpie-Reflex-' + [guid]::NewGuid()) }
 New-Item -ItemType Directory -Path $reflexOutput -Force | Out-Null
 $reflexVswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio/Installer/vswhere.exe'
 $reflexVs = & $reflexVswhere -latest -products * -requires Microsoft.Component.MSBuild -property installationPath | Select-Object -First 1

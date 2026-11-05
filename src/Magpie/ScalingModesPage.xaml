@@ -1,4 +1,4 @@
-<Page x:Class="Magpie.ScalingModesPage"
+﻿<Page x:Class="Magpie.ScalingModesPage"
       xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
       xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
       xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
@@ -18,6 +18,27 @@
 			<Setter Property="MaxWidth" Value="1000" />
 			<Setter Property="MaxHeight" Value="900" />
 			<Setter Property="Padding" Value="4" />
+		</Style>
+		<Style x:Key="EffectParametersPresenterStyle" TargetType="FlyoutPresenter"
+		       BasedOn="{StaticResource DefaultFlyoutPresenterStyle}">
+			<Setter Property="MaxWidth" Value="10000" />
+			<Setter Property="MaxHeight" Value="10000" />
+			<Setter Property="Template">
+				<Setter.Value>
+					<ControlTemplate TargetType="FlyoutPresenter">
+						<!-- A single-page parameter surface does not need the default
+						     focusable ScrollViewer around its content. -->
+						<Border Background="{TemplateBinding Background}" BackgroundSizing="OuterBorderEdge"
+						        BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}"
+						        CornerRadius="{TemplateBinding CornerRadius}" Padding="{ThemeResource FlyoutBorderThemePadding}">
+							<ContentPresenter Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}"
+							                  ContentTransitions="{TemplateBinding ContentTransitions}" Margin="{TemplateBinding Padding}"
+							                  HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+							                  VerticalAlignment="{TemplateBinding VerticalContentAlignment}" />
+						</Border>
+					</ControlTemplate>
+				</Setter.Value>
+			</Setter>
 		</Style>
 		<Style x:Key="EffectPickerButtonStyle" TargetType="Button"
 		       BasedOn="{StaticResource DefaultButtonStyle}">
@@ -109,15 +130,71 @@
 			        Background="{ThemeResource AccentFillColorDefaultBrush}" CornerRadius="1.5" />
 		</DataTemplate>
 		<DataTemplate x:Key="EffectParametersFlyout"
-		              x:DataType="local:EffectParametersViewModel">
-			<ScrollViewer Width="{x:Bind ContentWidth, Mode=OneWay}"
-			              MaxHeight="{x:Bind ContentMaxHeight, Mode=OneWay}"
-			              HorizontalScrollBarVisibility="Auto"
-			              HorizontalScrollMode="Enabled"
-			              VerticalScrollBarVisibility="Auto"
-			              VerticalScrollMode="Enabled">
-				<ItemsControl IsTabStop="False"
-				              ItemsSource="{x:Bind Groups, Mode=OneTime}">
+                      x:DataType="local:EffectParametersViewModel">
+            <Grid MaxHeight="{x:Bind ContentMaxHeight, Mode=OneWay}" MaxWidth="{x:Bind ContentWidth, Mode=OneWay}"
+                  HorizontalAlignment="Left" VerticalAlignment="Top" RowSpacing="8">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" /><RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+                <TextBlock Text="{x:Bind ValidationMessage, Mode=OneWay}" TextWrapping="Wrap"
+                           Visibility="{x:Bind HasValidationMessage, Mode=OneWay}" />
+                <Grid Grid.Row="1">
+                <local:SimpleStackPanel Orientation="Horizontal" Spacing="24" VerticalAlignment="Top" HorizontalAlignment="Left">
+                    <local:SimpleStackPanel Width="260" Spacing="8" VerticalAlignment="Top" Visibility="{x:Bind IsOKLab}">
+                        <ComboBox x:Uid="OKLabUI_Section" Width="260" HorizontalAlignment="Left"
+                        Visibility="{x:Bind IsOKLab}" ItemsSource="{x:Bind OKSections}"
+                        SelectedIndex="{x:Bind OKSection, Mode=TwoWay}"  />
+                        <Border Height="1" Margin="0,8" Background="{ThemeResource CardStrokeColorDefaultBrush}" Opacity="0.45" />
+                        <ComboBox x:Uid="OKLabUI_Preset" ItemsSource="{x:Bind OKPresets}" SelectedIndex="{x:Bind OKPreset, Mode=TwoWay}" Width="260"  />
+                        <Button HorizontalAlignment="Stretch" x:Uid="OKLabUI_ApplyPreset" Click="{x:Bind OKApplyPreset}" />
+                        <Border Height="1" Margin="0,8" Background="{ThemeResource CardStrokeColorDefaultBrush}" Opacity="0.45" />
+                        <Grid ColumnSpacing="8">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                            <Button HorizontalAlignment="Stretch" x:Uid="OKLabUI_ResetGroup" Click="{x:Bind OKResetGroup}" />
+                            <Button Grid.Column="1" HorizontalAlignment="Stretch" x:Uid="OKLabUI_ResetAll" Click="{x:Bind OKResetAll}" />
+                        </Grid>
+                        <Grid ColumnSpacing="8" Margin="0,8,0,0">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                            <Button HorizontalAlignment="Stretch" x:Uid="OKLabUI_StoreA" Click="{x:Bind OKStoreA}" />
+                            <Button Grid.Column="1" HorizontalAlignment="Stretch" x:Uid="OKLabUI_SwapAB" Click="{x:Bind OKSwapAB}" />
+                        </Grid>
+                        <Button HorizontalAlignment="Stretch" x:Uid="OKLabUI_Undo" Click="{x:Bind OKUndo}" />
+                    </local:SimpleStackPanel>
+                    <local:SimpleStackPanel Width="260" Spacing="8" VerticalAlignment="Top"
+                                            Visibility="{x:Bind HasOKContextTools, Mode=OneWay}">
+					<ComboBox x:Uid="OKLabUI_Color" Visibility="{x:Bind OKMixerVisible, Mode=OneWay}" ItemsSource="{x:Bind OKColors}" SelectedIndex="{x:Bind OKColor, Mode=TwoWay}"  />
+					<ComboBox x:Uid="OKLabUI_Slot" Visibility="{x:Bind OKSelectionVisible, Mode=OneWay}" ItemsSource="{x:Bind OKSlots}" SelectedIndex="{x:Bind OKSlot, Mode=TwoWay}"  />
+					<TextBlock x:Uid="OKLabUI_PickSettingsHelp" Visibility="{x:Bind OKSelectionVisible, Mode=OneWay}" TextWrapping="Wrap" />
+					<ComboBox x:Uid="OKLabUI_Curve" Visibility="{x:Bind OKCurveVisible, Mode=OneWay}" ItemsSource="{x:Bind OKCurves}" SelectedIndex="{x:Bind OKCurve, Mode=TwoWay}"  />
+					<ComboBox x:Uid="OKLabUI_Wheel" Visibility="{x:Bind OKWheelVisible, Mode=OneWay}" ItemsSource="{x:Bind OKWheels}" SelectedIndex="{x:Bind OKWheel, Mode=TwoWay}"  />
+					<Canvas Width="160" Height="160" Background="Transparent" Visibility="{x:Bind OKWheelVisible, Mode=OneWay}"
+					        PointerPressed="{x:Bind OKWheelPressed}" PointerMoved="{x:Bind OKWheelMoved}" PointerReleased="{x:Bind OKWheelReleased}" PointerCanceled="{x:Bind OKWheelReleased}" PointerCaptureLost="{x:Bind OKWheelReleased}">
+						<Image Source="{x:Bind OKWheelImage}" Width="160" Height="160" IsHitTestVisible="False" />
+						<Ellipse Width="8" Height="8" Stroke="White" StrokeThickness="2" Fill="Black" Canvas.Left="{x:Bind OKWheelX, Mode=OneWay}" Canvas.Top="{x:Bind OKWheelY, Mode=OneWay}" IsHitTestVisible="False" />
+					</Canvas>
+					<TextBlock x:Uid="OKLabUI_WheelHelp" Visibility="{x:Bind OKWheelVisible, Mode=OneWay}" TextWrapping="Wrap" />
+					<Canvas Width="240" Height="140" Background="{ThemeResource ControlFillColorDefaultBrush}" Visibility="{x:Bind OKCurveVisible, Mode=OneWay}"
+					        PointerPressed="{x:Bind OKCurvePressed}" PointerMoved="{x:Bind OKCurveMoved}" PointerReleased="{x:Bind OKCurveReleased}" PointerCanceled="{x:Bind OKCurveReleased}" PointerCaptureLost="{x:Bind OKCurveReleased}">
+						<Path Data="{x:Bind OKCurveGeometry, Mode=OneWay}" Stroke="{ThemeResource AccentFillColorDefaultBrush}" StrokeThickness="2" IsHitTestVisible="False" />
+					</Canvas>
+					<TextBlock x:Uid="OKLabUI_CurveHelp" Visibility="{x:Bind OKCurveVisible, Mode=OneWay}" TextWrapping="Wrap" />
+					<StackPanel Spacing="6" Visibility="{x:Bind OKLutVisible, Mode=OneWay}">
+						<Button x:Uid="OKLabUI_ImportLut" Click="{x:Bind OKImportLut}" />
+						<Button x:Uid="OKLabUI_ExportLut" Click="{x:Bind OKExportLut}" />
+						<TextBlock x:Uid="OKLabUI_LutExportHelp" TextWrapping="Wrap" />
+						<Button x:Uid="OKLabUI_ClearLut" Click="{x:Bind OKClearLut}" />
+						<TextBlock x:Uid="OKLabUI_LutRestart" TextWrapping="Wrap" />
+						<TextBlock Text="{x:Bind OKStatus, Mode=OneWay}" TextWrapping="Wrap" />
+					</StackPanel>
+
+                    </local:SimpleStackPanel>
+				<ItemsControl IsTabStop="False" VerticalAlignment="Top" HorizontalAlignment="Left"
+				              ItemsSource="{x:Bind Groups, Mode=OneWay}">
+					<ItemsControl.ItemContainerStyle>
+						<Style TargetType="ContentPresenter">
+							<Setter Property="VerticalAlignment" Value="Top" />
+						</Style>
+					</ItemsControl.ItemContainerStyle>
 					<ItemsControl.ItemsPanel>
 						<ItemsPanelTemplate>
 							<local:SimpleStackPanel Orientation="Horizontal" Spacing="24" />
@@ -125,7 +202,7 @@
 					</ItemsControl.ItemsPanel>
 					<ItemsControl.ItemTemplate>
 						<DataTemplate x:DataType="local:EffectParameterGroupViewModel">
-							<Grid Width="{x:Bind ColumnWidth, Mode=OneWay}"
+							<Grid HorizontalAlignment="Left" VerticalAlignment="Top"
 							      Visibility="{x:Bind IsVisible, Mode=OneWay}">
 								<Border Width="1"
 								        Margin="-12,0,0,0"
@@ -134,35 +211,71 @@
 								        IsHitTestVisible="False"
 								        Opacity="0.45"
 								        Visibility="{x:Bind ShowLeadingSeparator, Mode=OneWay}" />
-								<!-- Keep the final control inside the ScrollViewer's measured extent. -->
-								<local:SimpleStackPanel>
-								<TextBlock Margin="0,0,0,8"
+								<Grid>
+                                    <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
+								<TextBlock Margin="0,0,0,8" TextWrapping="WrapWholeWords"
 								           FontWeight="SemiBold"
 								           Text="{x:Bind Label, Mode=OneTime}"
 								           Visibility="{x:Bind HasLabel, Mode=OneTime}" />
-								<ItemsControl IsTabStop="False"
+								<ItemsControl Grid.Row="1" IsTabStop="False"
 								              ItemsSource="{x:Bind Params, Mode=OneTime}">
 									<ItemsControl.ItemsPanel>
 										<ItemsPanelTemplate>
-											<local:SimpleStackPanel Spacing="8" />
+											<local:WrapPanel Orientation="Vertical" HorizontalSpacing="24" VerticalSpacing="8" />
 										</ItemsPanelTemplate>
 									</ItemsControl.ItemsPanel>
 									<ItemsControl.ItemTemplate>
 										<DataTemplate x:DataType="local:ScalingModeParameter">
-											<Grid Visibility="{x:Bind IsVisible, Mode=OneWay}">
-												<CheckBox MinWidth="0"
+											<Grid Width="260" Visibility="{x:Bind IsVisible, Mode=OneWay}">
+												<ToggleButton x:Name="ParameterDisclosure" x:Load="{x:Bind IsDisclosure, Mode=OneTime}"
+												              IsChecked="{x:Bind BooleanValue, Mode=TwoWay}"
+												              IsEnabled="{x:Bind IsEnabled, Mode=OneWay}"
+												              HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
+												              Background="Transparent" BorderThickness="0" Padding="0,8"
+												              AutomationProperties.Name="{x:Bind Label, Mode=OneTime}">
+													<ToolTipService.ToolTip>
+														<ToolTip MaxWidth="360" Placement="Top">
+															<TextBlock MaxWidth="328" Text="{x:Bind Tooltip, Mode=OneWay}" TextWrapping="Wrap" />
+														</ToolTip>
+													</ToolTipService.ToolTip>
+													<StackPanel Orientation="Horizontal" Spacing="8">
+														<FontIcon FontFamily="Segoe MDL2 Assets" FontSize="12" Glyph="{x:Bind DisclosureGlyph, Mode=OneWay}" />
+														<TextBlock Text="{x:Bind Label, Mode=OneTime}" />
+													</StackPanel>
+												</ToggleButton>
+												<Grid x:Name="ParameterCheckBoxRow" ColumnSpacing="8" SizeChanged="ParameterCheckboxRow_SizeChanged" x:Load="{x:Bind IsCheckBox, Mode=OneTime}">
+													<Grid.ColumnDefinitions>
+														<ColumnDefinition Width="Auto" />
+														<ColumnDefinition Width="Auto" />
+													</Grid.ColumnDefinitions>
+													<CheckBox MinWidth="0"
 												          IsChecked="{x:Bind BooleanValue, Mode=TwoWay}"
-												          Visibility="{x:Bind IsBoolean, Mode=OneTime}">
+												          IsEnabled="{x:Bind IsEnabled, Mode=OneWay}">
 													<TextBlock Text="{x:Bind Label, Mode=OneTime}"
 													           TextWrapping="WrapWholeWords" AutomationProperties.HelpText="{x:Bind Tooltip, Mode=OneWay}">
 														<ToolTipService.ToolTip>
 															<ToolTip MaxWidth="360" Placement="Top">
+																<StackPanel>
+																<TextBlock MaxWidth="328" Text="{x:Bind Label, Mode=OneTime}" TextWrapping="Wrap" />
 																<TextBlock MaxWidth="328" Text="{x:Bind Tooltip, Mode=OneWay}" TextWrapping="Wrap" />
+																</StackPanel>
 															</ToolTip>
 														</ToolTipService.ToolTip>
 													</TextBlock>
 												</CheckBox>
-												<local:SimpleStackPanel Visibility="{x:Bind IsFloat, Mode=OneTime}">
+													<CheckBox x:Name="ParameterCompanion" Grid.Column="1" MinWidth="0" x:Load="{x:Bind HasCompanion, Mode=OneTime}"
+													          IsEnabled="{x:Bind Companion.IsEnabled, Mode=OneWay}"
+													          IsChecked="{x:Bind Companion.BooleanValue, Mode=TwoWay}"
+													          AutomationProperties.HelpText="{x:Bind Companion.Tooltip, Mode=OneWay}">
+														<ToolTipService.ToolTip>
+															<ToolTip MaxWidth="360" Placement="Top">
+																<TextBlock MaxWidth="328" Text="{x:Bind Companion.Tooltip, Mode=OneWay}" TextWrapping="Wrap" />
+															</ToolTip>
+														</ToolTipService.ToolTip>
+														<TextBlock Text="{x:Bind Companion.Label, Mode=OneTime}" TextWrapping="WrapWholeWords" />
+													</CheckBox>
+												</Grid>
+												<local:SimpleStackPanel x:Name="ParameterNumericRow" x:Load="{x:Bind IsFloat, Mode=OneTime}">
 													<Grid ColumnSpacing="4"
 													      Visibility="{x:Bind HasNoDescriptionLine, Mode=OneTime}">
 														<Grid.ColumnDefinitions>
@@ -243,8 +356,8 @@
 									        StepFrequency="{x:Bind SliderStep, Mode=OneTime}"
 									        Value="{x:Bind SliderValue, Mode=TwoWay}" />
 								</local:SimpleStackPanel>
-								<local:SimpleStackPanel Spacing="4"
-								                        Visibility="{x:Bind IsChoice, Mode=OneTime}">
+								<local:SimpleStackPanel x:Name="ParameterChoiceRow" Spacing="4"
+								                        x:Load="{x:Bind IsChoice, Mode=OneTime}">
 									<TextBlock Text="{x:Bind Label, Mode=OneTime}"
 									           TextWrapping="WrapWholeWords" AutomationProperties.HelpText="{x:Bind Tooltip, Mode=OneWay}">
 										<ToolTipService.ToolTip>
@@ -254,24 +367,36 @@
 										</ToolTipService.ToolTip>
 									</TextBlock>
 									<ComboBox HorizontalAlignment="Stretch"
+									          PlaceholderText="—"
 									          DropDownOpened="ParameterChoice_DropDownOpened"
 									          DropDownClosed="ParameterChoice_DropDownClosed"
 									          SelectionChanged="ParameterChoice_SelectionChanged"
 									          IsEnabled="{x:Bind IsEnabled, Mode=OneWay}"
+									          AutomationProperties.HelpText="{x:Bind Tooltip, Mode=OneWay}"
 									          ItemsSource="{x:Bind Choices, Mode=OneWay}"
-									          SelectedIndex="{x:Bind ChoiceIndex, Mode=TwoWay}" />
+									          SelectedIndex="{x:Bind ChoiceIndex, Mode=TwoWay}">
+										<ToolTipService.ToolTip>
+											<ToolTip MaxWidth="360" Placement="Top">
+												<TextBlock MaxWidth="328" Text="{x:Bind Tooltip, Mode=OneWay}" TextWrapping="Wrap" />
+											</ToolTip>
+										</ToolTipService.ToolTip>
+									</ComboBox>
 								</local:SimpleStackPanel>
 							</Grid>
 										</DataTemplate>
 									</ItemsControl.ItemTemplate>
 								</ItemsControl>
-								</local:SimpleStackPanel>
+								</Grid>
 							</Grid>
 						</DataTemplate>
 					</ItemsControl.ItemTemplate>
 				</ItemsControl>
-			</ScrollViewer>
-		</DataTemplate>
+                </local:SimpleStackPanel>
+                    <Canvas IsHitTestVisible="False" Visibility="{x:Bind IsOKLab}"
+                            Tag="{ThemeResource ControlStrokeColorDefaultBrush}" SizeChanged="ParameterColumns_SizeChanged" />
+                </Grid>
+            </Grid>
+        </DataTemplate>
 	</Page.Resources>
 	<local:PageFrame x:Uid="ScalingModes_PageFrame">
 		<local:PageFrame.HeaderAction>
@@ -635,15 +760,9 @@
 														</Button.Content>
 													<Button.Flyout>
 														<Flyout Opening="EffectParametersFlyout_Opening" ShouldConstrainToRootBounds="False"
+														        FlyoutPresenterStyle="{StaticResource EffectParametersPresenterStyle}"
 														        Opened="EffectParametersFlyout_Opened" Closing="EffectParametersFlyout_Closing"
 														        Closed="EffectParametersFlyout_Closed">
-															<Flyout.FlyoutPresenterStyle>
-																<Style BasedOn="{StaticResource DefaultFlyoutPresenterStyle}"
-																       TargetType="FlyoutPresenter">
-																	<Setter Property="MaxHeight" Value="10000" />
-																	<Setter Property="MaxWidth" Value="10000" />
-																</Style>
-															</Flyout.FlyoutPresenterStyle>
 															<ContentControl Content="{x:Bind Parameters, Mode=OneTime}"
 															                ContentTemplate="{StaticResource EffectParametersFlyout}"
 															                IsTabStop="False" />

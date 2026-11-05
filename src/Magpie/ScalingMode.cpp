@@ -8,7 +8,8 @@ EffectItem::operator EffectOption()  const noexcept {
 	EffectOption result = {
 		.name = StrHelper::UTF16ToUTF8(name),
 		.scalingType = scalingType,
-		.scale = scale
+		.scale = scale,
+		.oklabLut = oklabLut
 	};
 
 	result.parameters.reserve(parameters.size());

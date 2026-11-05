@@ -18,10 +18,19 @@ enum class ReflexState { Unavailable, Active, DriverOff, Paused, Faulted, Stoppe
 // During a transition or failed cap cleanup the renderer cannot start Async.
 enum class ReflexPacingState { Clear, Configuring, Active, CleanupFailed };
 
+// Optional frontend out-of-band GPU tracking is independent of the driver
+// interval and low-latency query. A failed first marker disables this scope.
+enum class ReflexRenderTrackingState { Unavailable, Unchecked, Supported, Disabled };
+
 struct ReflexConfigurationResult {
 	int setStatus = 0;
 	int queryStatus = 0;
 	bool queried = false;
+	bool lowLatency = false;
+};
+
+struct ReflexSleepStatus {
+	int status = 0;
 	bool lowLatency = false;
 };
 
@@ -38,6 +47,7 @@ class ReflexDriver {
 public:
 	virtual ~ReflexDriver() = default;
 	virtual ReflexConfigurationResult Configure(ReflexSettings settings) noexcept = 0;
+	virtual ReflexSleepStatus QueryStatus() noexcept = 0;
 	virtual int Sleep() noexcept = 0;
 	virtual int Marker(ReflexMarker marker, uint64_t frameId) noexcept = 0;
 	virtual int RegisterGenerationQueue(ID3D12CommandQueue* queue) noexcept = 0;
@@ -60,6 +70,8 @@ public:
 	void Initialize(std::unique_ptr<ReflexDriver> driver, ReflexSettings settings = {}) noexcept {
 		_driver = std::move(driver);
 		_settings = settings;
+		_frontendRenderTracking.store(_driver ? ReflexRenderTrackingState::Unchecked :
+			ReflexRenderTrackingState::Unavailable);
 		if (_driver) SetPresentationAvailable(true);
 	}
 	void SetPresentationAvailable(bool available) noexcept {
@@ -89,10 +101,13 @@ public:
 		return state == ReflexPacingState::Configuring || state == ReflexPacingState::CleanupFailed;
 	}
 	bool CanResume() const noexcept { return _driver && !_stopped.load(); }
+	ReflexRenderTrackingState FrontendRenderTrackingState() const noexcept {
+		return _frontendRenderTracking.load();
+	}
 
-	// Backend only. Polls with no GPU work retain the slept candidate. A pixel
-	// comparison that rejects an input finishes its own render attempt instead
-	// of leaving a render marker open across the next content wait.
+	// Backend only. Polls before Render starts retain the slept candidate,
+	// including explicitly scoped NR/WGC input validation. A rejected attempt
+	// that already opened Render closes that interval before waiting again.
 	uint64_t BeginCapture(uint64_t minimumFrameId = 1) noexcept {
 		const auto revision = _configurationRevision.load();
 		if (_captureFrameId && _captureRevision != revision) CompleteCapture();
@@ -113,8 +128,8 @@ public:
 		// This is its own capture/processing cycle; do not invent INPUT_SAMPLE.
 		return _captureFrameId;
 	}
-	// Called immediately before capture starts submitting GPU work, or before
-	// a forced effects redraw when capture supplied no new texture.
+	// Full capture scopes call before capture GPU work. Input-validated NR/WGC
+	// instead calls at accepted-content effects, after capture preparation.
 	void BeginCaptureRender() noexcept {
 		if (!_captureFrameId || _renderStarted || _renderEnded) return;
 		_renderStarted = true;
@@ -123,6 +138,9 @@ public:
 	}
 	uint64_t CaptureFrameId() const noexcept { return _captureFrameId; }
 	uint64_t NextPresentId() noexcept { return _captureFrameId ? ++_nextPresentId : 0; }
+	// A buffered output can be presented after its capture cycle has completed.
+	// Keep that immutable capture ID instead of borrowing the current cycle.
+	uint64_t NextPresentIdForFrame(uint64_t frameId) noexcept { return frameId ? ++_nextPresentId : 0; }
 	void EndCaptureRender() noexcept {
 		if (_captureFrameId && !_renderEnded) {
 			_Marker(_renderStarted ? ReflexMarker::RenderEnd : ReflexMarker::SimulationEnd);
@@ -147,15 +165,58 @@ public:
 	// Frontend only. IDs come from the immutable published ring slot, never
 	// from the backend's currently running (possibly newer) capture.
 	void FrontendRender(uint64_t frameId, uint64_t presentId, bool start) noexcept {
-		if (frameId && presentId && _Usable())
-			_Check("D3D11 async render marker", _driver->FrontendRender(frameId, presentId, start));
+		if (!frameId || !presentId || !_Usable()) return;
+		const auto tracking = _frontendRenderTracking.load();
+		if (tracking == ReflexRenderTrackingState::Disabled) return;
+		const int status = _driver->FrontendRender(frameId, presentId, start);
+		if (tracking == ReflexRenderTrackingState::Unchecked && start) {
+			if (status) {
+				// No interval was opened. A failed initial optional tracking call
+				// must not revoke working Sleep/capture/present APIs or the cap.
+				// Keep the raw error visible; do not claim that NVAPI accepted it.
+				_frontendRenderTracking.store(ReflexRenderTrackingState::Disabled);
+				_driver->ReportFailure("D3D11 async render tracking disabled after initial marker failure; "
+					"driver pacing and present tracking retained", status);
+				return;
+			}
+			_frontendRenderTracking.store(ReflexRenderTrackingState::Supported);
+		}
+		// Once tracking opened successfully, any later failure retains the
+		// original cleanup contract, including an unsuccessful closing marker.
+		_Check("D3D11 async render marker", status);
 	}
 	void Present(uint64_t frameId, uint64_t presentId, bool generated, bool start) noexcept {
-		if (frameId && presentId && _Usable())
-			_Check("D3D11 async present marker", _driver->Present(frameId, presentId, generated, start));
+		if (frameId && presentId && _Usable() &&
+			_Check("D3D11 async present marker", _driver->Present(frameId, presentId, generated, start)) &&
+			!generated && !start) _ObserveSleepStatus();
 	}
 
 private:
+	// Frontend only. A cold Off query may become On once presentation is warm.
+	// At most three read-only checks per configuration, never a repeated On
+	// request. The count is completed base-present marker pairs, not scanout.
+	void _ObserveSleepStatus() noexcept {
+		if (State() != ReflexState::DriverOff) return;
+		const auto revision = _configurationRevision.load();
+		if (_statusObservationRevision != revision) {
+			_statusObservationRevision = revision;
+			_statusObservationCount = 0;
+		}
+		if (_statusObservationCount >= 512) return;
+		const auto count = ++_statusObservationCount;
+		if (count != 32 && count != 128 && count != 512) return;
+		std::scoped_lock lock(_configurationMutex);
+		if (!_Usable() || !_presentationAvailable.load() ||
+			_configurationRevision.load() != revision || State() != ReflexState::DriverOff) return;
+		const auto result = _driver->QueryStatus();
+		if (result.status) {
+			// This optional observation cannot revoke the accepted interval.
+			_statusObservationCount = 512;
+			_driver->ReportFailure("read-only warm GetSleepStatus; driver pacing retained", result.status);
+			return;
+		}
+		_state.store(result.lowLatency ? ReflexState::Active : ReflexState::DriverOff);
+	}
 	void _ConfigureLocked(ReflexSettings settings) noexcept {
 		_pacingState.store(ReflexPacingState::Configuring);
 		++_configurationRevision;
@@ -208,7 +269,10 @@ private:
 	std::mutex _configurationMutex;
 	std::atomic<ReflexState> _state = ReflexState::Unavailable;
 	std::atomic<ReflexPacingState> _pacingState = ReflexPacingState::Clear;
+	std::atomic<ReflexRenderTrackingState> _frontendRenderTracking = ReflexRenderTrackingState::Unavailable;
 	std::atomic<uint64_t> _configurationRevision = 0;
+	uint64_t _statusObservationRevision = 0; // Frontend only.
+	uint32_t _statusObservationCount = 0; // Frontend only, bounded per revision.
 	uint64_t _captureRevision = 0;
 	std::atomic<bool> _presentationAvailable = false;
 	std::atomic<bool> _stopped = false;

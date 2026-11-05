@@ -14,10 +14,12 @@ shell.CommandLineToArgvW.argtypes = [ctypes.c_wchar_p, ctypes.POINTER(ctypes.c_i
 shell.CommandLineToArgvW.restype = ctypes.POINTER(ctypes.c_wchar_p)
 ctypes.windll.kernel32.LocalFree.argtypes = [ctypes.c_void_p]
 for project, sources in {
-    "Magpie.Core": ["DLSSNRTemporal.cpp", "NativeEffectBackendFactory.cpp"],
+    "Magpie.Core": ["DLSSNRFilter.cpp", "DLSSNRTemporal.cpp", "NativeEffectBackendFactory.cpp", "Renderer.cpp", "StepTimer.cpp"],
     "Magpie": ["ScalingModeItem.cpp", "ScalingModesService.cpp"],
 }.items():
-    path = build / f"obj/{project}/{project}.tlog/CL.command.1.tlog"
+    relative = f"{project}/{project}.tlog/CL.command.1.tlog"
+    path = next((build / folder / relative for folder in ("obj", "obj/x64/Release")
+                 if (build / folder / relative).is_file()), build / "obj" / relative)
     raw = " ".join(line for line in path.read_text(encoding="utf-16").splitlines()
                    if not line.startswith("^"))
     count = ctypes.c_int()

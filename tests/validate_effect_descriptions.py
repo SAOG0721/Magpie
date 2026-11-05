@@ -164,14 +164,51 @@ class EffectDescriptionContracts(unittest.TestCase):
             self.assertIn('SDR', effects[r'xBR\xBR_NoBlend_3x']['details'])
             for id in (r'Color\HDR_to_SDR', r'Color\SDR_to_HDR', r'RTXVideo\RTXVideo_HDR'):
                 self.assertIn('Windows HDR', effects[id]['details'])
-            help = self.resources[lang]['EffectParam_DLSSNR_DLSSNR_AI_Filter_enableInputResolutionScaling_Description']
-            self.assertIn('SDR', help)
-            self.assertRegex(help, r'全部处理结束后应用一次|once after all passes')
+            help = self.resources[lang]['EffectParam_DLSSNR_DLSSNR_AI_Filter_residualMultiplier_Description']
+            self.assertRegex(help, r'全部处理层|all passes')
+            self.assertTrue(self.resources[lang]['EffectParam_DLSSNR_DLSSNR_AI_Filter_modelPreset_Description'])
             for effect, param in ((r'RTXVideo\RTXVideo_VSR', 'category'),
                                   (r'FSR3FG\FSR3_FrameGeneration', 'opticalFlowMethod'),
                                   (r'DLSS\DLSS_SR', 'opticalFlowMethod')):
                 key = 'EffectParam_' + re.sub(r'[^A-Za-z0-9]', '_', effect) + '_' + param + '_Description'
                 self.assertRegex(self.resources[lang][key], r'重新启动缩放|Restart scaling')
+
+    def test_dlssnr_two_mode_controls_and_localized_help(self):
+        shader = read('src/Effects/DLSSNR/DLSSNR_AI_Filter.hlsl')
+        modes = re.search(r'//!PARAMETER\s*\n(?:(?!//!PARAMETER).)*int processingMode;', shader, re.S)[0]
+        self.assertEqual(re.findall(r'//!OPTION (\d+) (.*)', modes), [
+            ('0', 'Every Frame'), ('1', 'Alternating Frames')])
+        interval = re.search(r'//!PARAMETER\s*\n(?:(?!//!PARAMETER).)*int sparseUpdateInterval;', shader, re.S)[0]
+        self.assertRegex(interval, r'//!DEFAULT 2\s')
+        self.assertEqual(re.findall(r'//!OPTION (\d+) (.*)', interval), [
+            ('2', 'Every 2 Frames'), ('3', 'Every 3 Frames'), ('4', 'Every 4 Frames')])
+        retired = ('recoveryPolicy', 'bufferedDelayFrames', 'asyncResidualComposition', '__dlssnrModeVersion')
+        for name in retired:
+            self.assertNotRegex(shader, r'\bint ' + name + ';')
+        for language in ('en-US', 'zh-Hans', 'zh-Hant'):
+            nodes = ET.fromstring(read(f'src/Magpie/Resources.language-{language}.resw')).findall('data')
+            resources = {node.attrib['name']: node.findtext('value') for node in nodes}
+            prefix = 'EffectParam_DLSSNR_DLSSNR_AI_Filter_'
+            for value in range(2):
+                self.assertTrue(resources[prefix + f'processingMode_Option_{value}'])
+            for value in (2, 3, 4, 5, 6):
+                self.assertNotIn(prefix + f'processingMode_Option_{value}', resources)
+            for name in retired:
+                self.assertFalse(any(key.startswith(prefix + name + '_') for key in resources))
+            for suffix in ('Label', 'Description', 'Option_2', 'Option_3', 'Option_4'):
+                self.assertTrue(resources[prefix + 'sparseUpdateInterval_' + suffix])
+            self.assertNotIn('K', resources[prefix + 'sparseUpdateInterval_Description'])
+            self.assertNotIn(prefix + 'FixedResolutionRequired', resources)
+            for key, value in resources.items():
+                if key.startswith(prefix):
+                    self.assertNotRegex(value, r'Async Every Frame|Async Alternating Frames|异步逐帧|异步隔帧|非同步逐幀|非同步隔幀')
+            self.assertEqual(resources['FrameSync_Mode_Async.Content'], 'Async')
+        english = self.effects['en-US'][r'DLSSNR\DLSSNR_AI_Filter']['details']
+        for label in ('Every Frame', 'Alternating Frames'):
+            self.assertIn(label, english)
+        for label in ('Async Every Frame', 'Async Alternating Frames', 'Buffered Balanced', 'Sparse Economy',
+                      'Bidirectional Quality', 'Recovery Policy', 'lightweight NR'):
+            self.assertNotIn(label, english)
 
 
 if __name__ == '__main__':

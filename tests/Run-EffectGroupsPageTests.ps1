@@ -1,7 +1,7 @@
 #Requires -Version 7.0
 param([string]$CachedRepoDirectory, [string]$RuntimeDirectory,
     [string]$IntermediateRoot, [string]$OutputDirectory,
-    [string]$GeneratedFilesDirectory, [switch]$SyntaxOnly)
+    [string]$GeneratedFilesDirectory, [switch]$SyntaxOnly, [switch]$PairedCheckboxesOnly, [switch]$SinglePageOnly)
 $ErrorActionPreference = 'Stop'
 $repo = Split-Path $PSScriptRoot -Parent
 if (!$CachedRepoDirectory) {
@@ -14,8 +14,16 @@ if (!$RuntimeDirectory) { $RuntimeDirectory = Join-Path $workspace 'release/v0.6
 if (!$IntermediateRoot) { $IntermediateRoot = Join-Path $workspace 'release/v0.6.9-beta1/obj' }
 if (!$OutputDirectory) { $OutputDirectory = Join-Path $workspace '.tools/069-effect-groups-page/tests' }
 New-Item -ItemType Directory -Path $OutputDirectory -Force | Out-Null
-& python (Join-Path $PSScriptRoot 'prepare_effect_groups_page_tests.py') $OutputDirectory
-if ($LASTEXITCODE) { throw 'Production layout extraction failed' }
+if ($SinglePageOnly) {
+    & python (Join-Path $PSScriptRoot 'prepare_parameter_single_page_test.py') $OutputDirectory
+    if ($LASTEXITCODE) { throw 'Production single-page extraction failed' }
+} elseif ($PairedCheckboxesOnly) {
+    & python (Join-Path $PSScriptRoot 'prepare_paired_checkbox_test.py') $OutputDirectory
+    if ($LASTEXITCODE) { throw 'Production paired-checkbox extraction failed' }
+} else {
+    & python (Join-Path $PSScriptRoot 'prepare_effect_groups_page_tests.py') $OutputDirectory
+    if ($LASTEXITCODE) { throw 'Production layout extraction failed' }
+}
 $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio/Installer/vswhere.exe'
 $vs = & $vswhere -latest -products * -requires Microsoft.Component.MSBuild -property installationPath | Select-Object -First 1
 Import-Module (Join-Path $vs 'Common7/Tools/Microsoft.VisualStudio.DevShell.dll')
@@ -64,14 +72,28 @@ if ($SyntaxOnly) {
     Write-Output 'PASS changed page C++ syntax: MSVC /W4 /WX, cached generated headers; no application build or link.'
     return
 }
-$sources = @((Join-Path $PSScriptRoot 'EffectGroupsPageLayoutTests.cpp'), (Join-Path $repo 'src/Magpie/SimpleStackPanel.cpp'))
-$exe = Join-Path $OutputDirectory 'EffectGroupsPageLayoutTests.exe'
+if ($SinglePageOnly) {
+    $sources = @((Join-Path $PSScriptRoot 'ParameterSinglePageLayoutTests.cpp'), (Join-Path $repo 'src/Magpie/SimpleStackPanel.cpp'), (Join-Path $repo 'src/Magpie/WrapPanel.cpp'), (Join-Path $repo 'src/Shared/SmallVector.cpp'))
+} elseif ($PairedCheckboxesOnly) {
+    $sources = @((Join-Path $PSScriptRoot 'PairedCheckboxLayoutTests.cpp'), (Join-Path $repo 'src/Magpie/SimpleStackPanel.cpp'))
+} else {
+    $sources = @((Join-Path $PSScriptRoot 'EffectGroupsPageLayoutTests.cpp'), (Join-Path $repo 'src/Magpie/SimpleStackPanel.cpp'))
+}
+$exe = Join-Path $OutputDirectory $(if ($SinglePageOnly) { 'ParameterSinglePageLayoutTests.exe' } elseif ($PairedCheckboxesOnly) { 'PairedCheckboxLayoutTests.exe' } else { 'EffectGroupsPageLayoutTests.exe' })
 & cl.exe /nologo /std:c++20 /EHsc /utf-8 /MT /O2 /bigobj @defines @includes @sources "/Fe:$exe" "/Fo:$OutputDirectory/" `
     /link WindowsApp.lib user32.lib /MANIFEST:EMBED "/MANIFESTINPUT:$PSScriptRoot/EffectChoiceItemsTests.manifest" "/MANIFESTINPUT:$manifest"
 if ($LASTEXITCODE) { throw 'Compile native page layout regression failed' }
 Push-Location $OutputDirectory
 try { & $exe; if ($LASTEXITCODE) { throw 'Native page layout regression failed' } }
 finally { Pop-Location }
+if ($SinglePageOnly) {
+    & cl.exe /nologo /std:c++20 /EHsc /utf-8 /MT /O2 /W4 /WX /DNOMINMAX "/I$OutputDirectory" `
+        (Join-Path $PSScriptRoot 'ParameterSinglePageStateTests.cpp') "/Fe:$OutputDirectory/ParameterSinglePageStateTests.exe" "/Fo:$OutputDirectory/ParameterSinglePageStateTests.obj"
+    if ($LASTEXITCODE) { throw 'Compile visible-group state tests failed' }
+    & (Join-Path $OutputDirectory 'ParameterSinglePageStateTests.exe')
+    if ($LASTEXITCODE) { throw 'Production pager state tests failed' }
+}
+if ($PairedCheckboxesOnly -or $SinglePageOnly) { return }
 # Existing hidden-presenter regression guards the shared panel behavior.
 $containers = Join-Path $OutputDirectory 'Beta1Fix2ContainerTests.exe'
 & cl.exe /nologo /std:c++20 /EHsc /utf-8 /MT /O2 /bigobj @defines @includes `

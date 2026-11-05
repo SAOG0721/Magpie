@@ -1,5 +1,6 @@
 // Template populated with production blocks by prepare_reflex_marker_boundary_test.py.
 #include "ReflexController.h"
+#include "FrameUpdateReason.h"
 #include <array>
 #include <chrono>
 #include <functional>
@@ -15,6 +16,7 @@ using HANDLE = int;
 using UINT = unsigned;
 constexpr DWORD WAIT_OBJECT_0 = 0, WAIT_TIMEOUT = 258, WAIT_FAILED = 0xffffffff;
 constexpr int S_OK = 0, D3D11_USAGE_DEFAULT = 0, DXGI_PRESENT_ALLOW_TEARING = 1;
+constexpr UINT D3D11_BIND_SHADER_RESOURCE = 8;
 static void Require(bool value, const char* message) { if (!value) throw std::runtime_error(message); }
 static std::vector<std::string> events;
 static DWORD capacity = WAIT_OBJECT_0;
@@ -28,12 +30,16 @@ constexpr DWORD QS_ALLINPUT = 1, MWMO_INPUTAVAILABLE = 1;
 static bool FAILED(HRESULT hr) { return hr < 0; }
 static bool SUCCEEDED(HRESULT hr) { return hr >= 0; }
 static int HRESULT_FROM_WIN32(int hr) { return -hr; }
+static int GetLastError() { return 6; }
+constexpr int E_UNEXPECTED = -2;
 static void SetEvent(HANDLE) {}
 struct Handle { HANDLE get() const { return 1; } };
 struct POINT { long x = 0, y = 0; };
 struct RECT { long left = 0, top = 0, right = 10, bottom = 10; };
 struct D3D11_TEXTURE2D_DESC {
     UINT Width = 10, Height = 10, Format = 1, Usage = 0, BindFlags = 0, CPUAccessFlags = 0, MiscFlags = 0;
+    UINT MipLevels = 1, ArraySize = 1;
+    struct { UINT Count = 1, Quality = 0; } SampleDesc;
 };
 struct ID3D11Texture2D { void GetDesc(D3D11_TEXTURE2D_DESC* d) { *d = {}; } };
 struct ID3D11RenderTargetView {};
@@ -62,7 +68,7 @@ struct Logger {
     void Info(int) {} void Warn(int) {} void ComError(const char*, int) {} void Win32Error(const char*) {}
 };
 namespace FrameTrace {
-enum class Event { FrontendBase, FrontendAcquireBusy, FrontendAcquire, CapacityBusy, BeginFrame };
+enum class Event { FrontendBase, FrontendAcquireBusy, FrontendAcquire, CapacityBusy, BeginFrame, FrameSyncAck };
 struct Scope {
     template<class... T> Scope(T...) {} template<class... T> void Data(T...) {}
     void FrameId(uint64_t) {} void End() {}
@@ -71,6 +77,7 @@ template<class... T> void Mark(T...) {} void SetFrame(uint64_t) {} int Tick() { 
 }
 struct Driver final : ReflexDriver {
     ReflexConfigurationResult Configure(ReflexSettings s) noexcept override { return {0, 0, true, s.lowLatency}; }
+    ReflexSleepStatus QueryStatus() noexcept override { return {0, true}; }
     int Sleep() noexcept override { return 0; }
     int Marker(ReflexMarker, uint64_t) noexcept override { return 0; }
     int RegisterGenerationQueue(ID3D12CommandQueue*) noexcept override { return 0; }
@@ -101,6 +108,7 @@ struct Context {
         events.push_back("copy");
     }
 };
+/* MOTION_TEXTURE */
 struct Resources {
     Device device; Context context;
     Device* GetD3DDevice() { return &device; } Context* GetD3DDC() { return &context; }
@@ -123,10 +131,18 @@ struct PassThrough {
     IDXGIKeyedMutex* FrontendMutex(uint32_t) { return nullptr; } bool DisableSharing() { return false; }
     bool Consume(uint32_t) { context->CopyResource(&texture, &texture); return true; }
 };
-struct Metadata { uint64_t frameId = 40, captureSequence = 2, resourceGeneration = 1; int64_t timestamp100ns = 10; bool generated = false; };
+struct Metadata {
+    uint64_t frameId = 40, captureSequence = 2, resourceGeneration = 1, outputHistoryRevision = 1;
+    int64_t timestamp100ns = 10, captureAdmissionTime100ns = 9;
+    bool generated = false, contentRedraw = false;
+	FrameUpdateReason updateReason = FrameUpdateReason::NewCapture;
+};
 /* GATE */
 #define IID_PPV_ARGS(p) 0, p
-struct Surface { HRESULT BeginDraw(void*, int, winrt::com_ptr<ID3D11Texture2D>*, POINT*) { return -1; } };
+struct Surface {
+    HRESULT BeginDraw(void*, int, winrt::com_ptr<ID3D11Texture2D>*, POINT*) { return -1; }
+    HRESULT EndDraw() { return S_OK; }
+};
 struct SwapChain { HRESULT Present(int, UINT) { Require(!renderOpen, "render must end before Present"); events.push_back("present"); return S_OK; } };
 struct AdaptivePresenter {
     ReflexController* _reflex = nullptr;
@@ -143,9 +159,20 @@ struct AdaptivePresenter {
     void SetReflexFrame(uint64_t, uint64_t, bool) noexcept;
     void BeginReflexRender() noexcept; void CancelReflexRender() noexcept;
     bool PrepareFrame() noexcept;
+    // Recovery state is covered by AdaptivePresenterRecoveryTests; keep this
+    // fixture focused on production admission and marker ordering.
+    void _TryRecoverSwapChain() noexcept {}
+    bool HasFatalError() const noexcept { return false; }
+    void _Fail(const char*, HRESULT) noexcept {}
+    bool _CheckDeviceFailure(const char*, HRESULT) noexcept { return false; }
     bool BeginFrame(winrt::com_ptr<ID3D11Texture2D>&, winrt::com_ptr<ID3D11RenderTargetView>&, POINT&) noexcept;
     bool WasFrameCapacityBusy() const { return _frameCapacityBusy; }
     template<class... T> void SetSourceTiming(T...) {} template<class... T> void SetFrameGuidance(T...) {}
+    void SetCaptureAdmissionTime(int64_t) {} void SetOutputHistoryRevision(uint64_t) {}
+    void SetFrameGuidanceAvailability(int) {}
+    bool BeginIdleFrame(winrt::com_ptr<ID3D11Texture2D>& tex, winrt::com_ptr<ID3D11RenderTargetView>& rtv, POINT& offset) noexcept {
+        return BeginFrame(tex, rtv, offset);
+    }
     bool EndFrame() {
 /* PRESENT */
 		(void)tracePresent;
@@ -176,6 +203,11 @@ struct Renderer {
     bool _frontendBaseValid = false, _frontendBaseNeedsPresent = false, _frontendPresentedBaseValid = false;
     bool _frameSyncEnabled = true, _frameSyncUsesSharedSlot = true, _isPassThroughActive = false;
     bool _frontendMotionValid = false, _frontendMotionReset = false;
+    bool _isFSR3FrameGenerationActive = false;
+    int _frontendMotionAvailability = 0;
+    std::array<int, 1> _sharedMotionAvailability{};
+    struct IdleClock { void Reset() {} } _idlePresentationClock;
+    bool _HasProxyFrameGenerator() const noexcept { return false; }
     Handle _frameSyncConsumedEvent;
     RECT _destRect;
     Resources _frontendResources;
@@ -185,8 +217,9 @@ struct Renderer {
     void SetPassThroughActive(bool value) { _isPassThroughActive = value; }
     // Diagnostic-only sampling is outside this marker boundary fixture.
     uint32_t _FrontendDiagnosticReasons() const noexcept { return 0; }
+    void _ReportPresenterFailure() noexcept {}
     FrontendBaseResult _UpdateFrontendBase(uint32_t sharedTextureSlot) noexcept;
-    bool Render(uint32_t sharedTextureSlot, FrontendRenderTimings* timings = nullptr, bool stableBaseOnly = false, bool* droppedFrame = nullptr) {
+    bool Render(uint32_t sharedTextureSlot, FrontendRenderTimings* timings = nullptr, bool stableBaseOnly = false, bool* droppedFrame = nullptr, bool idleRedraw = false) {
 /* ADMISSION */
         (void)diagnosticReasons;
         _frontendResources.GetD3DDC()->CopyResource(frameTex.get(), baseTexture);

@@ -51,6 +51,25 @@ bool EffectDrawer::Initialize(
 ) noexcept {
 	_d3dDC = deviceResources.GetD3DDC();
 	_descriptorStore = &descriptorStore;
+	if (desc.name == OKLab::EffectId) {
+		constexpr std::string_view names[]{ "INPUT", "OUTPUT", "Stats", "Adaptive", "History", "Lut" };
+		bool valid = desc.textures.size() == std::size(names) && desc.passes.size() == 3 &&
+			desc.params.size() == std::size(OKLab::Parameters);
+		if (valid) {
+			for (size_t i = 0; i < std::size(names); ++i) valid &= desc.textures[i].name == names[i];
+			for (size_t i = 0; i < std::size(OKLab::Parameters); ++i) valid &= desc.params[i].name == OKLab::Parameters[i].name;
+			constexpr std::string_view widths[]{ "16", "1", "1", "4225" }, heights[]{ "9", "1", "1", "65" };
+			for (size_t i = 0; i < 4; ++i) valid &= desc.textures[i + 2].sizeExpr.first == widths[i] &&
+				desc.textures[i + 2].sizeExpr.second == heights[i] && desc.textures[i + 2].format == EffectIntermediateTextureFormat::R32G32B32A32_FLOAT;
+			constexpr uint32_t inputs[][3]{ {0,0,0}, {2,4,0}, {0,3,5} }, counts[]{ 1,2,3 }, outputs[]{ 2,3,1 };
+			for (size_t i = 0; i < 3; ++i) {
+				if (desc.passes[i].inputs.size() != counts[i] || desc.passes[i].outputs.size() != 1) { valid = false; break; }
+				for (size_t j = 0; j < counts[i]; ++j) valid &= desc.passes[i].inputs[j] == inputs[i][j];
+				valid &= desc.passes[i].outputs[0] == outputs[i];
+			}
+		}
+		if (!valid) { Logger::Get().Error("OKLab effect metadata does not match its runtime contract"); return false; }
+	}
 	_hdrEnabled = ScalingWindow::Get().Options().hdrComponents.enabled
 		? _hdrBoundary.hdrEnabled : ScalingWindow::Get().Options().IsHdrCompatibilityEnabled();
 	if ((_hdrEnabled || _component.kind == HdrComponentKind::HdrToSdr ||
@@ -231,6 +250,13 @@ bool EffectDrawer::Initialize(
 		Logger::Get().Error("_UpdateConstants 失败");
 		return false;
 	}
+	if (_oklab) {
+		std::string error;
+		if (!_oklab->SetLut(_d3dDC, _textures[5].get(), option.oklabLut, error)) {
+			Logger::Get().Error("OKLab LUT: " + error);
+			return false;
+		}
+	}
 
 	return true;
 }
@@ -241,11 +267,17 @@ bool EffectDrawer::Draw(EffectsProfiler& profiler) const noexcept {
 		return false;
 	}
 	_PrepareForDraw();
+	if (_oklab) _oklab->Begin(_d3dDC);
 
 	for (uint32_t i = 0; i < _dispatches.size(); ++i) {
+		if (_oklab && i < 2 && !_oklab->Automatic()) {
+			profiler.OnEndPass(_d3dDC, false);
+			continue;
+		}
 		_DrawPass(i);
 		profiler.OnEndPass(_d3dDC);
 	}
+	if (_oklab) _oklab->End(_d3dDC, _textures[3].get(), _textures[4].get());
 	if (!CompleteHdrOutput()) {
 		Logger::Get().Error("完成 HDR 效果输出失败");
 		return false;
@@ -254,8 +286,9 @@ bool EffectDrawer::Draw(EffectsProfiler& profiler) const noexcept {
 }
 
 bool EffectDrawer::ResetCaptureHistory(const EffectDesc& desc) const noexcept {
-	// Only called for the four capture-clock SMAA effects. Loaded lookup
-	// textures and current spatial intermediates must remain intact.
+	if (_oklab) _oklab->Reset();
+	// Capture-clock effects reset their own history. Loaded lookup textures
+	// and current spatial intermediates must remain intact.
 	for (size_t i = 2; i < desc.textures.size(); ++i) {
 		if (desc.textures[i].name == "historyTex" &&
 			!ClearEffectTexture(_d3dDC, *_descriptorStore, _textures[i].get())) return false;
@@ -297,7 +330,15 @@ void EffectDrawer::DrawForExport(const EffectDesc& desc, uint32_t passIdx) const
 	_PrepareForDraw();
 
 	for (uint32_t i : _CalcPassesToDrawForExport(desc, passIdx)) {
+		if (_oklab) {
+			_oklab->BindForExport(_d3dDC);
+			if (i < 2) continue;
+		}
 		_DrawPass(i);
+	}
+	if (_oklab) {
+		ID3D11Buffer* empty = nullptr;
+		_d3dDC->CSSetConstantBuffers(2, 1, &empty);
 	}
 }
 
@@ -793,6 +834,15 @@ bool EffectDrawer::_UpdateConstants(
 	SIZE inputSize,
 	SIZE outputSize
 ) noexcept {
+	if (desc.name == OKLab::EffectId) {
+		if (!_oklab) _oklab = std::make_unique<OKLabRuntime>();
+		auto get = [&](std::string_view name, float fallback) {
+			const auto it = option.parameters.find(std::string(name));
+			return it == option.parameters.end() ? fallback : it->second;
+		};
+		if (!_oklab->Configure(deviceResources.GetD3DDevice(), get,
+			_hdrEnabled && _GetHdrInputFormat(desc) == DXGI_FORMAT_R16G16B16A16_FLOAT)) return false;
+	}
 	const bool isInlineParams = desc.flags & EffectFlags::InlineParams;
 
 	SmallVector<EffectHelper::Constant32, 32> constants;
@@ -855,6 +905,7 @@ bool EffectDrawer::_UpdateConstants(
 
 				if (it != option.parameters.end()) {
 					value = it->second;
+					if (_oklab) if (const auto* p = OKLab::Find(paramDesc.name)) value = OKLab::Normalize(*p, value);
 
 					if (value < constant.minValue || value > constant.maxValue) {
 						Logger::Get().Error(fmt::format("参数 {} 的值非法", paramDesc.name));
@@ -868,7 +919,9 @@ bool EffectDrawer::_UpdateConstants(
 				int value = constant.defaultValue;
 
 				if (it != option.parameters.end()) {
-					value = (int)std::lroundf(it->second);
+					float raw = it->second;
+					if (_oklab) if (const auto* p = OKLab::Find(paramDesc.name)) raw = OKLab::Normalize(*p, raw);
+					value = (int)std::lroundf(raw);
 
 					if ((value < constant.minValue) || (value > constant.maxValue)) {
 						Logger::Get().Error(StrHelper::Concat("参数 ", paramDesc.name, " 的值非法"));

@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <root>
   <!--
     Microsoft ResX Schema
@@ -1235,7 +1235,7 @@
   <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_shadowStructureMultiplier_Label" xml:space="preserve"><value>暗部/结构强度</value></data>
   <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_skinStructureStrength_Label" xml:space="preserve"><value>皮肤结构强度</value></data>
   <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_style_Label" xml:space="preserve"><value>NR 风格</value></data>
-  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_uiCorrection_Label" xml:space="preserve"><value>NR 界面修正</value></data>
+  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_uiCorrection_Label" xml:space="preserve"><value>UI 修正</value></data>
   <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_useAutoMask_Label" xml:space="preserve"><value>自动遮罩</value></data>
   <data name="EffectParam_Deband_grain_Label" xml:space="preserve"><value>颗粒强度</value></data>
   <data name="EffectParam_Deband_iterations_Label" xml:space="preserve"><value>迭代次数</value></data>
@@ -1581,12 +1581,12 @@
   <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_nvidiaOpticalFlowQuality_Option_1" xml:space="preserve"><value>性能</value></data>
   <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_nvidiaOpticalFlowQuality_Option_2" xml:space="preserve"><value>均衡</value></data>
   <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_nvidiaOpticalFlowQuality_Option_3" xml:space="preserve"><value>质量</value></data>
-  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_nvidiaOpticalFlowQuality_Option_4" xml:space="preserve"><value>高质量（高开销）</value></data>
+  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_nvidiaOpticalFlowQuality_Option_4" xml:space="preserve"><value>高质量</value></data>
   <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_opticalFlowMethod_Label" xml:space="preserve"><value>光流方法</value></data>
   <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_opticalFlowMethod_Option_0" xml:space="preserve"><value>无</value></data>
   <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_opticalFlowMethod_Option_1" xml:space="preserve"><value>AMD 光流</value></data>
   <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_opticalFlowMethod_Option_2" xml:space="preserve"><value>NVIDIA 光流</value></data>
-  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_nvidiaOpticalFlowQuality_Option_5" xml:space="preserve"><value>最高质量（极高开销）</value></data>
+  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_nvidiaOpticalFlowQuality_Option_5" xml:space="preserve"><value>最高质量</value></data>
   <data name="EffectParam_DLSSFG_DLSS_FrameGeneration_amdOpticalFlowMode_Label" xml:space="preserve"><value>光流质量</value></data>
   <data name="EffectParam_DLSSFG_DLSS_FrameGeneration_amdOpticalFlowMode_Option_0" xml:space="preserve"><value>性能</value></data>
   <data name="EffectParam_DLSSFG_DLSS_FrameGeneration_amdOpticalFlowMode_Option_1" xml:space="preserve"><value>质量</value></data>
@@ -1701,7 +1701,7 @@
   <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_residualDarkProtection_Label" xml:space="preserve"><value>暗部保护</value></data>
   <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_residualHighlightProtection_Label" xml:space="preserve"><value>亮部保护</value></data>
   <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_residualLocalCompression_Label" xml:space="preserve"><value>过度修正抑制</value></data>
-  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_residualShowAdvanced_Label" xml:space="preserve"><value>进阶调整</value></data>
+  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_residualShowAdvanced_Label" xml:space="preserve"><value>残差进阶</value></data>
   <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_residualLowFrequencyGain_Label" xml:space="preserve"><value>低频范围强度</value></data>
   <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_residualDetailGain_Label" xml:space="preserve"><value>高频范围强度</value></data>
   <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_residualDebugView_Label" xml:space="preserve"><value>诊断视图</value></data>
@@ -1722,33 +1722,33 @@
   <data name="Profile_Cursor_Refresh_Rate.Header" xml:space="preserve"><value>最低刷新率</value></data>
   <data name="Profile_Cursor_Refresh_Rate.Description" xml:space="preserve"><value>光标的目标最低刷新率。</value></data>
   <data name="Home_Advanced_DeveloperOptions_DuplicateFrameDetection.Description" xml:space="preserve"><value>检测并跳过相同画面，全局生效。</value></data>
-  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_enableInputResolutionScaling_Description" xml:space="preserve"><value>调整 AI 处理的工作尺寸，并启用细节控制；细节控制仅在全部处理结束后应用一次。仅 SDR 支持，修改后需重新启动缩放。</value></data>
-  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_inputResolutionPercent_Description" xml:space="preserve"><value>降低百分比会减小工作尺寸，改变处理开销与纹理表现，最终输出尺寸不变。修改后需重新启动缩放。</value></data>
-  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_residualMultiplier_Description" xml:space="preserve"><value>调节 NR 处理效果的整体强度。</value></data>
-  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_residualSaturation_Description" xml:space="preserve"><value>调节 NR 带来的颜色变化强度。</value></data>
+  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_enableInputResolutionScaling_Description" xml:space="preserve"><value>设置 NR 使用的图像尺寸。</value></data>
+  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_inputResolutionPercent_Description" xml:space="preserve"><value>设置送入 NR 模型的图像尺寸比例。</value></data>
+  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_residualMultiplier_Description" xml:space="preserve"><value>调节全部处理层合成后的总体修正强度。</value></data>
+  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_residualSaturation_Description" xml:space="preserve"><value>调节 NR 带来的色度变化强度。</value></data>
   <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_residualLightness_Description" xml:space="preserve"><value>调节 NR 明暗变化的总强度。</value></data>
   <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_shadowStructureMultiplier_Description" xml:space="preserve"><value>调节 NR 变暗修正的强度。</value></data>
   <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_reflectionGlowMultiplier_Description" xml:space="preserve"><value>调节 NR 变亮修正的强度。</value></data>
-  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_residualShowAdvanced_Description" xml:space="preserve"><value>展开进阶调整参数。</value></data>
-  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_residualHueProtection_Description" xml:space="preserve"><value>减少 NR 对原画面的色相变化。</value></data>
-  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_residualDarkProtection_Description" xml:space="preserve"><value>减少 NR 对原画面暗部的改动。</value></data>
-  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_residualHighlightProtection_Description" xml:space="preserve"><value>减少 NR 对原画面亮部的改动。</value></data>
-  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_residualLocalCompression_Description" xml:space="preserve"><value>减弱局部过强的修正。</value></data>
-  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_residualLowFrequencyGain_Description" xml:space="preserve"><value>调节修正中平缓变化部分的强度。</value></data>
-  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_residualDetailGain_Description" xml:space="preserve"><value>调节修正中细节变化部分的强度。</value></data>
+  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_residualShowAdvanced_Description" xml:space="preserve"><value>显示残差进阶参数。</value></data>
+  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_residualHueProtection_Description" xml:space="preserve"><value>减弱 NR 带来的色相变化。</value></data>
+  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_residualDarkProtection_Description" xml:space="preserve"><value>减弱原图暗部区域的 NR 修正。</value></data>
+  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_residualHighlightProtection_Description" xml:space="preserve"><value>减弱原图高光区域的 NR 修正。</value></data>
+  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_residualLocalCompression_Description" xml:space="preserve"><value>减弱幅度过大的 NR 修正。</value></data>
+  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_residualLowFrequencyGain_Description" xml:space="preserve"><value>调节大范围的 NR 修正强度。</value></data>
+  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_residualDetailGain_Description" xml:space="preserve"><value>调节细节范围的 NR 修正强度。</value></data>
   <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_residualDebugView_Description" xml:space="preserve"><value>查看各类修正和保护效果。</value></data>
-  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_opticalFlowMethod_Description" xml:space="preserve"><value>选择从连续帧估计运动的方式。AMDOF 可跨厂商使用；NVOF 需支持 NVIDIA 光流的渲染 GPU。修改后需重新启动缩放。</value></data>
-  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_amdOpticalFlowMode_Description" xml:space="preserve"><value>选择 AMDOF 后有效；性能档侧重较低开销，质量档使用更多计算进行运动估计。修改后需重新启动缩放。</value></data>
-  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_nvidiaOpticalFlowQuality_Description" xml:space="preserve"><value>选择 NVOF 后有效；较高档位使用更多计算进行运动估计。修改后需重新启动缩放。</value></data>
+  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_opticalFlowMethod_Description" xml:space="preserve"><value>提供运动信息，用于残差重投影和抗闪烁。</value></data>
+  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_amdOpticalFlowMode_Description" xml:space="preserve"><value>调整运动估计的精细程度与计算开销。</value></data>
+  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_nvidiaOpticalFlowQuality_Description" xml:space="preserve"><value>调整运动估计的精细程度与计算开销。</value></data>
   <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_style_Description" xml:space="preserve"><value>选择本层 NR 的处理风格。</value></data>
   <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_intensity_Description" xml:space="preserve"><value>调节本层 NR 的处理强度。</value></data>
   <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_localToneStrength_Description" xml:space="preserve"><value>调节本层的局部色调处理强度。</value></data>
   <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_localStructureStrength_Description" xml:space="preserve"><value>调节本层的局部结构处理强度。</value></data>
   <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_skinStructureStrength_Description" xml:space="preserve"><value>调节本层的皮肤结构处理强度。</value></data>
-  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_useAutoMask_Description" xml:space="preserve"><value>启用本层 NR 的自动遮罩。</value></data>
-  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_uiCorrection_Description" xml:space="preserve"><value>改善本层 NR 处理后的界面与文字。</value></data>
-  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_multiPass_Description" xml:space="preserve"><value>设置连续处理次数，各次可独立调节风格与强度。更多次数会增加开销，并累积纹理变化。修改后需重新启动缩放。</value></data>
-  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_antiFlicker_Description" xml:space="preserve"><value>结合历史帧缓和纹理闪烁；光流模式使用帧间运动估计。修改后需重新启动缩放。</value></data>
+  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_useAutoMask_Description" xml:space="preserve"><value>启用本层模型的自动遮罩。</value></data>
+  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_uiCorrection_Description" xml:space="preserve"><value>调整 NR 对画面中界面元素的处理。</value></data>
+  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_multiPass_Description" xml:space="preserve"><value>设置连续执行的 NR 处理层数。</value></data>
+  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_antiFlicker_Description" xml:space="preserve"><value>结合历史帧减少纹理闪烁。</value></data>
   <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_Group_Advanced_Adjustments" xml:space="preserve"><value>进阶调整</value></data>
   <data name="EffectParameter_Help_Range" xml:space="preserve"><value>范围</value></data>
   <data name="EffectParameter_Help_Default" xml:space="preserve"><value>默认</value></data>
@@ -2340,7 +2340,7 @@
     <value>抗闪烁响应时间（ms）</value>
   </data>
   <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_antiFlickerTimeMs_Description" xml:space="preserve">
-    <value>数值越大越稳定、响应越慢；数值越小跟随变化越快。下一有效捕获帧生效。</value>
+    <value>设置抗闪烁跟随画面变化的速度。</value>
   </data>
   <data name="EffectParam_DLSS_DLSS_SR_renderPreset_Option_1" xml:space="preserve">
     <value>A（CNN）</value>
@@ -2397,4 +2397,459 @@
   <data name="Overlay_Profiler_OutputSeries" xml:space="preserve"><value>输出</value></data>
   <data name="Overlay_Profiler_OutputSubmittedSeries" xml:space="preserve"><value>输出（提交）</value></data>
   <data name="Overlay_Profiler_OutputIntervalUnavailable" xml:space="preserve"><value>输出端暂未提供逐帧时间戳</value></data>
+  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_performanceShowAdvanced_Label" xml:space="preserve"><value>性能进阶</value></data>
+  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_residualMidtoneStrength_Label" xml:space="preserve"><value>中间调强度</value></data>
+  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_processingMode_Label" xml:space="preserve"><value>处理模式</value></data>
+  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_residualTransfer_Label" xml:space="preserve"><value>残差复用方式</value></data>
+  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_Group_Residual_Advanced_Adjustments" xml:space="preserve"><value>残差进阶调整</value></data>
+  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_Group_Performance_Advanced_Adjustments" xml:space="preserve"><value>性能进阶调整</value></data>
+  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_processingMode_Option_0" xml:space="preserve"><value>逐帧</value></data>
+  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_processingMode_Option_1" xml:space="preserve"><value>隔帧</value></data>
+  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_residualTransfer_Option_0" xml:space="preserve"><value>历史帧原位复用</value></data>
+  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_residualTransfer_Option_1" xml:space="preserve"><value>历史帧重投影</value></data>
+  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_performanceShowAdvanced_Description" xml:space="preserve"><value>显示性能进阶参数。</value></data>
+  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_residualMidtoneStrength_Description" xml:space="preserve"><value>调节中间调区域的 NR 明暗变化。</value></data>
+  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_processingMode_Description" xml:space="preserve"><value>逐帧完整处理每个新捕获帧；隔帧按 NR 更新间隔完整计算，并连续复用历史增强。</value></data>
+  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_residualTransfer_Description" xml:space="preserve"><value>原位复用历史帧的 NR 修正，或通过光流对齐后复用。</value></data>
+  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_FlowRequired" xml:space="preserve"><value>选择 AMDOF 或 NVOF 后可用。</value></data>
+  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_InvalidConfiguration" xml:space="preserve"><value>请选择有效的处理模式、更新间隔、分辨率和光流设置。</value></data>
+  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_modelPreset_Label" xml:space="preserve"><value>模型预设</value></data>
+  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_modelPreset_Option_0" xml:space="preserve"><value>自动（DLL 默认）</value></data>
+  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_modelPreset_Option_1" xml:space="preserve"><value>HT</value></data>
+  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_modelPreset_Option_2" xml:space="preserve"><value>CC Small FP8</value></data>
+  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_modelPreset_Description" xml:space="preserve"><value>选择所有处理层使用的 NR 模型；自动使用 DLL 的默认模型。</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_Group_Basic" xml:space="preserve"><value>基础</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_Group_Tone" xml:space="preserve"><value>明暗</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_Group_Color" xml:space="preserve"><value>颜色</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_Group_Mixer" xml:space="preserve"><value>八色混合器</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_Group_Wheels" xml:space="preserve"><value>三向调色</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_Group_Selection" xml:space="preserve"><value>选色</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_Group_Style" xml:space="preserve"><value>风格</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_Group_Spatial" xml:space="preserve"><value>局部处理</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_Group_Curves" xml:space="preserve"><value>曲线</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_Group_Mask" xml:space="preserve"><value>几何蒙版</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_Group_Automatic" xml:space="preserve"><value>自动调整</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_Group_Calibration" xml:space="preserve"><value>白平衡与通道</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_Group_Output" xml:space="preserve"><value>输出与检查</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_Group_Lut" xml:space="preserve"><value>LUT</value></data>
+  <data name="OKLab_Section" xml:space="preserve"><value>编辑区域</value></data>
+  <data name="OKLab_Color" xml:space="preserve"><value>颜色范围</value></data>
+  <data name="OKLab_Slot" xml:space="preserve"><value>选色槽</value></data>
+  <data name="OKLab_Curve" xml:space="preserve"><value>曲线</value></data>
+  <data name="OKLab_Preset" xml:space="preserve"><value>预设</value></data>
+  <data name="OKLab_ApplyPreset" xml:space="preserve"><value>应用预设</value></data>
+  <data name="OKLab_ResetGroup" xml:space="preserve"><value>重置本区域</value></data>
+  <data name="OKLab_ResetAll" xml:space="preserve"><value>全部重置</value></data>
+  <data name="OKLab_StoreA" xml:space="preserve"><value>保存 A</value></data>
+  <data name="OKLab_SwapAB" xml:space="preserve"><value>交换 A / B</value></data>
+  <data name="OKLab_Undo" xml:space="preserve"><value>撤销上次编辑</value></data>
+  <data name="OKLab_ImportLut" xml:space="preserve"><value>导入 .cube</value></data>
+  <data name="OKLab_ExportLut" xml:space="preserve"><value>导出 LUT</value></data>
+  <data name="OKLab_ClearLut" xml:space="preserve"><value>清除 LUT</value></data>
+  <data name="OKLab_LutRestart" xml:space="preserve"><value>LUT 文件变更在重新开始缩放后生效。</value></data>
+  <data name="OKLab_LutExportHelp" xml:space="preserve"><value>导出当前加载的 LUT；未加载时导出中性 LUT，不烘焙图像调整参数。</value></data>
+  <data name="OKLab_CurveHelp" xml:space="preserve"><value>拖动八个节点调整曲线，可撤销上次编辑。</value></data>
+  <data name="OKLab_LutLoaded" xml:space="preserve"><value>LUT 已导入，重新开始缩放后生效。</value></data>
+  <data name="OKLab_LutSaved" xml:space="preserve"><value>LUT 已导出。</value></data>
+  <data name="OKLab_PickColor" xml:space="preserve"><value>拾取输入颜色</value></data>
+  <data name="OKLab_PickHelp" xml:space="preserve"><value>按住拾色按钮，拖到运行画面后松开。Esc 取消。</value></data>
+  <data name="OKLab_PickSettingsHelp" xml:space="preserve"><value>可在运行画面的参数浮窗中拾取输入颜色。</value></data>
+  <data name="OKLab_Wheel" xml:space="preserve"><value>明暗区域</value></data>
+  <data name="OKLab_WheelHelp" xml:space="preserve"><value>方向控制色相，离中心的距离控制染色量。</value></data>
+  <data name="OKLab_Wheel_0" xml:space="preserve"><value>阴影</value></data>
+  <data name="OKLab_Wheel_1" xml:space="preserve"><value>中间调</value></data>
+  <data name="OKLab_Wheel_2" xml:space="preserve"><value>高光</value></data>
+  <data name="OKLab_Preset_0" xml:space="preserve"><value>中性</value></data>
+  <data name="OKLab_Preset_1" xml:space="preserve"><value>自然增强</value></data>
+  <data name="OKLab_Preset_2" xml:space="preserve"><value>柔和高光</value></data>
+  <data name="OKLab_Preset_3" xml:space="preserve"><value>冷影暖光</value></data>
+  <data name="OKLab_Preset_4" xml:space="preserve"><value>黑白</value></data>
+  <data name="OKLab_Preset_5" xml:space="preserve"><value>复古双色</value></data>
+  <data name="OKLab_Color_0" xml:space="preserve"><value>红</value></data>
+  <data name="OKLab_Color_1" xml:space="preserve"><value>橙</value></data>
+  <data name="OKLab_Color_2" xml:space="preserve"><value>黄</value></data>
+  <data name="OKLab_Color_3" xml:space="preserve"><value>绿</value></data>
+  <data name="OKLab_Color_4" xml:space="preserve"><value>青</value></data>
+  <data name="OKLab_Color_5" xml:space="preserve"><value>蓝</value></data>
+  <data name="OKLab_Color_6" xml:space="preserve"><value>紫</value></data>
+  <data name="OKLab_Color_7" xml:space="preserve"><value>洋红</value></data>
+  <data name="OKLab_Curve_0" xml:space="preserve"><value>明度</value></data>
+  <data name="OKLab_Curve_1" xml:space="preserve"><value>色相到色相</value></data>
+  <data name="OKLab_Curve_2" xml:space="preserve"><value>色相到色度</value></data>
+  <data name="OKLab_Curve_3" xml:space="preserve"><value>色相到明度</value></data>
+  <data name="OKLab_Curve_4" xml:space="preserve"><value>明度到色度</value></data>
+  <data name="OKLab_Curve_5" xml:space="preserve"><value>色度到色度</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_amount_Description" xml:space="preserve"><value>混合原图与调整结果，设为 0 恢复原始像素。</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_exposure_Description" xml:space="preserve"><value>增加 1 EV 使线性光强翻倍，降低 1 EV 则减半。</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_lightness_Description" xml:space="preserve"><value>独立调整感知明度，与曝光分别控制。</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_gamma_Description" xml:space="preserve"><value>增大时提亮中间调，并保留黑白端点。</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_pivot_Description" xml:space="preserve"><value>设置对比度伸缩的明度中心，对比度为 1 时不改变画面。</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_darkProtect_Description" xml:space="preserve"><value>减弱明暗调整对原图暗部的影响。</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_lightProtect_Description" xml:space="preserve"><value>减弱明暗调整对原图亮部的影响。</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_chroma_Description" xml:space="preserve"><value>调整颜色浓度并保留 OKLab 明度；设为 0 去除颜色。</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_vibrance_Description" xml:space="preserve"><value>更多增强中低色度颜色，减少对已有鲜艳颜色的提升。</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_neutralProtect_Description" xml:space="preserve"><value>减弱白平衡、颜色偏移和三向调色对原始灰色区域的染色。</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_skinProtect_Description" xml:space="preserve"><value>保护指定肤色色域，减弱自然饱和度和八色混合器对其影响。</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_clarity_Description" xml:space="preserve"><value>增强较大范围的明暗结构，过高可能产生光晕。</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_textureStrength_Description" xml:space="preserve"><value>增强高于噪声阈值的细小明暗纹理。</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_chromaSmooth_Description" xml:space="preserve"><value>平滑彩色噪点，并保护明暗边缘。</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_deband_Description" xml:space="preserve"><value>平滑渐变中的细小色阶差异，阈值过高可能减弱细节。</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_bloom_Description" xml:space="preserve"><value>将高亮颜色扩散到周围，半径与强度控制扩散范围。</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_dehaze_Description" xml:space="preserve"><value>从邻近像素估计局部空气光与透射率，用于降低雾感。</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_autoExposure_Description" xml:space="preserve"><value>根据捕获帧的平均对数亮度自动调整曝光。</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_autoWhite_Description" xml:space="preserve"><value>根据平均颜色修正偏色，需要保留场景主色调时可锁定。</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_autoLock_Description" xml:space="preserve"><value>保持当前自动调整估计，直到解除锁定。</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_autoSpeed_Description" xml:space="preserve"><value>适应时间，单位为秒；值越大变化越慢。</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_whiteTint_Description" xml:space="preserve"><value>以 CIE xy 的 Δy 调整目标白点，0 使用黑体轨迹近似。</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_outputGamut_Description" xml:space="preserve"><value>约束调整后的 HDR 颜色；SDR 始终映射到 sRGB。</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_referenceWhite_Description" xml:space="preserve"><value>HDR 工作参考白的尼特值，不改变普通 SDR 的颜色合同。</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_dither_Description" xml:space="preserve"><value>在输出存储前加入固定像素噪声；HDR 强度按参考白定义。</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_lutAmount_Description" xml:space="preserve"><value>混合导入的 cube LUT，可在设置面板导入和导出文件。</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_lutDomain_Description" xml:space="preserve"><value>选择制作 LUT 时使用的输入编码，域外 HDR 亮度保留为额外分量。</value></data>
+  <data name="OKLabUI_ApplyPreset/Content" xml:space="preserve"><value>应用预设</value></data>
+  <data name="OKLabUI_ResetGroup/Content" xml:space="preserve"><value>重置本区域</value></data>
+  <data name="OKLabUI_ResetAll/Content" xml:space="preserve"><value>全部重置</value></data>
+  <data name="OKLabUI_StoreA/Content" xml:space="preserve"><value>保存 A</value></data>
+  <data name="OKLabUI_SwapAB/Content" xml:space="preserve"><value>交换 A / B</value></data>
+  <data name="OKLabUI_Undo/Content" xml:space="preserve"><value>撤销上次编辑</value></data>
+  <data name="OKLabUI_ImportLut/Content" xml:space="preserve"><value>导入 .cube</value></data>
+  <data name="OKLabUI_ExportLut/Content" xml:space="preserve"><value>导出 LUT</value></data>
+  <data name="OKLabUI_ClearLut/Content" xml:space="preserve"><value>清除 LUT</value></data>
+  <data name="OKLabUI_PickColor/Content" xml:space="preserve"><value>拾取输入颜色</value></data>
+  <data name="OKLabUI_Section/Header" xml:space="preserve"><value>编辑区域</value></data>
+  <data name="OKLabUI_Color/Header" xml:space="preserve"><value>颜色范围</value></data>
+  <data name="OKLabUI_Slot/Header" xml:space="preserve"><value>选色槽</value></data>
+  <data name="OKLabUI_Curve/Header" xml:space="preserve"><value>曲线</value></data>
+  <data name="OKLabUI_Preset/Header" xml:space="preserve"><value>预设</value></data>
+  <data name="OKLabUI_Wheel/Header" xml:space="preserve"><value>明暗区域</value></data>
+  <data name="OKLabUI_CurveHelp/Text" xml:space="preserve"><value>拖动八个节点调整曲线，可撤销上次编辑。</value></data>
+  <data name="OKLabUI_LutRestart/Text" xml:space="preserve"><value>LUT 文件变更在重新开始缩放后生效。</value></data>
+  <data name="OKLabUI_LutExportHelp/Text" xml:space="preserve"><value>导出当前加载的 LUT；未加载时导出中性 LUT，不烘焙图像调整参数。</value></data>
+  <data name="OKLabUI_PickHelp/Text" xml:space="preserve"><value>按住拾色按钮，拖到运行画面后松开。Esc 取消。</value></data>
+  <data name="OKLabUI_PickSettingsHelp/Text" xml:space="preserve"><value>可在运行画面的参数浮窗中拾取输入颜色。</value></data>
+  <data name="OKLabUI_WheelHelp/Text" xml:space="preserve"><value>方向控制色相，离中心的距离控制染色量。</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_amount_Label" xml:space="preserve"><value>效果强度</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_exposure_Label" xml:space="preserve"><value>曝光（EV）</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_lightness_Label" xml:space="preserve"><value>感知明度</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_contrast_Label" xml:space="preserve"><value>对比度</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_gamma_Label" xml:space="preserve"><value>中间调 Gamma</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_shadows_Label" xml:space="preserve"><value>阴影</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_highlights_Label" xml:space="preserve"><value>高光</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_chroma_Label" xml:space="preserve"><value>色度</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_vibrance_Label" xml:space="preserve"><value>自然饱和度</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_warmth_Label" xml:space="preserve"><value>暖冷</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_tint_Label" xml:space="preserve"><value>绿洋红</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_pivot_Label" xml:space="preserve"><value>对比度支点</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_blackIn_Label" xml:space="preserve"><value>输入黑场</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_whiteIn_Label" xml:space="preserve"><value>输入白场</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_blackOut_Label" xml:space="preserve"><value>输出黑场</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_whiteOut_Label" xml:space="preserve"><value>输出白场</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_midtones_Label" xml:space="preserve"><value>中间调</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_balance_Label" xml:space="preserve"><value>区域平衡</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_zoneWidth_Label" xml:space="preserve"><value>区域过渡</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_toe_Label" xml:space="preserve"><value>暗部柔化</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_shoulder_Label" xml:space="preserve"><value>高光柔化</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_darkProtect_Label" xml:space="preserve"><value>暗部保护</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_lightProtect_Label" xml:space="preserve"><value>高光保护</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_tone25_Label" xml:space="preserve"><value>曲线 25%</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_tone50_Label" xml:space="preserve"><value>曲线 50%</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_tone75_Label" xml:space="preserve"><value>曲线 75%</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_hue_Label" xml:space="preserve"><value>色相旋转（度）</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_chromaLow_Label" xml:space="preserve"><value>低色度</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_chromaMid_Label" xml:space="preserve"><value>中等色度</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_chromaHigh_Label" xml:space="preserve"><value>高色度</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_shadowChroma_Label" xml:space="preserve"><value>阴影色度</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_midChroma_Label" xml:space="preserve"><value>中间调色度</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_highlightChroma_Label" xml:space="preserve"><value>高光色度</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_neutralProtect_Label" xml:space="preserve"><value>中性色保护</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_skinProtect_Label" xml:space="preserve"><value>肤色色域保护</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_skinHue_Label" xml:space="preserve"><value>保护色相</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_skinWidth_Label" xml:space="preserve"><value>保护色相半宽</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_skinLightLow_Label" xml:space="preserve"><value>保护最低明度</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_skinLightHigh_Label" xml:space="preserve"><value>保护最高明度</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_skinChromaLow_Label" xml:space="preserve"><value>保护最低色度</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_skinChromaHigh_Label" xml:space="preserve"><value>保护最高色度</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_biasA_Label" xml:space="preserve"><value>青红偏移</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_biasB_Label" xml:space="preserve"><value>蓝黄偏移</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_mix0Hue_Label" xml:space="preserve"><value>红色色相</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_mix0Chroma_Label" xml:space="preserve"><value>红色色度</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_mix0Light_Label" xml:space="preserve"><value>红色明度</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_mix1Hue_Label" xml:space="preserve"><value>橙色色相</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_mix1Chroma_Label" xml:space="preserve"><value>橙色色度</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_mix1Light_Label" xml:space="preserve"><value>橙色明度</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_mix2Hue_Label" xml:space="preserve"><value>黄色色相</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_mix2Chroma_Label" xml:space="preserve"><value>黄色色度</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_mix2Light_Label" xml:space="preserve"><value>黄色明度</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_mix3Hue_Label" xml:space="preserve"><value>绿色色相</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_mix3Chroma_Label" xml:space="preserve"><value>绿色色度</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_mix3Light_Label" xml:space="preserve"><value>绿色明度</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_mix4Hue_Label" xml:space="preserve"><value>青色色相</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_mix4Chroma_Label" xml:space="preserve"><value>青色色度</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_mix4Light_Label" xml:space="preserve"><value>青色明度</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_mix5Hue_Label" xml:space="preserve"><value>蓝色色相</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_mix5Chroma_Label" xml:space="preserve"><value>蓝色色度</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_mix5Light_Label" xml:space="preserve"><value>蓝色明度</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_mix6Hue_Label" xml:space="preserve"><value>紫色色相</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_mix6Chroma_Label" xml:space="preserve"><value>紫色色度</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_mix6Light_Label" xml:space="preserve"><value>紫色明度</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_mix7Hue_Label" xml:space="preserve"><value>洋红色色相</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_mix7Chroma_Label" xml:space="preserve"><value>洋红色色度</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_mix7Light_Label" xml:space="preserve"><value>洋红色明度</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_mixerFeather_Label" xml:space="preserve"><value>色相重叠</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_wheel0Hue_Label" xml:space="preserve"><value>阴影色相</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_wheel0Chroma_Label" xml:space="preserve"><value>阴影染色量</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_wheel0Light_Label" xml:space="preserve"><value>阴影明度</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_wheel1Hue_Label" xml:space="preserve"><value>中间调色相</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_wheel1Chroma_Label" xml:space="preserve"><value>中间调染色量</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_wheel1Light_Label" xml:space="preserve"><value>中间调明度</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_wheel2Hue_Label" xml:space="preserve"><value>高光色相</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_wheel2Chroma_Label" xml:space="preserve"><value>高光染色量</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_wheel2Light_Label" xml:space="preserve"><value>高光明度</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_sel0Enabled_Label" xml:space="preserve"><value>A：启用</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_sel0Hue_Label" xml:space="preserve"><value>A：色相</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_sel0Width_Label" xml:space="preserve"><value>A：色相半宽</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_sel0CLow_Label" xml:space="preserve"><value>A：最低色度</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_sel0CHigh_Label" xml:space="preserve"><value>A：最高色度</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_sel0LLow_Label" xml:space="preserve"><value>A：最低明度</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_sel0LHigh_Label" xml:space="preserve"><value>A：最高明度</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_sel0Feather_Label" xml:space="preserve"><value>A：羽化</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_sel0Invert_Label" xml:space="preserve"><value>A：反转</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_sel0DeltaHue_Label" xml:space="preserve"><value>A：色相偏移</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_sel0Chroma_Label" xml:space="preserve"><value>A：色度</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_sel0Light_Label" xml:space="preserve"><value>A：明度</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_sel0TargetHue_Label" xml:space="preserve"><value>A：目标色相</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_sel0Unify_Label" xml:space="preserve"><value>A：色相统一</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_sel1Enabled_Label" xml:space="preserve"><value>B：启用</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_sel1Hue_Label" xml:space="preserve"><value>B：色相</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_sel1Width_Label" xml:space="preserve"><value>B：色相半宽</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_sel1CLow_Label" xml:space="preserve"><value>B：最低色度</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_sel1CHigh_Label" xml:space="preserve"><value>B：最高色度</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_sel1LLow_Label" xml:space="preserve"><value>B：最低明度</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_sel1LHigh_Label" xml:space="preserve"><value>B：最高明度</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_sel1Feather_Label" xml:space="preserve"><value>B：羽化</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_sel1Invert_Label" xml:space="preserve"><value>B：反转</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_sel1DeltaHue_Label" xml:space="preserve"><value>B：色相偏移</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_sel1Chroma_Label" xml:space="preserve"><value>B：色度</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_sel1Light_Label" xml:space="preserve"><value>B：明度</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_sel1TargetHue_Label" xml:space="preserve"><value>B：目标色相</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_sel1Unify_Label" xml:space="preserve"><value>B：色相统一</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_backgroundChroma_Label" xml:space="preserve"><value>选区外色度</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_styleMode_Label" xml:space="preserve"><value>风格</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_styleMode_Option_0" xml:space="preserve"><value>无</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_styleMode_Option_1" xml:space="preserve"><value>黑白</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_styleMode_Option_2" xml:space="preserve"><value>双色</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_styleMode_Option_3" xml:space="preserve"><value>三色</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_styleAmount_Label" xml:space="preserve"><value>风格强度</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_bw0_Label" xml:space="preserve"><value>红色灰阶</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_bw1_Label" xml:space="preserve"><value>橙色灰阶</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_bw2_Label" xml:space="preserve"><value>黄色灰阶</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_bw3_Label" xml:space="preserve"><value>绿色灰阶</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_bw4_Label" xml:space="preserve"><value>青色灰阶</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_bw5_Label" xml:space="preserve"><value>蓝色灰阶</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_bw6_Label" xml:space="preserve"><value>紫色灰阶</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_bw7_Label" xml:space="preserve"><value>洋红色灰阶</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_style0Hue_Label" xml:space="preserve"><value>颜色 1 色相</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_style0Chroma_Label" xml:space="preserve"><value>颜色 1 色度</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_style1Hue_Label" xml:space="preserve"><value>颜色 2 色相</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_style1Chroma_Label" xml:space="preserve"><value>颜色 2 色度</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_style2Hue_Label" xml:space="preserve"><value>颜色 3 色相</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_style2Chroma_Label" xml:space="preserve"><value>颜色 3 色度</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_styleBalance_Label" xml:space="preserve"><value>风格平衡</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_clarity_Label" xml:space="preserve"><value>局部对比度</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_clarityRadius_Label" xml:space="preserve"><value>局部对比度半径</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_edgeProtect_Label" xml:space="preserve"><value>边缘保护</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_textureStrength_Label" xml:space="preserve"><value>纹理</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_textureRadius_Label" xml:space="preserve"><value>纹理半径</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_noiseFloor_Label" xml:space="preserve"><value>细节噪声阈值</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_chromaSmooth_Label" xml:space="preserve"><value>色度平滑</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_chromaRadius_Label" xml:space="preserve"><value>色度半径</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_deband_Label" xml:space="preserve"><value>去色带</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_debandRadius_Label" xml:space="preserve"><value>去色带半径</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_debandThreshold_Label" xml:space="preserve"><value>去色带阈值</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_bloom_Label" xml:space="preserve"><value>高光辉光</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_bloomRadius_Label" xml:space="preserve"><value>辉光半径</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_bloomThreshold_Label" xml:space="preserve"><value>辉光阈值</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_bloomSoftness_Label" xml:space="preserve"><value>辉光柔化</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_dehaze_Label" xml:space="preserve"><value>去雾</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_dehazeRadius_Label" xml:space="preserve"><value>去雾半径</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_dehazeProtect_Label" xml:space="preserve"><value>去雾颜色保护</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve0Enabled_Label" xml:space="preserve"><value>明度：启用</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve0x0_Label" xml:space="preserve"><value>节点 1 输入</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve0y0_Label" xml:space="preserve"><value>节点 1 输出</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve0x1_Label" xml:space="preserve"><value>节点 2 输入</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve0y1_Label" xml:space="preserve"><value>节点 2 输出</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve0x2_Label" xml:space="preserve"><value>节点 3 输入</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve0y2_Label" xml:space="preserve"><value>节点 3 输出</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve0x3_Label" xml:space="preserve"><value>节点 4 输入</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve0y3_Label" xml:space="preserve"><value>节点 4 输出</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve0x4_Label" xml:space="preserve"><value>节点 5 输入</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve0y4_Label" xml:space="preserve"><value>节点 5 输出</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve0x5_Label" xml:space="preserve"><value>节点 6 输入</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve0y5_Label" xml:space="preserve"><value>节点 6 输出</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve0x6_Label" xml:space="preserve"><value>节点 7 输入</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve0y6_Label" xml:space="preserve"><value>节点 7 输出</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve0x7_Label" xml:space="preserve"><value>节点 8 输入</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve0y7_Label" xml:space="preserve"><value>节点 8 输出</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve1Enabled_Label" xml:space="preserve"><value>色相到色相：启用</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve1x0_Label" xml:space="preserve"><value>节点 1 输入</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve1y0_Label" xml:space="preserve"><value>节点 1 输出</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve1x1_Label" xml:space="preserve"><value>节点 2 输入</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve1y1_Label" xml:space="preserve"><value>节点 2 输出</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve1x2_Label" xml:space="preserve"><value>节点 3 输入</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve1y2_Label" xml:space="preserve"><value>节点 3 输出</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve1x3_Label" xml:space="preserve"><value>节点 4 输入</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve1y3_Label" xml:space="preserve"><value>节点 4 输出</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve1x4_Label" xml:space="preserve"><value>节点 5 输入</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve1y4_Label" xml:space="preserve"><value>节点 5 输出</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve1x5_Label" xml:space="preserve"><value>节点 6 输入</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve1y5_Label" xml:space="preserve"><value>节点 6 输出</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve1x6_Label" xml:space="preserve"><value>节点 7 输入</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve1y6_Label" xml:space="preserve"><value>节点 7 输出</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve1x7_Label" xml:space="preserve"><value>节点 8 输入</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve1y7_Label" xml:space="preserve"><value>节点 8 输出</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve2Enabled_Label" xml:space="preserve"><value>色相到色度：启用</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve2x0_Label" xml:space="preserve"><value>节点 1 输入</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve2y0_Label" xml:space="preserve"><value>节点 1 输出</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve2x1_Label" xml:space="preserve"><value>节点 2 输入</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve2y1_Label" xml:space="preserve"><value>节点 2 输出</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve2x2_Label" xml:space="preserve"><value>节点 3 输入</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve2y2_Label" xml:space="preserve"><value>节点 3 输出</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve2x3_Label" xml:space="preserve"><value>节点 4 输入</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve2y3_Label" xml:space="preserve"><value>节点 4 输出</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve2x4_Label" xml:space="preserve"><value>节点 5 输入</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve2y4_Label" xml:space="preserve"><value>节点 5 输出</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve2x5_Label" xml:space="preserve"><value>节点 6 输入</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve2y5_Label" xml:space="preserve"><value>节点 6 输出</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve2x6_Label" xml:space="preserve"><value>节点 7 输入</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve2y6_Label" xml:space="preserve"><value>节点 7 输出</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve2x7_Label" xml:space="preserve"><value>节点 8 输入</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve2y7_Label" xml:space="preserve"><value>节点 8 输出</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve3Enabled_Label" xml:space="preserve"><value>色相到明度：启用</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve3x0_Label" xml:space="preserve"><value>节点 1 输入</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve3y0_Label" xml:space="preserve"><value>节点 1 输出</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve3x1_Label" xml:space="preserve"><value>节点 2 输入</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve3y1_Label" xml:space="preserve"><value>节点 2 输出</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve3x2_Label" xml:space="preserve"><value>节点 3 输入</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve3y2_Label" xml:space="preserve"><value>节点 3 输出</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve3x3_Label" xml:space="preserve"><value>节点 4 输入</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve3y3_Label" xml:space="preserve"><value>节点 4 输出</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve3x4_Label" xml:space="preserve"><value>节点 5 输入</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve3y4_Label" xml:space="preserve"><value>节点 5 输出</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve3x5_Label" xml:space="preserve"><value>节点 6 输入</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve3y5_Label" xml:space="preserve"><value>节点 6 输出</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve3x6_Label" xml:space="preserve"><value>节点 7 输入</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve3y6_Label" xml:space="preserve"><value>节点 7 输出</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve3x7_Label" xml:space="preserve"><value>节点 8 输入</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve3y7_Label" xml:space="preserve"><value>节点 8 输出</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve4Enabled_Label" xml:space="preserve"><value>明度到色度：启用</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve4x0_Label" xml:space="preserve"><value>节点 1 输入</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve4y0_Label" xml:space="preserve"><value>节点 1 输出</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve4x1_Label" xml:space="preserve"><value>节点 2 输入</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve4y1_Label" xml:space="preserve"><value>节点 2 输出</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve4x2_Label" xml:space="preserve"><value>节点 3 输入</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve4y2_Label" xml:space="preserve"><value>节点 3 输出</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve4x3_Label" xml:space="preserve"><value>节点 4 输入</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve4y3_Label" xml:space="preserve"><value>节点 4 输出</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve4x4_Label" xml:space="preserve"><value>节点 5 输入</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve4y4_Label" xml:space="preserve"><value>节点 5 输出</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve4x5_Label" xml:space="preserve"><value>节点 6 输入</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve4y5_Label" xml:space="preserve"><value>节点 6 输出</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve4x6_Label" xml:space="preserve"><value>节点 7 输入</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve4y6_Label" xml:space="preserve"><value>节点 7 输出</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve4x7_Label" xml:space="preserve"><value>节点 8 输入</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve4y7_Label" xml:space="preserve"><value>节点 8 输出</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve5Enabled_Label" xml:space="preserve"><value>色度到色度：启用</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve5x0_Label" xml:space="preserve"><value>节点 1 输入</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve5y0_Label" xml:space="preserve"><value>节点 1 输出</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve5x1_Label" xml:space="preserve"><value>节点 2 输入</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve5y1_Label" xml:space="preserve"><value>节点 2 输出</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve5x2_Label" xml:space="preserve"><value>节点 3 输入</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve5y2_Label" xml:space="preserve"><value>节点 3 输出</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve5x3_Label" xml:space="preserve"><value>节点 4 输入</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve5y3_Label" xml:space="preserve"><value>节点 4 输出</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve5x4_Label" xml:space="preserve"><value>节点 5 输入</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve5y4_Label" xml:space="preserve"><value>节点 5 输出</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve5x5_Label" xml:space="preserve"><value>节点 6 输入</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve5y5_Label" xml:space="preserve"><value>节点 6 输出</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve5x6_Label" xml:space="preserve"><value>节点 7 输入</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve5y6_Label" xml:space="preserve"><value>节点 7 输出</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve5x7_Label" xml:space="preserve"><value>节点 8 输入</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve5y7_Label" xml:space="preserve"><value>节点 8 输出</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_maskMode_Label" xml:space="preserve"><value>局部蒙版</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_maskMode_Option_0" xml:space="preserve"><value>关闭</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_maskMode_Option_1" xml:space="preserve"><value>线性渐变</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_maskMode_Option_2" xml:space="preserve"><value>径向渐变</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_maskX_Label" xml:space="preserve"><value>中心 X</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_maskY_Label" xml:space="preserve"><value>中心 Y</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_maskAngle_Label" xml:space="preserve"><value>角度</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_maskWidth_Label" xml:space="preserve"><value>宽度</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_maskHeight_Label" xml:space="preserve"><value>高度</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_maskFeather_Label" xml:space="preserve"><value>羽化</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_maskInvert_Label" xml:space="preserve"><value>反转</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_autoExposure_Label" xml:space="preserve"><value>自动曝光</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_autoWhite_Label" xml:space="preserve"><value>自动白平衡</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_autoLock_Label" xml:space="preserve"><value>锁定自动调整</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_autoTarget_Label" xml:space="preserve"><value>目标线性亮度</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_autoLimit_Label" xml:space="preserve"><value>曝光限制（EV）</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_autoSpeed_Label" xml:space="preserve"><value>适应时间（秒）</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_sceneThreshold_Label" xml:space="preserve"><value>切镜阈值（EV）</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_temperatureEnabled_Label" xml:space="preserve"><value>标定白平衡</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_sourceKelvin_Label" xml:space="preserve"><value>源白点（K）</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_targetKelvin_Label" xml:space="preserve"><value>目标白点（K）</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_whiteTint_Label" xml:space="preserve"><value>目标白点色偏（Δy）</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_gain0_Label" xml:space="preserve"><value>红色增益</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_matrix00_Label" xml:space="preserve"><value>红输出中的红分量</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_matrix01_Label" xml:space="preserve"><value>红输出中的绿分量</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_matrix02_Label" xml:space="preserve"><value>红输出中的蓝分量</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_gain1_Label" xml:space="preserve"><value>绿色增益</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_matrix10_Label" xml:space="preserve"><value>绿输出中的红分量</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_matrix11_Label" xml:space="preserve"><value>绿输出中的绿分量</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_matrix12_Label" xml:space="preserve"><value>绿输出中的蓝分量</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_gain2_Label" xml:space="preserve"><value>蓝色增益</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_matrix20_Label" xml:space="preserve"><value>蓝输出中的红分量</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_matrix21_Label" xml:space="preserve"><value>蓝输出中的绿分量</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_matrix22_Label" xml:space="preserve"><value>蓝输出中的蓝分量</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_gamutSoft_Label" xml:space="preserve"><value>色域软压缩</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_referenceWhite_Label" xml:space="preserve"><value>HDR 参考白（尼特）</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_peakNits_Label" xml:space="preserve"><value>HDR 峰值（尼特）</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_outputGamut_Label" xml:space="preserve"><value>HDR 输出色域</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_outputGamut_Option_0" xml:space="preserve"><value>Rec.709</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_outputGamut_Option_1" xml:space="preserve"><value>Display P3</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_outputGamut_Option_2" xml:space="preserve"><value>Rec.2020</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_dither_Label" xml:space="preserve"><value>输出抖动</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_ditherBits_Label" xml:space="preserve"><value>输出量化</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_ditherBits_Option_0" xml:space="preserve"><value>8 位</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_ditherBits_Option_1" xml:space="preserve"><value>10 位</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_ditherBits_Option_2" xml:space="preserve"><value>16 位</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_view_Label" xml:space="preserve"><value>预览</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_view_Option_0" xml:space="preserve"><value>正常</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_view_Option_1" xml:space="preserve"><value>明度</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_view_Option_2" xml:space="preserve"><value>色度</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_view_Option_3" xml:space="preserve"><value>调整差值</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_view_Option_4" xml:space="preserve"><value>色域越界</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_view_Option_5" xml:space="preserve"><value>色域压缩量</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_view_Option_6" xml:space="preserve"><value>选区 A</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_view_Option_7" xml:space="preserve"><value>选区 B</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_view_Option_8" xml:space="preserve"><value>局部蒙版</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_view_Option_9" xml:space="preserve"><value>裁切预警</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_view_Option_10" xml:space="preserve"><value>灰阶</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_split_Label" xml:space="preserve"><value>前后分屏</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_splitPosition_Label" xml:space="preserve"><value>分屏位置</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_lutAmount_Label" xml:space="preserve"><value>LUT 强度</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_lutDomain_Label" xml:space="preserve"><value>LUT 输入编码</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_lutDomain_Option_0" xml:space="preserve"><value>sRGB</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_lutDomain_Option_1" xml:space="preserve"><value>线性 RGB</value></data>
+  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_residualChromaProtection_Label" xml:space="preserve"><value>色度保护</value></data>
+  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_residualChromaProtection_Description" xml:space="preserve"><value>减弱 NR 对色相和颜色浓度的改动，保留明暗调整。0 不保护，1 保留原图颜色。</value></data>
+  <data name="Message_ScalingPreparing" xml:space="preserve"><value>正在准备效果，请稍候。再次按快捷键可取消。</value></data>
+  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_resolutionControl_Label" xml:space="preserve"><value>分辨率控制</value></data>
+  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_resolutionControl_Option_0" xml:space="preserve"><value>自适应</value></data>
+  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_resolutionControl_Option_1" xml:space="preserve"><value>手动</value></data>
+  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_resolutionControl_Description" xml:space="preserve"><value>自适应按内容帧率目标调整 NR 输入分辨率。</value></data>
+  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_ResolutionAutomatic" xml:space="preserve"><value>自动</value></data>
+  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_sparseUpdateInterval_Label" xml:space="preserve"><value>NR 更新间隔</value></data>
+  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_sparseUpdateInterval_Option_2" xml:space="preserve"><value>每 2 帧</value></data>
+  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_sparseUpdateInterval_Option_3" xml:space="preserve"><value>每 3 帧</value></data>
+  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_sparseUpdateInterval_Option_4" xml:space="preserve"><value>每 4 帧</value></data>
+  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_sparseUpdateInterval_Description" xml:space="preserve"><value>隔帧每 2、3 或 4 个新捕获帧更新一次完整 NR，默认每 2 帧。重复刷新、重绘和生成帧不计数。间隔越长，推理工作越少，历史修正也越旧。</value></data>
 </root>

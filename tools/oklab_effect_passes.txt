@@ -1,0 +1,65 @@
+//!TEXTURE
+Texture2D INPUT;
+
+//!TEXTURE
+//!WIDTH INPUT_WIDTH
+//!HEIGHT INPUT_HEIGHT
+Texture2D OUTPUT;
+
+//!TEXTURE
+//!WIDTH 16
+//!HEIGHT 9
+//!FORMAT R32G32B32A32_FLOAT
+Texture2D Stats;
+
+//!TEXTURE
+//!WIDTH 1
+//!HEIGHT 1
+//!FORMAT R32G32B32A32_FLOAT
+Texture2D Adaptive;
+
+//!TEXTURE
+//!WIDTH 1
+//!HEIGHT 1
+//!FORMAT R32G32B32A32_FLOAT
+Texture2D History;
+
+//!TEXTURE
+//!WIDTH 4225
+//!HEIGHT 65
+//!FORMAT R32G32B32A32_FLOAT
+Texture2D Lut;
+
+//!SAMPLER
+//!FILTER LINEAR
+SamplerState linearSampler;
+
+//!SAMPLER
+//!FILTER POINT
+SamplerState pointSampler;
+
+//!COMMON
+#include "OKLab/Color.hlsli"
+
+//!PASS 1
+//!STYLE PS
+//!IN INPUT
+//!OUT Stats
+//!DESC Automatic adjustment samples
+#include "OKLab/Statistics.hlsli"
+float4 Pass1(float2 pos) { return OKStatistics(pos); }
+
+//!PASS 2
+//!STYLE PS
+//!IN Stats, History
+//!OUT Adaptive
+#include "OKLab/Adapt.hlsli"
+float4 Pass2(float2 pos) { return OKAdapt(); }
+
+//!PASS 3
+//!STYLE PS
+//!IN INPUT, Adaptive, Lut
+//!OUT OUTPUT
+//!DESC OKLab image adjustment
+#include "OKLab/Adjust.hlsli"
+float4 Pass3(float2 pos) { return OKAdjust(pos); }

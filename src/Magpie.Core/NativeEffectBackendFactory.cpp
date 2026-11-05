@@ -157,7 +157,9 @@ NativeEffectBackendResult CreateNativeEffectBackend(
 				const auto it = option.parameters.find(std::string(name));
 				return it == option.parameters.end() ? fallback : it->second;
 			}) > 1;
-			const bool stopped = multiPass || NgxRuntimeGuard::IsFaulted();
+			const auto mode = option.parameters.find("processingMode");
+			const bool performance = mode != option.parameters.end() && mode->second != 0;
+			const bool stopped = multiPass || performance || !IsDLSSNRPerformanceOptionValid(option) || NgxRuntimeGuard::IsFaulted();
 			const auto failure = nonNvidia
 				? DlssNrFailure{ DlssNrStage::Initialize, DlssNrReason::UnsupportedAdapter, DlssNrCodeKind::None, 0, "Selected adapter is not NVIDIA" }
 				: backend->GetDlssNrFailure();

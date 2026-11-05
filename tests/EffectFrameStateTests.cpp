@@ -43,6 +43,7 @@ int main() {
 	// Parameter change is local until its completed output reaches downstream.
 	shader.ParametersChanged(); key.parameterRevision = shader.ParameterRevision();
 	Check(shader.NeedsDraw(key, false), "live parameter edit was hidden by cache");
+	Check(!shader.RequiresHistoryReset(key), "local composition edit reset its unchanged input history");
 	shader.Commit(key, true);
 	downstream.inputRevision = shader.OutputRevision();
 	downstream.inputHistoryRevision = shader.OutputHistoryRevision();
@@ -72,6 +73,52 @@ int main() {
 		"SMAA\\SMAA_4x_Experimental", "SMAA\\SMAA_4x_NoJitter_Experimental" })
 		Check(UsesCaptureFrameClock(name), "a temporal SMAA variant retained the render clock");
 	Check(!UsesCaptureFrameClock("Custom\\Animated") && !UsesCaptureFrameClock("SMAA\\SMAA_1x"), "unrelated dynamic effects were frozen");
+	// A buffered producer consumes physical inputs while preserving the same
+	// displayed target. Its downstream pixels/history must remain reusable.
+	EffectFrameState buffered, consumer;
+	auto physical = key;
+	physical.frameId = physical.inputRevision = 20;
+	buffered.Commit(physical, true, 100, 7);
+	const auto heldVersion = buffered.OutputRevision();
+	const auto heldHistory = buffered.OutputHistoryRevision();
+	auto target = physical;
+	target.frameId = 18;
+	target.inputRevision = heldVersion;
+	target.inputHistoryRevision = heldHistory;
+	consumer.Commit(target, true);
+	for (uint64_t capture = 21; capture <= 22; ++capture) {
+		physical.frameId = physical.inputRevision = capture;
+		Check(buffered.NeedsDraw(physical, false), "buffered producer stopped consuming physical captures");
+		buffered.Commit(physical, true, 100, 7);
+		Check(buffered.OutputRevision() == heldVersion && buffered.OutputHistoryRevision() == heldHistory,
+			"held pixels acquired a fabricated revision or epoch");
+		Check(!consumer.NeedsDraw(target, false), "held output forced downstream temporal work");
+	}
+	// Input discontinuities arrive before their delayed output. Do not
+	// attach a new physical epoch or edit to the still-held old target.
+	++physical.inputRevision;
+	++physical.inputHistoryRevision;
+	++physical.captureSequence;
+	++physical.resourceGeneration;
+	++physical.parameterRevision;
+	Check(buffered.RequiresHistoryReset(physical), "physical input boundary was hidden from producer");
+	buffered.Commit(physical, true, 100, 7);
+	Check(buffered.OutputRevision() == heldVersion && buffered.OutputHistoryRevision() == heldHistory,
+		"physical input boundary leaked into held target identity");
+	Check(!buffered.NeedsDraw(physical, false), "held target failed to consume new physical input key");
+	buffered.Commit(physical, true, 101, 7);
+	Check(buffered.OutputRevision() > heldVersion && buffered.OutputHistoryRevision() == heldHistory,
+		"new native content failed to advance only its content version");
+	target.frameId = 19;
+	target.inputRevision = buffered.OutputRevision();
+	Check(consumer.NeedsDraw(target, false) && !consumer.RequiresHistoryReset(target),
+		"advancing a delayed target discarded ordinary temporal history");
+	buffered.Commit(physical, true, 101, 8);
+	Check(buffered.OutputHistoryRevision() > heldHistory, "native target epoch was lost");
+	buffered.ParametersChanged(); physical.parameterRevision = buffered.ParameterRevision();
+	const auto beforeRecreation = buffered.OutputRevision();
+	buffered.Commit(physical, true, 1, 1);
+	Check(buffered.OutputRevision() > beforeRecreation, "recreated native counter reused previous pixels");
 	DLSSNRTemporalState temporal;
 	temporal.Commit(1, 1, 1, 1'000'000);
 	Check(temporal.Weight(2, 1, 1, 1'166'667, false) > 0, "history epoch blocked normal EMA accumulation");

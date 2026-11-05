@@ -2,6 +2,7 @@
 #include "AppSettings.h"
 #include "ConfigRecovery.h"
 #include "ConfigLocations.h"
+#include "DLSSNRPerformanceParameters.h"
 #include "OpticalFlowDefaults.h"
 #include "App.h"
 #include "ErrorService.h"
@@ -315,6 +316,9 @@ bool AppSettings::Initialize() noexcept {
 		const std::string recoveredName = StrHelper::UTF16ToUTF8(loader.GetString(L"AppSettings_RecoveredGroup"));
 		const ConfigRecovery::ParameterRules rules = [](std::string_view effectName, std::string_view parameterName)
 			-> std::optional<ConfigRecovery::ParameterRule> {
+			// Mode numbers depend on the effect's saved schema marker. Defer them
+			// to its version-aware migration before validating current choices.
+			if (effectName == "DLSSNR\\DLSSNR_AI_Filter" && parameterName == "processingMode") return std::nullopt;
 			const auto* effect = EffectsService::Get().GetEffect(StrHelper::UTF8ToUTF16(effectName));
 			if (!effect) return std::nullopt;
 			const auto it = std::ranges::find(effect->params, parameterName, &EffectParameterDesc::name);
@@ -881,6 +885,8 @@ std::string AppSettings::_Serialize(const _AppSettingsData& data) {
 	writer.String(StrHelper::UTF16ToUTF8(data._screenshotsDir.native()).c_str());
 	writer.Key("screenshotContent");
 	writer.Uint(static_cast<uint32_t>(data._screenshotContent));
+	writer.Key("profiler");
+	WriteOverlayProfilerOptions(writer, data._overlayOptions.profiler);
 	writer.Key("windows");
 	writer.StartObject();
 	for (const auto& [name, windowOption] : data._overlayOptions.windows) {
@@ -898,6 +904,8 @@ std::string AppSettings::_Serialize(const _AppSettingsData& data) {
 		writer.Double(windowOption.width);
 		writer.Key("height");
 		writer.Double(windowOption.height);
+		writer.Key("zoom");
+		writer.Double(windowOption.zoom);
 		writer.EndObject();
 	}
 	writer.EndObject();
@@ -1197,6 +1205,11 @@ void AppSettings::_LoadSettings(const rapidjson::GenericObject<true, rapidjson::
 			_screenshotsDir = std::move(value);
 		}
 
+		const auto profilerNode = overlayObj.FindMember("profiler");
+		if (profilerNode != overlayObj.MemberEnd() && profilerNode->value.IsObject()) {
+			ReadOverlayProfilerOptions(profilerNode->value.GetObj(), _overlayOptions.profiler);
+		}
+
 		auto windowsNode = overlayObj.FindMember("windows");
 		if (windowsNode != overlayObj.MemberEnd() && windowsNode->value.IsObject()) {
 			auto windowsObj = windowsNode->value.GetObj();
@@ -1219,6 +1232,7 @@ void AppSettings::_LoadSettings(const rapidjson::GenericObject<true, rapidjson::
 					JsonHelper::ReadFloat(windowOptionObj, "vPos", windowOption.vPos);
 					JsonHelper::ReadFloat(windowOptionObj, "width", windowOption.width);
 					JsonHelper::ReadFloat(windowOptionObj, "height", windowOption.height);
+					JsonHelper::ReadFloat(windowOptionObj, "zoom", windowOption.zoom);
 					SanitizeOverlayWindowOption(windowOption);
 				}
 			}
@@ -1562,6 +1576,8 @@ void AppSettings::_SetDefaultScalingModes() noexcept {
 		dlssNr.name = L"DLSSNR";
 		dlssNr.effects.resize(1);
 		dlssNr.effects[0].name = L"DLSSNR\\DLSSNR_AI_Filter";
+		dlssNr.effects[0].parameters[L"resolutionControl"] = 0.f;
+		dlssNr.effects[0].parameters[L"__dlssnrModeVersion"] = DLSSNR_MODE_VERSION;
 	}
 
 	// 全局缩放模式默认为 Lanczos

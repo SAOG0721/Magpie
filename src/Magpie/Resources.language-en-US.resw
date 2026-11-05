@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <root>
   <!--
     Microsoft ResX Schema
@@ -1235,8 +1235,8 @@
   <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_shadowStructureMultiplier_Label" xml:space="preserve"><value>Shadow / Structure Strength</value></data>
   <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_skinStructureStrength_Label" xml:space="preserve"><value>Skin Structure Strength</value></data>
   <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_style_Label" xml:space="preserve"><value>NR Style</value></data>
-  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_uiCorrection_Label" xml:space="preserve"><value>NR UI Correction</value></data>
-  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_useAutoMask_Label" xml:space="preserve"><value>Automatic Mask</value></data>
+  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_uiCorrection_Label" xml:space="preserve"><value>UI fix</value></data>
+  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_useAutoMask_Label" xml:space="preserve"><value>Auto mask</value></data>
   <data name="EffectParam_Deband_grain_Label" xml:space="preserve"><value>Grain</value></data>
   <data name="EffectParam_Deband_iterations_Label" xml:space="preserve"><value>Iterations</value></data>
   <data name="EffectParam_Deband_range_Label" xml:space="preserve"><value>Range</value></data>
@@ -1581,12 +1581,12 @@
   <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_nvidiaOpticalFlowQuality_Option_1" xml:space="preserve"><value>Performance</value></data>
   <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_nvidiaOpticalFlowQuality_Option_2" xml:space="preserve"><value>Balanced</value></data>
   <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_nvidiaOpticalFlowQuality_Option_3" xml:space="preserve"><value>Quality</value></data>
-  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_nvidiaOpticalFlowQuality_Option_4" xml:space="preserve"><value>High Quality (High Cost)</value></data>
+  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_nvidiaOpticalFlowQuality_Option_4" xml:space="preserve"><value>High Quality</value></data>
   <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_opticalFlowMethod_Label" xml:space="preserve"><value>Optical Flow Method</value></data>
   <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_opticalFlowMethod_Option_0" xml:space="preserve"><value>None</value></data>
   <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_opticalFlowMethod_Option_1" xml:space="preserve"><value>AMDOF</value></data>
   <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_opticalFlowMethod_Option_2" xml:space="preserve"><value>NVOF</value></data>
-  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_nvidiaOpticalFlowQuality_Option_5" xml:space="preserve"><value>Highest Quality (Very High Cost)</value></data>
+  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_nvidiaOpticalFlowQuality_Option_5" xml:space="preserve"><value>Highest Quality</value></data>
   <data name="EffectParam_DLSSFG_DLSS_FrameGeneration_amdOpticalFlowMode_Label" xml:space="preserve"><value>OF Quality</value></data>
   <data name="EffectParam_DLSSFG_DLSS_FrameGeneration_amdOpticalFlowMode_Option_0" xml:space="preserve"><value>Performance</value></data>
   <data name="EffectParam_DLSSFG_DLSS_FrameGeneration_amdOpticalFlowMode_Option_1" xml:space="preserve"><value>Quality</value></data>
@@ -1701,7 +1701,7 @@
   <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_residualDarkProtection_Label" xml:space="preserve"><value>Shadow Protection</value></data>
   <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_residualHighlightProtection_Label" xml:space="preserve"><value>Highlight Protection</value></data>
   <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_residualLocalCompression_Label" xml:space="preserve"><value>Overcorrection Suppression</value></data>
-  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_residualShowAdvanced_Label" xml:space="preserve"><value>Advanced Adjustments</value></data>
+  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_residualShowAdvanced_Label" xml:space="preserve"><value>Residual</value></data>
   <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_residualLowFrequencyGain_Label" xml:space="preserve"><value>Low-frequency Range Strength</value></data>
   <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_residualDetailGain_Label" xml:space="preserve"><value>High-frequency Range Strength</value></data>
   <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_residualDebugView_Label" xml:space="preserve"><value>Diagnostic View</value></data>
@@ -1722,33 +1722,33 @@
   <data name="Profile_Cursor_Refresh_Rate.Header" xml:space="preserve"><value>Minimum refresh rate</value></data>
   <data name="Profile_Cursor_Refresh_Rate.Description" xml:space="preserve"><value>Target minimum cursor refresh rate.</value></data>
   <data name="Home_Advanced_DeveloperOptions_DuplicateFrameDetection.Description" xml:space="preserve"><value>Detects and skips identical images across all profiles.</value></data>
-  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_enableInputResolutionScaling_Description" xml:space="preserve"><value>Adjusts the AI working resolution and enables detail controls, which apply once after all passes. SDR only; restart scaling to apply changes.</value></data>
-  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_inputResolutionPercent_Description" xml:space="preserve"><value>Lower percentages reduce working resolution, changing processing cost and textures while retaining the final output size. Restart scaling to apply changes.</value></data>
-  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_residualMultiplier_Description" xml:space="preserve"><value>Adjust the overall strength of NR processing.</value></data>
-  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_residualSaturation_Description" xml:space="preserve"><value>Adjust the strength of color changes from NR.</value></data>
-  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_residualLightness_Description" xml:space="preserve"><value>Adjust the overall strength of lightness changes from NR.</value></data>
-  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_shadowStructureMultiplier_Description" xml:space="preserve"><value>Adjust the strength of darkening corrections from NR.</value></data>
-  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_reflectionGlowMultiplier_Description" xml:space="preserve"><value>Adjust the strength of brightening corrections from NR.</value></data>
-  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_residualShowAdvanced_Description" xml:space="preserve"><value>Show advanced adjustment parameters.</value></data>
-  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_residualHueProtection_Description" xml:space="preserve"><value>Reduce NR changes to the hue of the original image.</value></data>
-  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_residualDarkProtection_Description" xml:space="preserve"><value>Reduce NR changes to dark areas of the original image.</value></data>
-  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_residualHighlightProtection_Description" xml:space="preserve"><value>Reduce NR changes to bright areas of the original image.</value></data>
-  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_residualLocalCompression_Description" xml:space="preserve"><value>Reduce excessive local corrections.</value></data>
-  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_residualLowFrequencyGain_Description" xml:space="preserve"><value>Adjust the strength of smoothly varying corrections.</value></data>
-  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_residualDetailGain_Description" xml:space="preserve"><value>Adjust the strength of detailed corrections.</value></data>
+  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_enableInputResolutionScaling_Description" xml:space="preserve"><value>Set the image size used by NR.</value></data>
+  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_inputResolutionPercent_Description" xml:space="preserve"><value>Set the image size percentage sent to NR.</value></data>
+  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_residualMultiplier_Description" xml:space="preserve"><value>Adjust the total NR correction across all passes.</value></data>
+  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_residualSaturation_Description" xml:space="preserve"><value>Adjust the strength of NR chroma changes.</value></data>
+  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_residualLightness_Description" xml:space="preserve"><value>Adjust the overall strength of NR lightness changes.</value></data>
+  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_shadowStructureMultiplier_Description" xml:space="preserve"><value>Adjust the strength of NR darkening.</value></data>
+  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_reflectionGlowMultiplier_Description" xml:space="preserve"><value>Adjust the strength of NR brightening.</value></data>
+  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_residualShowAdvanced_Description" xml:space="preserve"><value>Show advanced residual controls.</value></data>
+  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_residualHueProtection_Description" xml:space="preserve"><value>Reduce NR hue changes.</value></data>
+  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_residualDarkProtection_Description" xml:space="preserve"><value>Reduce NR corrections in dark areas.</value></data>
+  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_residualHighlightProtection_Description" xml:space="preserve"><value>Reduce NR corrections in highlights.</value></data>
+  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_residualLocalCompression_Description" xml:space="preserve"><value>Reduce overly strong NR corrections.</value></data>
+  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_residualLowFrequencyGain_Description" xml:space="preserve"><value>Adjust broad NR corrections.</value></data>
+  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_residualDetailGain_Description" xml:space="preserve"><value>Adjust detailed NR corrections.</value></data>
   <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_residualDebugView_Description" xml:space="preserve"><value>View correction and protection effects.</value></data>
-  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_opticalFlowMethod_Description" xml:space="preserve"><value>Selects how motion is estimated from consecutive frames. AMDOF works across GPU vendors; NVOF requires a rendering GPU with NVIDIA optical-flow support. Restart scaling to apply changes.</value></data>
-  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_amdOpticalFlowMode_Description" xml:space="preserve"><value>Applies when AMDOF is selected. Performance favors lower cost; Quality uses more computation for motion estimation. Restart scaling to apply changes.</value></data>
-  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_nvidiaOpticalFlowQuality_Description" xml:space="preserve"><value>Applies when NVOF is selected. Higher levels use more computation for motion estimation. Restart scaling to apply changes.</value></data>
+  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_opticalFlowMethod_Description" xml:space="preserve"><value>Provide motion for residual reprojection and anti-flicker.</value></data>
+  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_amdOpticalFlowMode_Description" xml:space="preserve"><value>Adjust motion estimation detail and computational cost.</value></data>
+  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_nvidiaOpticalFlowQuality_Description" xml:space="preserve"><value>Adjust motion estimation detail and computational cost.</value></data>
   <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_style_Description" xml:space="preserve"><value>Select the NR processing style for this pass.</value></data>
   <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_intensity_Description" xml:space="preserve"><value>Adjust the NR processing strength for this pass.</value></data>
   <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_localToneStrength_Description" xml:space="preserve"><value>Adjust local tone processing for this pass.</value></data>
   <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_localStructureStrength_Description" xml:space="preserve"><value>Adjust local structure processing for this pass.</value></data>
   <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_skinStructureStrength_Description" xml:space="preserve"><value>Adjust skin structure processing for this pass.</value></data>
   <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_useAutoMask_Description" xml:space="preserve"><value>Enable automatic masking for this pass.</value></data>
-  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_uiCorrection_Description" xml:space="preserve"><value>Improve interface elements and text after NR processing.</value></data>
-  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_multiPass_Description" xml:space="preserve"><value>Sets consecutive processing passes, each with independent style and intensity. More passes add cost and accumulate texture changes. Restart scaling to apply changes.</value></data>
-  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_antiFlicker_Description" xml:space="preserve"><value>Uses frame history to reduce texture flicker; optical-flow modes use estimated motion between frames. Restart scaling to apply changes.</value></data>
+  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_uiCorrection_Description" xml:space="preserve"><value>Adjust how NR processes interface elements.</value></data>
+  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_multiPass_Description" xml:space="preserve"><value>Set the number of consecutive NR processing passes.</value></data>
+  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_antiFlicker_Description" xml:space="preserve"><value>Use frame history to reduce texture flicker.</value></data>
   <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_Group_Advanced_Adjustments" xml:space="preserve"><value>Advanced Adjustments</value></data>
   <data name="EffectParameter_Help_Range" xml:space="preserve"><value>Range</value></data>
   <data name="EffectParameter_Help_Default" xml:space="preserve"><value>Default</value></data>
@@ -2340,7 +2340,7 @@
     <value>Anti-flicker Response Time (ms)</value>
   </data>
   <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_antiFlickerTimeMs_Description" xml:space="preserve">
-    <value>Higher values retain history longer for greater stability and a slower response. Lower values follow changes faster. Applies on the next captured frame.</value>
+    <value>Set how quickly anti-flicker follows changes.</value>
   </data>
   <data name="EffectParam_DLSS_DLSS_SR_renderPreset_Option_1" xml:space="preserve">
     <value>A (CNN)</value>
@@ -2397,4 +2397,459 @@
   <data name="Overlay_Profiler_OutputSeries" xml:space="preserve"><value>Output</value></data>
   <data name="Overlay_Profiler_OutputSubmittedSeries" xml:space="preserve"><value>Output (submitted)</value></data>
   <data name="Overlay_Profiler_OutputIntervalUnavailable" xml:space="preserve"><value>Per-frame output timestamps unavailable.</value></data>
+  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_performanceShowAdvanced_Label" xml:space="preserve"><value>Performance</value></data>
+  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_residualMidtoneStrength_Label" xml:space="preserve"><value>Midtone Strength</value></data>
+  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_processingMode_Label" xml:space="preserve"><value>Processing Mode</value></data>
+  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_residualTransfer_Label" xml:space="preserve"><value>Residual Reuse</value></data>
+  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_Group_Residual_Advanced_Adjustments" xml:space="preserve"><value>Residual Advanced Adjustments</value></data>
+  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_Group_Performance_Advanced_Adjustments" xml:space="preserve"><value>Performance Advanced Adjustments</value></data>
+  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_processingMode_Option_0" xml:space="preserve"><value>Every Frame</value></data>
+  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_processingMode_Option_1" xml:space="preserve"><value>Alternating Frames</value></data>
+  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_residualTransfer_Option_0" xml:space="preserve"><value>History in Place</value></data>
+  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_residualTransfer_Option_1" xml:space="preserve"><value>History Reprojection</value></data>
+  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_performanceShowAdvanced_Description" xml:space="preserve"><value>Show advanced performance controls.</value></data>
+  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_residualMidtoneStrength_Description" xml:space="preserve"><value>Adjust NR lightness changes in midtones.</value></data>
+  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_processingMode_Description" xml:space="preserve"><value>Every Frame fully processes each new capture. Alternating Frames updates full NR at the selected interval and continuously reuses historical enhancement.</value></data>
+  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_residualTransfer_Description" xml:space="preserve"><value>Reuses the historical frame’s NR correction at the same position, or aligns it with optical flow.</value></data>
+  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_FlowRequired" xml:space="preserve"><value>Select AMDOF or NVOF to use this option.</value></data>
+  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_InvalidConfiguration" xml:space="preserve"><value>Select valid processing, capture-interval, resolution and optical-flow settings.</value></data>
+  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_modelPreset_Label" xml:space="preserve"><value>Model Preset</value></data>
+  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_modelPreset_Option_0" xml:space="preserve"><value>Automatic (DLL Default)</value></data>
+  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_modelPreset_Option_1" xml:space="preserve"><value>HT</value></data>
+  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_modelPreset_Option_2" xml:space="preserve"><value>CC Small FP8</value></data>
+  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_modelPreset_Description" xml:space="preserve"><value>Select the NR model for all passes; Automatic uses the DLL default.</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_Group_Basic" xml:space="preserve"><value>Basic</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_Group_Tone" xml:space="preserve"><value>Tone</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_Group_Color" xml:space="preserve"><value>Color</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_Group_Mixer" xml:space="preserve"><value>Mixer</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_Group_Wheels" xml:space="preserve"><value>Wheels</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_Group_Selection" xml:space="preserve"><value>Selection</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_Group_Style" xml:space="preserve"><value>Style</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_Group_Spatial" xml:space="preserve"><value>Spatial</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_Group_Curves" xml:space="preserve"><value>Curves</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_Group_Mask" xml:space="preserve"><value>Mask</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_Group_Automatic" xml:space="preserve"><value>Automatic</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_Group_Calibration" xml:space="preserve"><value>Calibration</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_Group_Output" xml:space="preserve"><value>Output</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_Group_Lut" xml:space="preserve"><value>Lut</value></data>
+  <data name="OKLab_Section" xml:space="preserve"><value>Editing section</value></data>
+  <data name="OKLab_Color" xml:space="preserve"><value>Color range</value></data>
+  <data name="OKLab_Slot" xml:space="preserve"><value>Selection slot</value></data>
+  <data name="OKLab_Curve" xml:space="preserve"><value>Curve</value></data>
+  <data name="OKLab_Preset" xml:space="preserve"><value>Preset</value></data>
+  <data name="OKLab_ApplyPreset" xml:space="preserve"><value>Apply preset</value></data>
+  <data name="OKLab_ResetGroup" xml:space="preserve"><value>Reset section</value></data>
+  <data name="OKLab_ResetAll" xml:space="preserve"><value>Reset all</value></data>
+  <data name="OKLab_StoreA" xml:space="preserve"><value>Store A</value></data>
+  <data name="OKLab_SwapAB" xml:space="preserve"><value>Swap A / B</value></data>
+  <data name="OKLab_Undo" xml:space="preserve"><value>Undo last edit</value></data>
+  <data name="OKLab_ImportLut" xml:space="preserve"><value>Import .cube</value></data>
+  <data name="OKLab_ExportLut" xml:space="preserve"><value>Export LUT</value></data>
+  <data name="OKLab_ClearLut" xml:space="preserve"><value>Clear LUT</value></data>
+  <data name="OKLab_LutRestart" xml:space="preserve"><value>LUT asset changes apply after restarting scaling.</value></data>
+  <data name="OKLab_LutExportHelp" xml:space="preserve"><value>Export saves the loaded LUT, or an identity LUT when empty. It does not bake the image adjustments.</value></data>
+  <data name="OKLab_CurveHelp" xml:space="preserve"><value>Drag one of eight points. Undo restores the previous edit.</value></data>
+  <data name="OKLab_LutLoaded" xml:space="preserve"><value>LUT imported. Restart scaling to apply.</value></data>
+  <data name="OKLab_LutSaved" xml:space="preserve"><value>LUT exported.</value></data>
+  <data name="OKLab_PickColor" xml:space="preserve"><value>Pick source color</value></data>
+  <data name="OKLab_PickHelp" xml:space="preserve"><value>Hold the pick button, drag onto the running image, then release. Escape cancels.</value></data>
+  <data name="OKLab_PickSettingsHelp" xml:space="preserve"><value>Pick source colors from the running parameter panel.</value></data>
+  <data name="OKLab_Wheel" xml:space="preserve"><value>Tone zone</value></data>
+  <data name="OKLab_WheelHelp" xml:space="preserve"><value>Direction sets hue; distance from the center sets tint strength.</value></data>
+  <data name="OKLab_Wheel_0" xml:space="preserve"><value>Shadows</value></data>
+  <data name="OKLab_Wheel_1" xml:space="preserve"><value>Midtones</value></data>
+  <data name="OKLab_Wheel_2" xml:space="preserve"><value>Highlights</value></data>
+  <data name="OKLab_Preset_0" xml:space="preserve"><value>Neutral</value></data>
+  <data name="OKLab_Preset_1" xml:space="preserve"><value>Natural</value></data>
+  <data name="OKLab_Preset_2" xml:space="preserve"><value>Soft highlights</value></data>
+  <data name="OKLab_Preset_3" xml:space="preserve"><value>Cool shadows / warm light</value></data>
+  <data name="OKLab_Preset_4" xml:space="preserve"><value>Black and white</value></data>
+  <data name="OKLab_Preset_5" xml:space="preserve"><value>Vintage duotone</value></data>
+  <data name="OKLab_Color_0" xml:space="preserve"><value>Red</value></data>
+  <data name="OKLab_Color_1" xml:space="preserve"><value>Orange</value></data>
+  <data name="OKLab_Color_2" xml:space="preserve"><value>Yellow</value></data>
+  <data name="OKLab_Color_3" xml:space="preserve"><value>Green</value></data>
+  <data name="OKLab_Color_4" xml:space="preserve"><value>Cyan</value></data>
+  <data name="OKLab_Color_5" xml:space="preserve"><value>Blue</value></data>
+  <data name="OKLab_Color_6" xml:space="preserve"><value>Purple</value></data>
+  <data name="OKLab_Color_7" xml:space="preserve"><value>Magenta</value></data>
+  <data name="OKLab_Curve_0" xml:space="preserve"><value>Lightness</value></data>
+  <data name="OKLab_Curve_1" xml:space="preserve"><value>Hue to hue</value></data>
+  <data name="OKLab_Curve_2" xml:space="preserve"><value>Hue to chroma</value></data>
+  <data name="OKLab_Curve_3" xml:space="preserve"><value>Hue to lightness</value></data>
+  <data name="OKLab_Curve_4" xml:space="preserve"><value>Lightness to chroma</value></data>
+  <data name="OKLab_Curve_5" xml:space="preserve"><value>Chroma to chroma</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_amount_Description" xml:space="preserve"><value>Mixes the original and adjusted image. Zero restores the original pixels.</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_exposure_Description" xml:space="preserve"><value>One EV doubles or halves linear-light intensity.</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_lightness_Description" xml:space="preserve"><value>Moves perceived lightness independently of exposure.</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_gamma_Description" xml:space="preserve"><value>Higher values brighten midtones while retaining black and white endpoints.</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_pivot_Description" xml:space="preserve"><value>Sets the lightness around which contrast expands. Has no effect at contrast 1.</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_darkProtect_Description" xml:space="preserve"><value>Reduces tone adjustments in originally dark areas.</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_lightProtect_Description" xml:space="preserve"><value>Reduces tone adjustments in originally bright areas.</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_chroma_Description" xml:space="preserve"><value>Changes color intensity while retaining Oklab lightness. Zero removes color.</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_vibrance_Description" xml:space="preserve"><value>Emphasizes weaker colors and reduces the boost for already vivid colors.</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_neutralProtect_Description" xml:space="preserve"><value>Protects original neutrals from white balance, color bias and three-way tinting.</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_skinProtect_Description" xml:space="preserve"><value>Protects the configured color range from vibrance and the eight-color mixer.</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_clarity_Description" xml:space="preserve"><value>Enhances broad lightness structure. High strength can create halos.</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_textureStrength_Description" xml:space="preserve"><value>Enhances fine lightness detail above the noise threshold.</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_chromaSmooth_Description" xml:space="preserve"><value>Smooths color noise with protection across lightness edges.</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_deband_Description" xml:space="preserve"><value>Smooths small differences in flat gradients. A high threshold may soften detail.</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_bloom_Description" xml:space="preserve"><value>Spreads bright colors around highlights. Radius and strength increase its reach.</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_dehaze_Description" xml:space="preserve"><value>Estimates local airlight and transmission from nearby pixels.</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_autoExposure_Description" xml:space="preserve"><value>Adapts exposure to bounded average log luminance on captured frames.</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_autoWhite_Description" xml:space="preserve"><value>Balances average color. Lock it when a dominant scene color should be retained.</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_autoLock_Description" xml:space="preserve"><value>Holds the current automatic estimate until unlocked.</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_autoSpeed_Description" xml:space="preserve"><value>Time constant in seconds; larger values change more slowly.</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_whiteTint_Description" xml:space="preserve"><value>Offsets target white in CIE xy delta-y. Zero follows the Planckian-locus fit.</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_outputGamut_Description" xml:space="preserve"><value>Constrains adjusted HDR colors. SDR always maps to sRGB.</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_referenceWhite_Description" xml:space="preserve"><value>HDR working reference white in nits; ordinary SDR is unchanged.</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_dither_Description" xml:space="preserve"><value>Adds fixed pixel noise before output storage; HDR strength is relative to reference white.</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_lutAmount_Description" xml:space="preserve"><value>Mixes the imported cube LUT. Import and export are in the settings panel.</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_lutDomain_Description" xml:space="preserve"><value>Use the encoding for which the LUT was authored. HDR excursions are retained outside its domain.</value></data>
+  <data name="OKLabUI_ApplyPreset/Content" xml:space="preserve"><value>Apply preset</value></data>
+  <data name="OKLabUI_ResetGroup/Content" xml:space="preserve"><value>Reset section</value></data>
+  <data name="OKLabUI_ResetAll/Content" xml:space="preserve"><value>Reset all</value></data>
+  <data name="OKLabUI_StoreA/Content" xml:space="preserve"><value>Store A</value></data>
+  <data name="OKLabUI_SwapAB/Content" xml:space="preserve"><value>Swap A / B</value></data>
+  <data name="OKLabUI_Undo/Content" xml:space="preserve"><value>Undo last edit</value></data>
+  <data name="OKLabUI_ImportLut/Content" xml:space="preserve"><value>Import .cube</value></data>
+  <data name="OKLabUI_ExportLut/Content" xml:space="preserve"><value>Export LUT</value></data>
+  <data name="OKLabUI_ClearLut/Content" xml:space="preserve"><value>Clear LUT</value></data>
+  <data name="OKLabUI_PickColor/Content" xml:space="preserve"><value>Pick source color</value></data>
+  <data name="OKLabUI_Section/Header" xml:space="preserve"><value>Editing section</value></data>
+  <data name="OKLabUI_Color/Header" xml:space="preserve"><value>Color range</value></data>
+  <data name="OKLabUI_Slot/Header" xml:space="preserve"><value>Selection slot</value></data>
+  <data name="OKLabUI_Curve/Header" xml:space="preserve"><value>Curve</value></data>
+  <data name="OKLabUI_Preset/Header" xml:space="preserve"><value>Preset</value></data>
+  <data name="OKLabUI_Wheel/Header" xml:space="preserve"><value>Tone zone</value></data>
+  <data name="OKLabUI_CurveHelp/Text" xml:space="preserve"><value>Drag one of eight points. Undo restores the previous edit.</value></data>
+  <data name="OKLabUI_LutRestart/Text" xml:space="preserve"><value>LUT asset changes apply after restarting scaling.</value></data>
+  <data name="OKLabUI_LutExportHelp/Text" xml:space="preserve"><value>Export saves the loaded LUT, or an identity LUT when empty. It does not bake the image adjustments.</value></data>
+  <data name="OKLabUI_PickHelp/Text" xml:space="preserve"><value>Hold the pick button, drag onto the running image, then release. Escape cancels.</value></data>
+  <data name="OKLabUI_PickSettingsHelp/Text" xml:space="preserve"><value>Pick source colors from the running parameter panel.</value></data>
+  <data name="OKLabUI_WheelHelp/Text" xml:space="preserve"><value>Direction sets hue; distance from the center sets tint strength.</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_amount_Label" xml:space="preserve"><value>Effect strength</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_exposure_Label" xml:space="preserve"><value>Exposure (EV)</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_lightness_Label" xml:space="preserve"><value>Perceived lightness</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_contrast_Label" xml:space="preserve"><value>Contrast</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_gamma_Label" xml:space="preserve"><value>Midtone gamma</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_shadows_Label" xml:space="preserve"><value>Shadows</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_highlights_Label" xml:space="preserve"><value>Highlights</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_chroma_Label" xml:space="preserve"><value>Chroma</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_vibrance_Label" xml:space="preserve"><value>Vibrance</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_warmth_Label" xml:space="preserve"><value>Warm / cool</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_tint_Label" xml:space="preserve"><value>Green / magenta</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_pivot_Label" xml:space="preserve"><value>Contrast pivot</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_blackIn_Label" xml:space="preserve"><value>Input black</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_whiteIn_Label" xml:space="preserve"><value>Input white</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_blackOut_Label" xml:space="preserve"><value>Output black</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_whiteOut_Label" xml:space="preserve"><value>Output white</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_midtones_Label" xml:space="preserve"><value>Midtones</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_balance_Label" xml:space="preserve"><value>Zone balance</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_zoneWidth_Label" xml:space="preserve"><value>Zone transition</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_toe_Label" xml:space="preserve"><value>Shadow softness</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_shoulder_Label" xml:space="preserve"><value>Highlight softness</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_darkProtect_Label" xml:space="preserve"><value>Shadow protection</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_lightProtect_Label" xml:space="preserve"><value>Highlight protection</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_tone25_Label" xml:space="preserve"><value>Curve at 25%</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_tone50_Label" xml:space="preserve"><value>Curve at 50%</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_tone75_Label" xml:space="preserve"><value>Curve at 75%</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_hue_Label" xml:space="preserve"><value>Hue rotation (degrees)</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_chromaLow_Label" xml:space="preserve"><value>Low chroma</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_chromaMid_Label" xml:space="preserve"><value>Medium chroma</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_chromaHigh_Label" xml:space="preserve"><value>High chroma</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_shadowChroma_Label" xml:space="preserve"><value>Shadow chroma</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_midChroma_Label" xml:space="preserve"><value>Midtone chroma</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_highlightChroma_Label" xml:space="preserve"><value>Highlight chroma</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_neutralProtect_Label" xml:space="preserve"><value>Neutral protection</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_skinProtect_Label" xml:space="preserve"><value>Skin color range protection</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_skinHue_Label" xml:space="preserve"><value>Protected hue</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_skinWidth_Label" xml:space="preserve"><value>Protected hue width</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_skinLightLow_Label" xml:space="preserve"><value>Protected minimum lightness</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_skinLightHigh_Label" xml:space="preserve"><value>Protected maximum lightness</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_skinChromaLow_Label" xml:space="preserve"><value>Protected minimum chroma</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_skinChromaHigh_Label" xml:space="preserve"><value>Protected maximum chroma</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_biasA_Label" xml:space="preserve"><value>Cyan / red bias</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_biasB_Label" xml:space="preserve"><value>Blue / yellow bias</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_mix0Hue_Label" xml:space="preserve"><value>Red hue</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_mix0Chroma_Label" xml:space="preserve"><value>Red chroma</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_mix0Light_Label" xml:space="preserve"><value>Red lightness</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_mix1Hue_Label" xml:space="preserve"><value>Orange hue</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_mix1Chroma_Label" xml:space="preserve"><value>Orange chroma</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_mix1Light_Label" xml:space="preserve"><value>Orange lightness</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_mix2Hue_Label" xml:space="preserve"><value>Yellow hue</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_mix2Chroma_Label" xml:space="preserve"><value>Yellow chroma</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_mix2Light_Label" xml:space="preserve"><value>Yellow lightness</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_mix3Hue_Label" xml:space="preserve"><value>Green hue</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_mix3Chroma_Label" xml:space="preserve"><value>Green chroma</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_mix3Light_Label" xml:space="preserve"><value>Green lightness</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_mix4Hue_Label" xml:space="preserve"><value>Cyan hue</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_mix4Chroma_Label" xml:space="preserve"><value>Cyan chroma</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_mix4Light_Label" xml:space="preserve"><value>Cyan lightness</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_mix5Hue_Label" xml:space="preserve"><value>Blue hue</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_mix5Chroma_Label" xml:space="preserve"><value>Blue chroma</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_mix5Light_Label" xml:space="preserve"><value>Blue lightness</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_mix6Hue_Label" xml:space="preserve"><value>Purple hue</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_mix6Chroma_Label" xml:space="preserve"><value>Purple chroma</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_mix6Light_Label" xml:space="preserve"><value>Purple lightness</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_mix7Hue_Label" xml:space="preserve"><value>Magenta hue</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_mix7Chroma_Label" xml:space="preserve"><value>Magenta chroma</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_mix7Light_Label" xml:space="preserve"><value>Magenta lightness</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_mixerFeather_Label" xml:space="preserve"><value>Hue overlap</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_wheel0Hue_Label" xml:space="preserve"><value>Shadow hue</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_wheel0Chroma_Label" xml:space="preserve"><value>Shadow tint amount</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_wheel0Light_Label" xml:space="preserve"><value>Shadow lightness</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_wheel1Hue_Label" xml:space="preserve"><value>Midtone hue</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_wheel1Chroma_Label" xml:space="preserve"><value>Midtone tint amount</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_wheel1Light_Label" xml:space="preserve"><value>Midtone lightness</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_wheel2Hue_Label" xml:space="preserve"><value>Highlight hue</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_wheel2Chroma_Label" xml:space="preserve"><value>Highlight tint amount</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_wheel2Light_Label" xml:space="preserve"><value>Highlight lightness</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_sel0Enabled_Label" xml:space="preserve"><value>A: Enable</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_sel0Hue_Label" xml:space="preserve"><value>A: Hue</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_sel0Width_Label" xml:space="preserve"><value>A: Hue half width</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_sel0CLow_Label" xml:space="preserve"><value>A: Minimum chroma</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_sel0CHigh_Label" xml:space="preserve"><value>A: Maximum chroma</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_sel0LLow_Label" xml:space="preserve"><value>A: Minimum lightness</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_sel0LHigh_Label" xml:space="preserve"><value>A: Maximum lightness</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_sel0Feather_Label" xml:space="preserve"><value>A: Feather</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_sel0Invert_Label" xml:space="preserve"><value>A: Invert</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_sel0DeltaHue_Label" xml:space="preserve"><value>A: Hue shift</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_sel0Chroma_Label" xml:space="preserve"><value>A: Chroma</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_sel0Light_Label" xml:space="preserve"><value>A: Lightness</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_sel0TargetHue_Label" xml:space="preserve"><value>A: Target hue</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_sel0Unify_Label" xml:space="preserve"><value>A: Hue unification</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_sel1Enabled_Label" xml:space="preserve"><value>B: Enable</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_sel1Hue_Label" xml:space="preserve"><value>B: Hue</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_sel1Width_Label" xml:space="preserve"><value>B: Hue half width</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_sel1CLow_Label" xml:space="preserve"><value>B: Minimum chroma</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_sel1CHigh_Label" xml:space="preserve"><value>B: Maximum chroma</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_sel1LLow_Label" xml:space="preserve"><value>B: Minimum lightness</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_sel1LHigh_Label" xml:space="preserve"><value>B: Maximum lightness</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_sel1Feather_Label" xml:space="preserve"><value>B: Feather</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_sel1Invert_Label" xml:space="preserve"><value>B: Invert</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_sel1DeltaHue_Label" xml:space="preserve"><value>B: Hue shift</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_sel1Chroma_Label" xml:space="preserve"><value>B: Chroma</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_sel1Light_Label" xml:space="preserve"><value>B: Lightness</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_sel1TargetHue_Label" xml:space="preserve"><value>B: Target hue</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_sel1Unify_Label" xml:space="preserve"><value>B: Hue unification</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_backgroundChroma_Label" xml:space="preserve"><value>Outside selection chroma</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_styleMode_Label" xml:space="preserve"><value>Style</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_styleMode_Option_0" xml:space="preserve"><value>None</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_styleMode_Option_1" xml:space="preserve"><value>Black and white</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_styleMode_Option_2" xml:space="preserve"><value>Duotone</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_styleMode_Option_3" xml:space="preserve"><value>Tritone</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_styleAmount_Label" xml:space="preserve"><value>Style strength</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_bw0_Label" xml:space="preserve"><value>Red gray mix</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_bw1_Label" xml:space="preserve"><value>Orange gray mix</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_bw2_Label" xml:space="preserve"><value>Yellow gray mix</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_bw3_Label" xml:space="preserve"><value>Green gray mix</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_bw4_Label" xml:space="preserve"><value>Cyan gray mix</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_bw5_Label" xml:space="preserve"><value>Blue gray mix</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_bw6_Label" xml:space="preserve"><value>Purple gray mix</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_bw7_Label" xml:space="preserve"><value>Magenta gray mix</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_style0Hue_Label" xml:space="preserve"><value>Color 1 hue</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_style0Chroma_Label" xml:space="preserve"><value>Color 1 chroma</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_style1Hue_Label" xml:space="preserve"><value>Color 2 hue</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_style1Chroma_Label" xml:space="preserve"><value>Color 2 chroma</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_style2Hue_Label" xml:space="preserve"><value>Color 3 hue</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_style2Chroma_Label" xml:space="preserve"><value>Color 3 chroma</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_styleBalance_Label" xml:space="preserve"><value>Style balance</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_clarity_Label" xml:space="preserve"><value>Local contrast</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_clarityRadius_Label" xml:space="preserve"><value>Local contrast radius</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_edgeProtect_Label" xml:space="preserve"><value>Edge protection</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_textureStrength_Label" xml:space="preserve"><value>Texture</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_textureRadius_Label" xml:space="preserve"><value>Texture radius</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_noiseFloor_Label" xml:space="preserve"><value>Noise floor</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_chromaSmooth_Label" xml:space="preserve"><value>Chroma smoothing</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_chromaRadius_Label" xml:space="preserve"><value>Chroma radius</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_deband_Label" xml:space="preserve"><value>Debanding</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_debandRadius_Label" xml:space="preserve"><value>Deband radius</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_debandThreshold_Label" xml:space="preserve"><value>Deband threshold</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_bloom_Label" xml:space="preserve"><value>Bloom</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_bloomRadius_Label" xml:space="preserve"><value>Bloom radius</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_bloomThreshold_Label" xml:space="preserve"><value>Bloom threshold</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_bloomSoftness_Label" xml:space="preserve"><value>Bloom softness</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_dehaze_Label" xml:space="preserve"><value>Dehaze</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_dehazeRadius_Label" xml:space="preserve"><value>Dehaze radius</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_dehazeProtect_Label" xml:space="preserve"><value>Dehaze color protection</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve0Enabled_Label" xml:space="preserve"><value>Lightness: enable</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve0x0_Label" xml:space="preserve"><value>Point 1 input</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve0y0_Label" xml:space="preserve"><value>Point 1 output</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve0x1_Label" xml:space="preserve"><value>Point 2 input</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve0y1_Label" xml:space="preserve"><value>Point 2 output</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve0x2_Label" xml:space="preserve"><value>Point 3 input</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve0y2_Label" xml:space="preserve"><value>Point 3 output</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve0x3_Label" xml:space="preserve"><value>Point 4 input</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve0y3_Label" xml:space="preserve"><value>Point 4 output</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve0x4_Label" xml:space="preserve"><value>Point 5 input</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve0y4_Label" xml:space="preserve"><value>Point 5 output</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve0x5_Label" xml:space="preserve"><value>Point 6 input</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve0y5_Label" xml:space="preserve"><value>Point 6 output</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve0x6_Label" xml:space="preserve"><value>Point 7 input</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve0y6_Label" xml:space="preserve"><value>Point 7 output</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve0x7_Label" xml:space="preserve"><value>Point 8 input</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve0y7_Label" xml:space="preserve"><value>Point 8 output</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve1Enabled_Label" xml:space="preserve"><value>Hue to hue: enable</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve1x0_Label" xml:space="preserve"><value>Point 1 input</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve1y0_Label" xml:space="preserve"><value>Point 1 output</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve1x1_Label" xml:space="preserve"><value>Point 2 input</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve1y1_Label" xml:space="preserve"><value>Point 2 output</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve1x2_Label" xml:space="preserve"><value>Point 3 input</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve1y2_Label" xml:space="preserve"><value>Point 3 output</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve1x3_Label" xml:space="preserve"><value>Point 4 input</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve1y3_Label" xml:space="preserve"><value>Point 4 output</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve1x4_Label" xml:space="preserve"><value>Point 5 input</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve1y4_Label" xml:space="preserve"><value>Point 5 output</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve1x5_Label" xml:space="preserve"><value>Point 6 input</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve1y5_Label" xml:space="preserve"><value>Point 6 output</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve1x6_Label" xml:space="preserve"><value>Point 7 input</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve1y6_Label" xml:space="preserve"><value>Point 7 output</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve1x7_Label" xml:space="preserve"><value>Point 8 input</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve1y7_Label" xml:space="preserve"><value>Point 8 output</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve2Enabled_Label" xml:space="preserve"><value>Hue to chroma: enable</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve2x0_Label" xml:space="preserve"><value>Point 1 input</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve2y0_Label" xml:space="preserve"><value>Point 1 output</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve2x1_Label" xml:space="preserve"><value>Point 2 input</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve2y1_Label" xml:space="preserve"><value>Point 2 output</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve2x2_Label" xml:space="preserve"><value>Point 3 input</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve2y2_Label" xml:space="preserve"><value>Point 3 output</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve2x3_Label" xml:space="preserve"><value>Point 4 input</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve2y3_Label" xml:space="preserve"><value>Point 4 output</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve2x4_Label" xml:space="preserve"><value>Point 5 input</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve2y4_Label" xml:space="preserve"><value>Point 5 output</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve2x5_Label" xml:space="preserve"><value>Point 6 input</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve2y5_Label" xml:space="preserve"><value>Point 6 output</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve2x6_Label" xml:space="preserve"><value>Point 7 input</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve2y6_Label" xml:space="preserve"><value>Point 7 output</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve2x7_Label" xml:space="preserve"><value>Point 8 input</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve2y7_Label" xml:space="preserve"><value>Point 8 output</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve3Enabled_Label" xml:space="preserve"><value>Hue to lightness: enable</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve3x0_Label" xml:space="preserve"><value>Point 1 input</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve3y0_Label" xml:space="preserve"><value>Point 1 output</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve3x1_Label" xml:space="preserve"><value>Point 2 input</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve3y1_Label" xml:space="preserve"><value>Point 2 output</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve3x2_Label" xml:space="preserve"><value>Point 3 input</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve3y2_Label" xml:space="preserve"><value>Point 3 output</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve3x3_Label" xml:space="preserve"><value>Point 4 input</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve3y3_Label" xml:space="preserve"><value>Point 4 output</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve3x4_Label" xml:space="preserve"><value>Point 5 input</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve3y4_Label" xml:space="preserve"><value>Point 5 output</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve3x5_Label" xml:space="preserve"><value>Point 6 input</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve3y5_Label" xml:space="preserve"><value>Point 6 output</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve3x6_Label" xml:space="preserve"><value>Point 7 input</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve3y6_Label" xml:space="preserve"><value>Point 7 output</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve3x7_Label" xml:space="preserve"><value>Point 8 input</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve3y7_Label" xml:space="preserve"><value>Point 8 output</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve4Enabled_Label" xml:space="preserve"><value>Lightness to chroma: enable</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve4x0_Label" xml:space="preserve"><value>Point 1 input</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve4y0_Label" xml:space="preserve"><value>Point 1 output</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve4x1_Label" xml:space="preserve"><value>Point 2 input</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve4y1_Label" xml:space="preserve"><value>Point 2 output</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve4x2_Label" xml:space="preserve"><value>Point 3 input</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve4y2_Label" xml:space="preserve"><value>Point 3 output</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve4x3_Label" xml:space="preserve"><value>Point 4 input</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve4y3_Label" xml:space="preserve"><value>Point 4 output</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve4x4_Label" xml:space="preserve"><value>Point 5 input</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve4y4_Label" xml:space="preserve"><value>Point 5 output</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve4x5_Label" xml:space="preserve"><value>Point 6 input</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve4y5_Label" xml:space="preserve"><value>Point 6 output</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve4x6_Label" xml:space="preserve"><value>Point 7 input</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve4y6_Label" xml:space="preserve"><value>Point 7 output</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve4x7_Label" xml:space="preserve"><value>Point 8 input</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve4y7_Label" xml:space="preserve"><value>Point 8 output</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve5Enabled_Label" xml:space="preserve"><value>Chroma to chroma: enable</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve5x0_Label" xml:space="preserve"><value>Point 1 input</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve5y0_Label" xml:space="preserve"><value>Point 1 output</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve5x1_Label" xml:space="preserve"><value>Point 2 input</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve5y1_Label" xml:space="preserve"><value>Point 2 output</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve5x2_Label" xml:space="preserve"><value>Point 3 input</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve5y2_Label" xml:space="preserve"><value>Point 3 output</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve5x3_Label" xml:space="preserve"><value>Point 4 input</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve5y3_Label" xml:space="preserve"><value>Point 4 output</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve5x4_Label" xml:space="preserve"><value>Point 5 input</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve5y4_Label" xml:space="preserve"><value>Point 5 output</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve5x5_Label" xml:space="preserve"><value>Point 6 input</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve5y5_Label" xml:space="preserve"><value>Point 6 output</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve5x6_Label" xml:space="preserve"><value>Point 7 input</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve5y6_Label" xml:space="preserve"><value>Point 7 output</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve5x7_Label" xml:space="preserve"><value>Point 8 input</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_curve5y7_Label" xml:space="preserve"><value>Point 8 output</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_maskMode_Label" xml:space="preserve"><value>Local mask</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_maskMode_Option_0" xml:space="preserve"><value>Off</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_maskMode_Option_1" xml:space="preserve"><value>Linear gradient</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_maskMode_Option_2" xml:space="preserve"><value>Radial gradient</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_maskX_Label" xml:space="preserve"><value>Center X</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_maskY_Label" xml:space="preserve"><value>Center Y</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_maskAngle_Label" xml:space="preserve"><value>Angle</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_maskWidth_Label" xml:space="preserve"><value>Width</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_maskHeight_Label" xml:space="preserve"><value>Height</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_maskFeather_Label" xml:space="preserve"><value>Feather</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_maskInvert_Label" xml:space="preserve"><value>Invert</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_autoExposure_Label" xml:space="preserve"><value>Auto exposure</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_autoWhite_Label" xml:space="preserve"><value>Auto white balance</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_autoLock_Label" xml:space="preserve"><value>Lock automatic adjustment</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_autoTarget_Label" xml:space="preserve"><value>Target linear luminance</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_autoLimit_Label" xml:space="preserve"><value>Exposure limit (EV)</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_autoSpeed_Label" xml:space="preserve"><value>Adaptation time (seconds)</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_sceneThreshold_Label" xml:space="preserve"><value>Scene cut threshold (EV)</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_temperatureEnabled_Label" xml:space="preserve"><value>Calibrated white balance</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_sourceKelvin_Label" xml:space="preserve"><value>Source white (K)</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_targetKelvin_Label" xml:space="preserve"><value>Target white (K)</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_whiteTint_Label" xml:space="preserve"><value>Target white tint (delta y)</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_gain0_Label" xml:space="preserve"><value>Red gain</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_matrix00_Label" xml:space="preserve"><value>Red from red</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_matrix01_Label" xml:space="preserve"><value>Red from green</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_matrix02_Label" xml:space="preserve"><value>Red from blue</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_gain1_Label" xml:space="preserve"><value>Green gain</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_matrix10_Label" xml:space="preserve"><value>Green from red</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_matrix11_Label" xml:space="preserve"><value>Green from green</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_matrix12_Label" xml:space="preserve"><value>Green from blue</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_gain2_Label" xml:space="preserve"><value>Blue gain</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_matrix20_Label" xml:space="preserve"><value>Blue from red</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_matrix21_Label" xml:space="preserve"><value>Blue from green</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_matrix22_Label" xml:space="preserve"><value>Blue from blue</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_gamutSoft_Label" xml:space="preserve"><value>Gamut compression</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_referenceWhite_Label" xml:space="preserve"><value>HDR reference white (nits)</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_peakNits_Label" xml:space="preserve"><value>HDR peak (nits)</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_outputGamut_Label" xml:space="preserve"><value>HDR output gamut</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_outputGamut_Option_0" xml:space="preserve"><value>Rec.709</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_outputGamut_Option_1" xml:space="preserve"><value>Display P3</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_outputGamut_Option_2" xml:space="preserve"><value>Rec.2020</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_dither_Label" xml:space="preserve"><value>Output dither</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_ditherBits_Label" xml:space="preserve"><value>Output quantization</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_ditherBits_Option_0" xml:space="preserve"><value>8-bit</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_ditherBits_Option_1" xml:space="preserve"><value>10-bit</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_ditherBits_Option_2" xml:space="preserve"><value>16-bit</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_view_Label" xml:space="preserve"><value>Preview</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_view_Option_0" xml:space="preserve"><value>Normal</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_view_Option_1" xml:space="preserve"><value>Lightness</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_view_Option_2" xml:space="preserve"><value>Chroma</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_view_Option_3" xml:space="preserve"><value>Difference</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_view_Option_4" xml:space="preserve"><value>Out of gamut</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_view_Option_5" xml:space="preserve"><value>Compression</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_view_Option_6" xml:space="preserve"><value>Selection A</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_view_Option_7" xml:space="preserve"><value>Selection B</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_view_Option_8" xml:space="preserve"><value>Local mask</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_view_Option_9" xml:space="preserve"><value>Clipping</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_view_Option_10" xml:space="preserve"><value>Grayscale</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_split_Label" xml:space="preserve"><value>Before / after split</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_splitPosition_Label" xml:space="preserve"><value>Split position</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_lutAmount_Label" xml:space="preserve"><value>LUT strength</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_lutDomain_Label" xml:space="preserve"><value>LUT input encoding</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_lutDomain_Option_0" xml:space="preserve"><value>sRGB</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_lutDomain_Option_1" xml:space="preserve"><value>Linear RGB</value></data>
+  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_residualChromaProtection_Label" xml:space="preserve"><value>Chroma Protection</value></data>
+  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_residualChromaProtection_Description" xml:space="preserve"><value>Reduces NR changes to hue and color intensity while keeping lightness adjustments. 0: no protection; 1: preserve original color.</value></data>
+  <data name="Message_ScalingPreparing" xml:space="preserve"><value>Preparing effects. Please wait. Press the shortcut again to cancel.</value></data>
+  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_resolutionControl_Label" xml:space="preserve"><value>Resolution Control</value></data>
+  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_resolutionControl_Option_0" xml:space="preserve"><value>Adaptive</value></data>
+  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_resolutionControl_Option_1" xml:space="preserve"><value>Manual</value></data>
+  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_resolutionControl_Description" xml:space="preserve"><value>Adaptive adjusts NR input resolution to the content frame-rate target.</value></data>
+  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_ResolutionAutomatic" xml:space="preserve"><value>Auto</value></data>
+  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_sparseUpdateInterval_Label" xml:space="preserve"><value>NR Update Interval</value></data>
+  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_sparseUpdateInterval_Option_2" xml:space="preserve"><value>Every 2 Frames</value></data>
+  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_sparseUpdateInterval_Option_3" xml:space="preserve"><value>Every 3 Frames</value></data>
+  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_sparseUpdateInterval_Option_4" xml:space="preserve"><value>Every 4 Frames</value></data>
+  <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_sparseUpdateInterval_Description" xml:space="preserve"><value>Alternating Frames updates full NR every 2, 3 or 4 new captures, defaulting to 2. Repeated refreshes, redraws and generated frames do not advance the interval. Longer intervals reduce inference work and use older corrections.</value></data>
 </root>

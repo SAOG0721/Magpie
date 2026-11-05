@@ -17,14 +17,17 @@
 #include "EffectDesc.h"
 #include "EffectParameterValue.h"
 #include "EffectParameterRules.h"
+#include "EffectParameterPopupLayout.h"
 #include "HdrParameterPolicy.h"
 #include "NvidiaVfxParameterPolicy.h"
 #include "ScalingService.h"
 #include "EffectParameterLocalization.h"
-#include "EffectParameterPopupLayout.h"
 #include "App.h"
 #include "EffectPickerModel.h"
 #include "ToastService.h"
+#include "OKLabParameters.h"
+#include "ParameterItems.h"
+#include "ErrorService.h"
 
 using namespace Magpie;
 
@@ -34,9 +37,12 @@ EffectParameterGroupViewModel::EffectParameterGroupViewModel(
 	hstring label,
 	std::vector<IInspectable>&& params
 ) : _label(std::move(label)) {
-	if (!params.empty()) {
-		_params = single_threaded_vector(std::move(params));
-	}
+	_params = single_threaded_observable_vector(std::move(params));
+	RefreshVisibility();
+}
+
+void EffectParameterGroupViewModel::UpdateParameters(const std::vector<IInspectable>& parameters) {
+	SynchronizeParameterItems(_params, parameters);
 	RefreshVisibility();
 }
 
@@ -56,12 +62,6 @@ void EffectParameterGroupViewModel::RefreshVisibility() {
 	RaisePropertyChanged(L"IsVisible");
 }
 
-void EffectParameterGroupViewModel::ColumnWidth(double value) {
-	if (std::abs(_columnWidth - value) < 0.01) return;
-	_columnWidth = value;
-	RaisePropertyChanged(L"ColumnWidth");
-}
-
 void EffectParameterGroupViewModel::ShowLeadingSeparator(bool value) {
 	if (_showLeadingSeparator == value) return;
 	_showLeadingSeparator = value;
@@ -70,7 +70,7 @@ void EffectParameterGroupViewModel::ShowLeadingSeparator(bool value) {
 
 // 限制保存频率
 // 1 秒内没有新的调用才执行保存
-static void LazySaveAppSettings() {
+void EffectParametersViewModel::_LazySaveAppSettings() {
 	// Debounce entirely on the UI dispatcher. A thread-pool delay used to read
 	// lastInvokeTime concurrently with parameter edits on the UI thread.
 	static const auto timer = [] {
@@ -108,6 +108,8 @@ EffectParametersViewModel::EffectParametersViewModel(uint32_t scalingModeIdx, ui
 	};
 	auto displayParams = _effectInfo->params;
 	EffectParameterLocalization::Localize(StrHelper::UTF16ToUTF8(_effectInfo->name), displayParams);
+	com_ptr<ScalingModeParameter> residualToggle;
+	std::array<com_ptr<ScalingModeParameter>, 3> passMaskToggles;
 	for (uint32_t i = 0, size = (uint32_t)displayParams.size(); i < size; ++i) {
 		EffectParameterDesc param = displayParams[i];
 		const auto category = params.find(L"category");
@@ -140,7 +142,8 @@ EffectParametersViewModel::EffectParametersViewModel(uint32_t scalingModeIdx, ui
 				i,
 				hstring(StrHelper::UTF8ToUTF16(
 					param.label.empty() ? param.name : param.label)),
-				static_cast<int>(std::lround(normalizedValue)),
+				isDlssnr && (IsDLSSNRPerformanceParameter(param.name) || param.name == "antiFlicker" || param.name == "modelPreset")
+					? double(paramValue.value_or(defaultValue)) : double(normalizedValue),
 				std::move(choices));
 			paramItem->PropertyChanged({
 				this, &EffectParametersViewModel::_ScalingModeParameter_PropertyChanged });
@@ -174,7 +177,17 @@ EffectParametersViewModel::EffectParametersViewModel(uint32_t scalingModeIdx, ui
 				paramItem->PropertyChanged({
 					this, &EffectParametersViewModel::_ScalingModeParameter_PropertyChanged });
 				_parameterImpls.push_back(paramItem);
-				getGroup(param.group).push_back(*paramItem);
+				const size_t pass = DLSSNRParameterPass(param.name)-1;
+				const auto baseName = DLSSNRBaseParameter(param.name);
+				if (isDlssnr && baseName == "uiCorrection" && passMaskToggles[pass]) {
+					passMaskToggles[pass]->Companion(*paramItem);
+				} else if (isDlssnr && param.name == "performanceShowAdvanced" && residualToggle) {
+					residualToggle->Companion(*paramItem);
+				} else {
+					getGroup(param.group).push_back(*paramItem);
+					if (isDlssnr && param.name == "residualShowAdvanced") residualToggle = paramItem;
+					if (isDlssnr && baseName == "useAutoMask") passMaskToggles[pass] = paramItem;
+				}
 			} else {
 				auto paramItem = make_self<ScalingModeParameter>(
 					i,
@@ -196,7 +209,7 @@ EffectParametersViewModel::EffectParametersViewModel(uint32_t scalingModeIdx, ui
 	}
 	std::vector<IInspectable> groups;
 	groups.reserve(groupBuilders.size());
-	_groupImpls.reserve(groupBuilders.size());
+	_sourceGroups.reserve(groupBuilders.size());
 	for (GroupBuilder& builder : groupBuilders) {
 		if (!isDlssnr && ClassifyFrameGenerationEffect(std::wstring_view(_effectInfo->name)) ==
 			FrameGenerationEffectKind::None) {
@@ -211,44 +224,68 @@ EffectParametersViewModel::EffectParametersViewModel(uint32_t scalingModeIdx, ui
 			hstring(StrHelper::UTF8ToUTF16(builder.name)),
 			std::move(builder.params));
 		groups.push_back(*group);
-		_groupImpls.push_back(std::move(group));
+		_sourceGroups.push_back(std::move(group));
 	}
 	if (!groups.empty()) {
 		_groups = single_threaded_vector(std::move(groups));
 	}
 	_SynchronizeParameters();
+	if (isDlssnr) {
+		_runtimeStatusChangedRevoker = ErrorService::Get().Changed(auto_revoke,
+			[this] { _RefreshRuntimeResolution(); });
+	}
+	if (IsOKLab()) { _OKRefreshSourceGroup(); _RefreshVisibleGroups(); }
 	_parameterChangedRevoker = ScalingModesService::Get().EffectParametersChanged(
 		auto_revoke, [this](uint32_t mode, uint32_t effect) {
 			if (_IsRemoved() || mode != _scalingModeIdx) return;
 			if (effect == _effectIdx) _SynchronizeParameters();
-			else { _RefreshConditionalVisibility(); _RefreshLayoutWidth(); }
+			else { _RefreshConditionalVisibility(); _RefreshVisibleGroups(); }
 		});
 }
 
 void EffectParametersViewModel::UpdateLayoutSize(double availableWidth, double availableHeight) {
-	_availableLayoutWidth = std::max(availableWidth, 0.0);
-	_contentMaxHeight = std::max(1.0, availableHeight);
+	_contentWidth = std::max(availableWidth, 1.0);
+	RaisePropertyChanged(L"ContentWidth");
+	_contentMaxHeight = GetEffectParameterContentHeight(availableHeight, IsOKLab());
 	RaisePropertyChanged(L"ContentMaxHeight");
-	_RefreshLayoutWidth();
+	_RefreshVisibleGroups();
 }
 
-void EffectParametersViewModel::_RefreshLayoutWidth() {
-	const size_t visibleGroupCount = std::max<size_t>(1, std::ranges::count_if(
-		_groupImpls, [](const auto& group) { return group->IsVisible(); }));
-	const auto layout = GetEffectParameterColumnLayout(visibleGroupCount, _availableLayoutWidth);
-
-	bool hasVisibleGroup = false;
-	for (const auto& group : _groupImpls) {
-		group->ColumnWidth(layout.columnWidth);
-		group->ShowLeadingSeparator(group->IsVisible() && hasVisibleGroup);
-		hasVisibleGroup = hasVisibleGroup || group->IsVisible();
+void EffectParametersViewModel::_RefreshVisibleGroups() {
+	// Conditional rows must not recreate surviving controls while a ComboBox is
+	// committing a selection. Keep the group and row collections observable and
+	// update only inserted/removed items, preserving the native popup/focus owner.
+	std::vector<uint32_t> signature;
+	for (const auto& group : _sourceGroups) {
+		signature.push_back(UINT32_MAX);
+		for (const auto& item : group->Params()) {
+			const auto parameter = get_self<ScalingModeParameter>(item.as<Magpie::ScalingModeParameter>());
+			if (parameter->IsVisible()) signature.push_back(parameter->Index());
+		}
 	}
-
-	const double contentWidth = layout.viewportWidth;
-	if (std::abs(_contentWidth - contentWidth) >= 0.01) {
-		_contentWidth = contentWidth;
-		RaisePropertyChanged(L"ContentWidth");
+	if (signature == _visibleParameters) return;
+	_visibleParameters = std::move(signature);
+	std::vector<IInspectable> groups;
+	const bool initialize = _groupImpls.empty();
+	_groupImpls.resize(_sourceGroups.size());
+	for (size_t index = 0; index < _sourceGroups.size(); ++index) {
+		const auto& source = _sourceGroups[index];
+		std::vector<IInspectable> visible;
+		for (const auto& item : source->Params()) {
+			if (get_self<ScalingModeParameter>(item.as<Magpie::ScalingModeParameter>())->IsVisible()) visible.push_back(item);
+		}
+		auto& group = _groupImpls[index];
+		if (!group || group->Label() != source->Label()) {
+			group = make_self<EffectParameterGroupViewModel>(source->Label(), std::move(visible));
+		} else group->UpdateParameters(visible);
+		if (group->Params().Size() == 0) continue;
+		group->ShowLeadingSeparator(!groups.empty());
+		groups.push_back(*group);
 	}
+	if (initialize) {
+		_groups = single_threaded_observable_vector(std::move(groups));
+		RaisePropertyChanged(L"Groups");
+	} else SynchronizeParameterItems(_groups, groups);
 }
 
 // 应确保被删除后依然处于合法的状态，调用任何方法都不会崩溃，见 ScalingModeItem::_IsRemoved
@@ -268,8 +305,12 @@ void EffectParametersViewModel::_ScalingModeParameter_PropertyChanged(
 		return;
 	}
 
-	ScalingModeParameter* paramImpl = get_self<ScalingModeParameter>(
-		sender.try_as<Magpie::ScalingModeParameter>());
+	const auto parameter = sender.try_as<Magpie::ScalingModeParameter>();
+	if (!parameter) return;
+	ScalingModeParameter* paramImpl = get_self<ScalingModeParameter>(parameter);
+	const auto expectedProperty = paramImpl->IsBoolean() ? L"BooleanValue" :
+		paramImpl->IsChoice() ? L"ChoiceValue" : L"Value";
+	if (args.PropertyName() != expectedProperty || !paramImpl->IsEnabled()) return;
 	if (paramImpl->Index() >= _effectInfo->params.size()) return;
 	TraceParameterFlyout("parameter.edit.begin", uintptr_t(paramImpl), paramImpl->Index(),
 		paramImpl->IsChoice() ? paramImpl->ChoiceValue() : 0);
@@ -277,6 +318,7 @@ void EffectParametersViewModel::_ScalingModeParameter_PropertyChanged(
 		TraceParameterFlyout("parameter.edit.end", uintptr_t(paramImpl));
 	});
 	const std::string& effectName = _effectInfo->params[paramImpl->Index()].name;
+	if (IsOKLab()) _okUndo = _OKSnapshot();
 	if (_effectInfo->name == L"RTXVideo\\RTXVideo_VSR" && effectName == "category") {
 		auto& item = ScalingModesService::Get().GetScalingMode(_scalingModeIdx).effects[_effectIdx];
 		ChangeNvidiaVfxVsrCategory(item, paramImpl->ChoiceValue());
@@ -287,14 +329,24 @@ void EffectParametersViewModel::_ScalingModeParameter_PropertyChanged(
 		: paramImpl->IsChoice()
 			? static_cast<float>(paramImpl->ChoiceValue())
 			: static_cast<float>(paramImpl->Value());
+		if (_effectInfo->name == L"DLSSNR\\DLSSNR_AI_Filter") {
+			auto& values = _Data();
+			if (NormalizeDLSSNRParameterEdit(effectName, [&](std::string_view name, float fallback) {
+				const auto it = values.find(StrHelper::UTF8ToUTF16(name));
+				return it == values.end() ? fallback : it->second;
+			}, [&](std::string_view name, float value) { values[StrHelper::UTF8ToUTF16(name)] = value; })) {
+				_SynchronizeParameters();
+			}
+		}
 	}
 	_RefreshConditionalVisibility();
-	_RefreshLayoutWidth();
+	_RefreshVisibleGroups();
 	ScalingService::Get().EffectParameterEdited(_scalingModeIdx, _effectIdx, effectName,
 		_Data().at(StrHelper::UTF8ToUTF16(effectName)));
 	ScalingModesService::Get().EffectParametersChanged.Invoke(_scalingModeIdx, _effectIdx);
 
-	LazySaveAppSettings();
+	_LazySaveAppSettings();
+	if (IsOKLab()) _OKNotifyVisuals();
 }
 
 void EffectParametersViewModel::_RefreshConditionalVisibility() {
@@ -316,6 +368,13 @@ void EffectParametersViewModel::_RefreshConditionalVisibility() {
 	const bool frontEdgeSyncEnabled = false;
 	const bool wasSynchronizing = std::exchange(_synchronizing, true);
 	auto reset = wil::scope_exit([this, wasSynchronizing] { _synchronizing = wasSynchronizing; });
+	const bool dlssnr = effect == "DLSSNR\\DLSSNR_AI_Filter";
+	const hstring validation = dlssnr && !IsDLSSNRPerformanceConfigurationValid(getValue)
+		? to_hstring(EffectParameterLocalization::Resource(L"EffectParam_DLSSNR_DLSSNR_AI_Filter_InvalidConfiguration")) : hstring();
+	if (_validationMessage != validation) {
+		_validationMessage = validation;
+		RaisePropertyChanged(L"ValidationMessage"); RaisePropertyChanged(L"HasValidationMessage");
+	}
 	for (const auto& parameter : _parameterImpls) {
 		const auto& name = _effectInfo->params[parameter->Index()].name;
 		if (effect == NVIDIA_VFX_VSR_ID && name == "strength") {
@@ -333,19 +392,73 @@ void EffectParametersViewModel::_RefreshConditionalVisibility() {
 			parameter->SynchronizeValue(UsesFrontEdgeSyncFrameRate(frontEdgeSyncEnabled,
 				getValue(name, 0.0f)) ? 0.0f : 1.0f);
 		}
-		const bool visible = IsEffectParameterVisible(effect, name, getValue);
+		const bool visible = IsOKLab() ? OKLab::Visible(name, _okSection, _okColor, _okSlot, _okCurve) :
+			IsEffectParameterVisible(effect, name, getValue);
 		parameter->IsVisible(visible);
 		parameter->IsEnabled(visible && IsEffectParameterEnabled(effect, name, frontEdgeSyncEnabled, getValue));
+		if (dlssnr && parameter->IsChoice()) {
+			std::vector<bool> allowed;
+			for (int value : parameter->ChoiceValues()) allowed.push_back(IsDLSSNRChoiceEnabled(name, value, getValue));
+			parameter->ChoiceAvailability(std::move(allowed), to_hstring(
+				EffectParameterLocalization::DLSSNRChoiceReason(name, getValue)));
+		}
+		if (IsOKLab() && !visible) continue;
 		auto display = _effectInfo->params[parameter->Index()];
 		std::vector<EffectParameterDesc> localized{ std::move(display) };
 		EffectParameterLocalization::Localize(effect, localized);
 		auto tooltip = EffectParameterLocalization::Tooltip(effect, localized.front(), parameter->IsEnabled());
+		if (dlssnr && parameter->IsChoice() && !parameter->IsChoiceAllowed(parameter->ChoiceIndex()))
+			tooltip = parameter->ChoiceIndex() < 0 ? EffectParameterLocalization::Resource(
+				L"EffectParam_DLSSNR_DLSSNR_AI_Filter_InvalidConfiguration") : to_string(parameter->ChoiceReason(parameter->ChoiceIndex()));
 		if (name == "mode" && hdrPlan.error == HdrComponentError::None && _effectIdx < hdrPlan.stages.size() &&
 			hdrPlan.stages[_effectIdx].pairIndex != size_t(-1))
 			tooltip += '\n' + EffectParameterLocalization::HdrPairSource(hdrPlan.stages[_effectIdx].pairIndex);
 		parameter->Tooltip(to_hstring(tooltip));
 	}
-	for (const auto& group : _groupImpls) group->RefreshVisibility();
+	for (const auto& group : _sourceGroups) {
+		group->RefreshVisibility();
+	}
+	_RefreshRuntimeResolution();
+}
+
+void EffectParametersViewModel::_RefreshRuntimeResolution() {
+	if (_IsRemoved() || _effectInfo->name != L"DLSSNR\\DLSSNR_AI_Filter") return;
+	const auto& modes = AppSettings::Get().ScalingModes();
+	if (_scalingModeIdx >= modes.size() || _effectIdx >= modes[_scalingModeIdx].effects.size()) return;
+	const auto& mode = modes[_scalingModeIdx];
+	const auto& effect = mode.effects[_effectIdx];
+	if (effect.name != _effectInfo->name) return;
+	const auto modeValue = effect.parameters.find(L"resolutionControl");
+	const bool adaptive = modeValue == effect.parameters.end() || modeValue->second == 0.f;
+	const auto stored = effect.parameters.find(L"inputResolutionPercent");
+	float displayed = stored == effect.parameters.end() ? 100.f : stored->second;
+	const auto& errors = ErrorService::Get();
+	const auto& context = errors.DlssNrContext();
+	// A status belongs to the running group and effect identity, not whichever
+	// settings page happens to be open when its notification reaches the UI.
+	if (adaptive && context.scalingModeIdentity.lock() == mode.runtimeIdentity &&
+		_effectIdx < context.effectIdentities.size() &&
+		context.effectIdentities[_effectIdx].lock() == effect.runtimeIdentity) {
+		if (const auto session = errors.DlssNrSession()) {
+			const auto snapshot = session->Read();
+			if (_effectIdx < snapshot.effects.size()) {
+				const auto& status = snapshot.effects[_effectIdx];
+				if (status.state == DlssNrState::Running && status.activeInputResolutionPercent >= 25 &&
+					status.activeInputResolutionPercent <= 100)
+					displayed = float(status.activeInputResolutionPercent);
+			}
+		}
+	}
+	const bool wasSynchronizing = std::exchange(_synchronizing, true);
+	auto reset = wil::scope_exit([this, wasSynchronizing] { _synchronizing = wasSynchronizing; });
+	for (const auto& parameter : _parameterImpls) {
+		if (_effectInfo->params[parameter->Index()].name == "inputResolutionPercent") {
+			// Only the read-only view changes. The stored manual percentage remains
+			// available when switching back to manual control.
+			parameter->SynchronizeValue(displayed);
+			break;
+		}
+	}
 }
 
 void EffectParametersViewModel::_SynchronizeParameters() {
@@ -363,11 +476,14 @@ void EffectParametersViewModel::_SynchronizeParameters() {
 			std::get<0>(descriptor.constant).defaultValue : float(std::get<1>(descriptor.constant).defaultValue);
 		if (name == L"Color\\SDR_to_HDR" && descriptor.name == "nativeWhiteNits")
 			fallback = NativeHdrWhiteValue(values, std::wstring(L"nativeWhiteNits"), std::wstring(L"whiteNits"), std::wstring(L"exposure"));
-		parameter->SynchronizeValue(NormalizeEffectParameterValue(descriptor,
-			it == values.end() ? fallback : it->second));
+		const float value = it == values.end() ? fallback : it->second;
+		const bool preserveDraft = name == L"DLSSNR\\DLSSNR_AI_Filter" &&
+			(IsDLSSNRPerformanceParameter(descriptor.name) || descriptor.name == "antiFlicker" || descriptor.name == "modelPreset");
+		parameter->SynchronizeValue(preserveDraft ? value : NormalizeEffectParameterValue(descriptor, value));
 	}
 	_RefreshConditionalVisibility();
-	_RefreshLayoutWidth();
+	_RefreshVisibleGroups();
+	if (IsOKLab()) _OKNotifyVisuals();
 }
 
 phmap::flat_hash_map<std::wstring, float>& EffectParametersViewModel::_Data() const {
@@ -380,7 +496,7 @@ hstring ScalingModeParameter::ValueText() const noexcept {
 }
 
 void ScalingModeParameter::EditableValue(hstring const& text) {
-	if (!IsPreciseInput() || text == ValueText()) return;
+	if (!IsFloat() || !_isEnabled || !IsPreciseInput() || text == ValueText()) return;
 	const auto parsed = App::DoubleFormatter().as<Windows::Globalization::NumberFormatting::INumberParser>().ParseDouble(text);
 	const double minimum = std::max(_minimum, double(_descriptor->editMinimum));
 	const float candidate = parsed ? float(parsed.Value()) : std::numeric_limits<float>::quiet_NaN();

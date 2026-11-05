@@ -3,9 +3,7 @@
 
 🌍 [English](./README.md) | **简体中文**
 
-**当前版本：[Magpie Experimental v0.6.10](https://github.com/SAOG0721/Magpie/releases/tag/v0.6.10-experimental)** · [完整更新说明](docs/RELEASE_NOTES_v0.6.10-experimental.md)
-
-**0.6.11 待审核草稿：** [完整更新说明](docs/RELEASE_NOTES_v0.6.11-experimental.md)。源码已包含 0.6.11 候选版；审核完成前，上方公开下载入口保留 0.6.10。
+**当前版本：[Magpie Experimental v0.6.11](https://github.com/SAOG0721/Magpie/releases/tag/v0.6.11-experimental)** · Pre-release · [完整更新说明](docs/RELEASE_NOTES_v0.6.11-experimental.md)
 
 Magpie Experimental 是面向 Windows 的窗口画面处理工具，也是 [Blinue/Magpie](https://github.com/Blinue/Magpie) 的非官方实验分支。它在 Magpie 的窗口缩放与效果系统基础上，探索 DLSS、XeSS、FSR、RTX Video 等技术在游戏、视频和其他窗口内容中的应用。
 
@@ -63,6 +61,8 @@ Front Edge Sync 用于控制 Magpie 的帧提交节奏，启用 FG 时控制补�
 通用使用问题也可参考 [Magpie 上游 FAQ](https://github.com/Blinue/Magpie/wiki/FAQ)；本分支特有的实验效果和兼容性问题请在本仓库讨论。
 
 ## 开发与文档
+
+下一轮从[开发基线](docs/experimental/DEVELOPMENT-BASELINE.md)开始，实际选入的内容写入[下一版计划](docs/RELEASE_NOTES_NEXT.md)。版本号与功能范围尚未确定。
 
 项目包含 Magpie 应用、MagpieFX 效果及实验性原生效果后端。源码构建默认关闭可选专有后端，相关 SDK 和运行组件需要另行准备；本机路径通过不入库的 `src/BuildOptions.props.user` 配置。
 

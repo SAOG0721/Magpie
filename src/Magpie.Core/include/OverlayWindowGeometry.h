@@ -12,6 +12,7 @@ struct OverlayWindowOption {
 	float vPos = 0.0f;
 	float width = 0.0f;
 	float height = 0.0f;
+	float zoom = 1.0f;
 };
 
 inline void SanitizeOverlayWindowOption(OverlayWindowOption& option) noexcept {
@@ -24,6 +25,7 @@ inline void SanitizeOverlayWindowOption(OverlayWindowOption& option) noexcept {
 	sanitizeAxis(option.vArea, option.vPos);
 	if (!std::isfinite(option.width) || option.width < 0.0f) option.width = 0.0f;
 	if (!std::isfinite(option.height) || option.height < 0.0f) option.height = 0.0f;
+	option.zoom = std::isfinite(option.zoom) ? std::clamp(option.zoom, .5f, 2.f) : 1.f;
 }
 
 struct OverlayWindowRect {

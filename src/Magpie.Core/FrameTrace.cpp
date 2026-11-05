@@ -24,7 +24,13 @@ constexpr std::array<const char*, EVENT_COUNT> NAMES{
     "RenderDecision", "CaptureAccepted", "FrontendMessage", "WgcNotificationWait",
     "WgcDequeue", "CaptureWake", "OverlayDeferred", "InputBackpressure", "GenerationFence",
     "FgQueued", "FgDequeued", "CaptureClassification", "RenderReason", "EffectReuse", "EffectExecute",
-    "HdrCapture", "CursorPublish"
+    "HdrCapture", "CursorPublish", "OutputUpdate", "EnhancementReady",
+    "WgcNotification", "WgcNotificationOverflow", "CaptureDeadline", "CaptureTimerWait", "CaptureSourceWait",
+    "FrameSyncAck", "NativeAsyncService", "OverlayContentionWait", "FrontendWait",
+    "FrontendSceneCopy", "FrontendOverlaySnapshot", "FrontendOverlayDraw", "FrontendCursorDraw", "CaptureStart",
+    "CursorRepositionRequest", "CursorRepositionWait", "CursorRepositionComplete", "CursorRepositionCancel",
+    "CursorShapeRequest", "CursorShapeComplete", "CursorShapeCancel", "ReflexSleep",
+    "NativeNrStageBegin", "NativeNrStageEnd"
 };
 struct Entry {
     int64_t start, duration;
@@ -48,6 +54,7 @@ struct Lane {
 };
 struct Session {
     Lane frontend, backend;
+    bool nativeNrStages = false;
     int64_t origin = 0, frequency = 0;
     uint64_t utcFileTime = 0;
     SYSTEMTIME localTime{};
@@ -58,6 +65,11 @@ std::unique_ptr<Session> session;
 thread_local Lane* lane = nullptr;
 int64_t slowTicks = 0;
 uint32_t serial = 0;
+
+bool NativeNrStagesRequested() noexcept {
+    wchar_t option[2]{};
+    return GetEnvironmentVariableW(L"MAGPIE_NATIVE_NR_STAGES", option, 2) == 1 && option[0] == L'1';
+}
 
 double Microseconds(int64_t ticks) noexcept {
     return double(ticks) * 1'000'000.0 / double(session->frequency);
@@ -94,6 +106,7 @@ bool Start() noexcept {
         option[0] == L'0') return false;
     try {
         session = std::make_unique<Session>();
+        session->nativeNrStages = NativeNrStagesRequested();
         LARGE_INTEGER frequency{};
         if (!QueryPerformanceFrequency(&frequency) || frequency.QuadPart <= 0) {
             session.reset();
@@ -128,6 +141,7 @@ void BindBackend() noexcept {
 }
 
 bool Enabled() noexcept { return lane != nullptr; }
+bool NativeNrStagesEnabled() noexcept { return Enabled() && session->nativeNrStages; }
 int64_t Tick() noexcept {
     if (!lane) return 0;
     LARGE_INTEGER value{};

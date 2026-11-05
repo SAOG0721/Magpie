@@ -44,7 +44,8 @@ uint64_t ImGuiImpl::PendingInputBuffer::Push(
 		events.back().type == PendingInputEventType::Move) {
 		events.back() = event;
 	} else if (!events.empty() && event.type == PendingInputEventType::Wheel &&
-		events.back().type == PendingInputEventType::Wheel) {
+		events.back().type == PendingInputEventType::Wheel &&
+		events.back().controlDown == event.controlDown && events.back().shiftDown == event.shiftDown) {
 		events.back().position = event.position;
 		events.back().wheelX += event.wheelX;
 		events.back().wheelY += event.wheelY;
@@ -153,6 +154,19 @@ void ImGuiImpl::ParameterEditing(bool value) noexcept {
 		_presentedWindowRects.emplace_back("effectParameters", *_presentedParameterRect);
 }
 
+// Keep image-relative coordinates for toolbar placement and input, while using
+// the complete output surface (including letterboxing) for clipping and drawing.
+static void SetOverlayViewport(const RECT& rendererRect, const RECT& destRect) noexcept {
+	ImGuiViewport* viewport = ImGui::GetMainViewport();
+	viewport->Pos = {float(rendererRect.left - destRect.left), float(rendererRect.top - destRect.top)};
+	viewport->Size = {float(rendererRect.right - rendererRect.left), float(rendererRect.bottom - rendererRect.top)};
+	viewport->WorkPos = viewport->Pos;
+	viewport->WorkSize = viewport->Size;
+	ImGui::GetCurrentContext()->DrawListSharedData.ClipRectFullscreen = {
+		viewport->Pos.x, viewport->Pos.y,
+		viewport->Pos.x + viewport->Size.x, viewport->Pos.y + viewport->Size.y};
+}
+
 void ImGuiImpl::NewFrame(
 	phmap::flat_hash_map<std::string, OverlayWindowOption>& windowOptions,
 	float fittsLawAdjustment,
@@ -182,6 +196,13 @@ void ImGuiImpl::NewFrame(
 	if (mousePos != _lastQueuedMousePos) {
 		_QueueMove(mousePos, _ownedMouseButtons != 0);
 	}
+	// The default mouse-only panel never takes keyboard focus from the source.
+	// Sample modifiers without intercepting keys, including their release after
+	// a wheel gesture. Queued wheel events below retain their own event-time state.
+	if (!_parameterFocusSwitchingEnabled && _pendingInput.events.empty()) {
+		io.AddKeyEvent(ImGuiMod_Ctrl, (GetAsyncKeyState(VK_CONTROL) & 0x8000) != 0);
+		io.AddKeyEvent(ImGuiMod_Shift, (GetAsyncKeyState(VK_SHIFT) & 0x8000) != 0);
+	}
 	_FlushPendingInput();
 
 	// 不接受键盘输入
@@ -191,6 +212,7 @@ void ImGuiImpl::NewFrame(
 	}
 
 	ImGui::NewFrame();
+	SetOverlayViewport(ScalingWindow::Get().RendererRect(), ScalingWindow::Get().Renderer().DestRect());
 	if (_frameContainsCancel) {
 		// Cancel is a lifecycle transition, not a synthetic click release.
 		ImGui::ClearActiveID();
@@ -335,13 +357,8 @@ void ImGuiImpl::Draw(POINT drawOffset, float hdrWhiteScale) noexcept {
 		return;
 	}
 
-	const RECT& rendererRect = ScalingWindow::Get().RendererRect();
-	const RECT& destRect = ScalingWindow::Get().Renderer().DestRect();
-	const POINT viewportOffset = {
-		destRect.left - rendererRect.left + drawOffset.x,
-		destRect.top - rendererRect.top + drawOffset.y
-	};
-	_backend.RenderDrawData(*drawData, viewportOffset, hdrWhiteScale);
+	// DisplayPos already contains the image-to-surface translation.
+	_backend.RenderDrawData(*drawData, drawOffset, hdrWhiteScale);
 }
 
 void ImGuiImpl::Tooltip(
@@ -350,40 +367,46 @@ void ImGuiImpl::Tooltip(
 	const char* description,
 	float maxWidth
 ) noexcept {
-	const SIZE outputSize = Win32Helper::GetSizeOfRect(ScalingWindow::Get().Renderer().DestRect());
-	const float availableWidth = std::max(1.0f, float(outputSize.cx));
+	const ImGuiViewport* viewport = ImGui::GetMainViewport();
+	const float availableWidth = std::max(1.0f, viewport->WorkSize.x);
 	maxWidth = maxWidth > 0 ? std::min(maxWidth, availableWidth) : std::min(360.0f * dpiScale, availableWidth);
+	const ImGuiWindow* caller = ImGui::GetCurrentWindow();
+	const float fontScale = caller->FontWindowScale * caller->FontWindowScaleParents;
 
 	static constexpr float DESCRIPTION_SCALE = 0.9f;
 
 	ImVec2 padding = ImGui::GetStyle().WindowPadding;
-	ImVec2 contentSize = ImGui::CalcTextSize(content, nullptr, false, maxWidth - 2 * padding.x);
+	const float wrapWidth = std::max(1.f, maxWidth - 2 * padding.x);
+	ImVec2 contentSize = ImGui::CalcTextSize(content, nullptr, false, wrapWidth);
 	ImVec2 descriptionSize{};
 	if (description) {
 		float oldFontScale = ImGui::GetIO().FontGlobalScale;
 		ImGui::GetIO().FontGlobalScale *= DESCRIPTION_SCALE;
 		ImGui::PushFont(ImGui::GetFont());
-		descriptionSize = ImGui::CalcTextSize(description, nullptr, false, maxWidth - 2 * padding.x);
+		descriptionSize = ImGui::CalcTextSize(description, nullptr, false, wrapWidth);
 		ImGui::GetIO().FontGlobalScale = oldFontScale;
 		ImGui::PopFont();
 	}
 	// 稍微增加高度，否则下边框比上边框稍窄
 	ImVec2 windowSize(
 		std::max(contentSize.x, descriptionSize.x) + 2 * padding.x,
-		contentSize.y + descriptionSize.y + 2 * padding.y + 1.5f * dpiScale
+		contentSize.y + descriptionSize.y + (description ? ImGui::GetStyle().ItemSpacing.y : 0.f) +
+			2 * padding.y + 1.5f * dpiScale
 	);
 	ImGui::SetNextWindowSize(windowSize);
 
 	ImVec2 windowPos = ImGui::GetMousePos();
-	windowPos.x += 16.0f * dpiScale * ImGui::GetStyle().MouseCursorScale;
-	windowPos.y += 8.0f * dpiScale * ImGui::GetStyle().MouseCursorScale;
+	windowPos.x += 16.0f * dpiScale;
+	windowPos.y += 8.0f * dpiScale;
 
-	windowPos.x = std::clamp(windowPos.x, 0.0f, std::max(0.0f, outputSize.cx - windowSize.x));
+	windowPos.x = std::clamp(windowPos.x, viewport->WorkPos.x,
+		viewport->WorkPos.x + std::max(0.0f, viewport->WorkSize.x - windowSize.x));
 	if (_fittsLawAdjustment < 0.0f) {
 		// A bottom-docked toolbar opens its hints toward the viewport interior.
 		windowPos.y = ImGui::GetMousePos().y - windowSize.y - 8.0f * dpiScale;
 	}
-	windowPos.y = std::clamp(windowPos.y, 0.0f, std::max(0.0f, outputSize.cy - windowSize.y));
+	windowPos.y = std::clamp(windowPos.y, viewport->WorkPos.y,
+		viewport->WorkPos.y + std::max(0.0f, viewport->WorkSize.y - windowSize.y));
 
 	ImGui::SetNextWindowPos(windowPos);
 
@@ -395,6 +418,9 @@ void ImGuiImpl::Tooltip(
 		ImGuiWindowFlags_NoSavedSettings |
 		ImGuiWindowFlags_AlwaysAutoResize |
 		ImGuiWindowFlags_NoFocusOnAppearing);
+	// This is an independent window: explicitly use the caller's font scale
+	// so its measured size and its rendered text agree after panel zoom.
+	ImGui::SetWindowFontScale(fontScale);
 
 	ImGui::PushTextWrapPos(maxWidth - padding.x);
 	ImGui::TextUnformatted(content);
@@ -480,6 +506,15 @@ void ImGuiImpl::_FlushPendingInput() noexcept {
 		switch (event.type) {
 		case PendingInputEventType::Move:
 			feedMousePosition(event.position);
+			// A fast title drag can arrive entirely between two renders. ImGui
+			// moves windows only while the button is down: present the final move
+			// before delivering its queued release, otherwise the drag is lost.
+			if (ImGui::GetCurrentContext()->MovingWindow && io.MouseDown[ImGuiMouseButton_Left] &&
+				!_pendingInput.events.empty()) {
+				const auto& next = _pendingInput.events.front();
+				deliveredEdge = next.type == PendingInputEventType::Button &&
+					next.button == ImGuiMouseButton_Left && !next.down;
+			}
 			break;
 		case PendingInputEventType::Button:
 			feedMousePosition(event.position);
@@ -496,6 +531,8 @@ void ImGuiImpl::_FlushPendingInput() noexcept {
 			break;
 		case PendingInputEventType::Wheel:
 			feedMousePosition(event.position);
+			io.AddKeyEvent(ImGuiMod_Ctrl, event.controlDown);
+			io.AddKeyEvent(ImGuiMod_Shift, event.shiftDown);
 			io.AddMouseWheelEvent(event.wheelX, event.wheelY);
 			deliveredEdge = true;
 			break;
@@ -854,7 +891,9 @@ ImGuiInputResult ImGuiImpl::MessageHandler(
 			_pendingInput.Push(PendingInputEvent{
 				.type = PendingInputEventType::Wheel,
 				.position = mousePos,
-				.wheelY = static_cast<float>(GET_WHEEL_DELTA_WPARAM(wParam)) / WHEEL_DELTA
+				.wheelY = static_cast<float>(GET_WHEEL_DELTA_WPARAM(wParam)) / WHEEL_DELTA,
+				.controlDown = (GET_KEYSTATE_WPARAM(wParam) & MK_CONTROL) != 0,
+				.shiftDown = (GET_KEYSTATE_WPARAM(wParam) & MK_SHIFT) != 0
 			}, true, true);
 			return ImGuiInputResult::Urgent;
 		}
@@ -869,7 +908,9 @@ ImGuiInputResult ImGuiImpl::MessageHandler(
 			_pendingInput.Push(PendingInputEvent{
 				.type = PendingInputEventType::Wheel,
 				.position = mousePos,
-				.wheelX = static_cast<float>(GET_WHEEL_DELTA_WPARAM(wParam)) / WHEEL_DELTA
+				.wheelX = static_cast<float>(GET_WHEEL_DELTA_WPARAM(wParam)) / WHEEL_DELTA,
+				.controlDown = (GET_KEYSTATE_WPARAM(wParam) & MK_CONTROL) != 0,
+				.shiftDown = (GET_KEYSTATE_WPARAM(wParam) & MK_SHIFT) != 0
 			}, true, true);
 			return ImGuiInputResult::Urgent;
 		}

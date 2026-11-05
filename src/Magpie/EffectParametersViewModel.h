@@ -8,6 +8,8 @@
 #include "EffectParameterValue.h"
 #include "ParameterFlyoutTrace.h"
 #include <optional>
+#include <cmath>
+#include <limits>
 
 namespace Magpie {
 struct EffectInfo;
@@ -35,13 +37,13 @@ struct ScalingModeParameter : ScalingModeParameterT<ScalingModeParameter>,
 	ScalingModeParameter(
 		uint32_t index,
 		hstring label,
-		int initValue,
+		double initValue,
 		std::vector<std::pair<int, hstring>> choices
 	) : _index(index), _label(std::move(label)), _isChoice(true),
 		_value(initValue) {
 		_RebuildChoices(choices);
-		assert(ChoiceIndex() >= 0 &&
-			static_cast<uint32_t>(ChoiceIndex()) < _choices.Size());
+		// Unsupported imported values remain an unselected draft until the user
+		// explicitly chooses an option. Never reinterpret a removed enum as 0.
 	}
 
 	void _RebuildChoices(
@@ -79,6 +81,10 @@ struct ScalingModeParameter : ScalingModeParameterT<ScalingModeParameter>,
 	bool IsBoolean() const noexcept {
 		return _isBoolean;
 	}
+	bool IsCheckBox() const noexcept { return _isBoolean && !isDisclosure; }
+	bool IsDisclosure() const noexcept { return isDisclosure; }
+	hstring DisclosureGlyph() const { return BooleanValue() ? L"\uE70D" : L"\uE76C"; }
+	bool isDisclosure = false;
 
 	bool IsChoice() const noexcept {
 		return _isChoice;
@@ -103,8 +109,12 @@ struct ScalingModeParameter : ScalingModeParameterT<ScalingModeParameter>,
 	}
 
 	void BooleanValue(bool value) {
-		_value = value ? 1.0 : 0.0;
+		// A row's non-applicable binding must never coerce another parameter type.
+		const double next = value ? 1.0 : 0.0;
+		if (!_isBoolean || !_isEnabled || _value == next) return;
+		_value = next;
 		RaisePropertyChanged(L"BooleanValue");
+		if (isDisclosure) RaisePropertyChanged(L"DisclosureGlyph");
 	}
 
 	bool IsEnabled() const noexcept { return _isEnabled; }
@@ -115,12 +125,20 @@ struct ScalingModeParameter : ScalingModeParameterT<ScalingModeParameter>,
 	}
 
 	int32_t ChoiceValue() const noexcept {
-		return static_cast<int32_t>(std::lround(_value));
+		return std::isfinite(_value) && _value >= std::numeric_limits<int32_t>::min() &&
+			_value <= std::numeric_limits<int32_t>::max() ? static_cast<int32_t>(_value) :
+			std::numeric_limits<int32_t>::min();
 	}
 
 	void ChoiceValue(int32_t value) {
+		if (!_isChoice || !_isEnabled) return;
+		const auto choice = std::find(_choiceValues.begin(), _choiceValues.end(), value);
+		if (choice != _choiceValues.end() && !IsChoiceAllowed(int32_t(choice - _choiceValues.begin()))) {
+			RaisePropertyChanged(L"ChoiceIndex");
+			return;
+		}
 		if (!_isEnabled || std::find(_choiceValues.begin(), _choiceValues.end(), value) ==
-			_choiceValues.end() || ChoiceValue() == value) {
+			_choiceValues.end() || _value == value) {
 			return;
 		}
 		_value = value;
@@ -129,6 +147,8 @@ struct ScalingModeParameter : ScalingModeParameterT<ScalingModeParameter>,
 	}
 
 	int32_t ChoiceIndex() const noexcept {
+		if (!std::isfinite(_value) || _value != std::floor(_value) ||
+			_value < std::numeric_limits<int32_t>::min() || _value > std::numeric_limits<int32_t>::max()) return -1;
 		const auto it = std::find(
 			_choiceValues.begin(), _choiceValues.end(), ChoiceValue());
 		return it == _choiceValues.end() ? -1 :
@@ -136,7 +156,7 @@ struct ScalingModeParameter : ScalingModeParameterT<ScalingModeParameter>,
 	}
 
 	void ChoiceIndex(int32_t index) {
-		if (index < 0 || static_cast<size_t>(index) >= _choiceValues.size()) {
+		if (!_isChoice || !_isEnabled || index < 0 || static_cast<size_t>(index) >= _choiceValues.size()) {
 			return;
 		}
 		ChoiceValue(_choiceValues[index]);
@@ -145,12 +165,25 @@ struct ScalingModeParameter : ScalingModeParameterT<ScalingModeParameter>,
 	IObservableVector<hstring> Choices() const noexcept {
 		return _choices;
 	}
+	void ChoiceAvailability(std::vector<bool> allowed, hstring reason) {
+		_choiceAllowed = std::move(allowed); _choiceReason = std::move(reason);
+	}
+	bool IsChoiceAllowed(int32_t index) const noexcept {
+		return index >= 0 && size_t(index) < _choiceValues.size() &&
+			(_choiceAllowed.empty() || _choiceAllowed[size_t(index)]);
+	}
+	hstring ChoiceReason(int32_t index) const { return IsChoiceAllowed(index) ? hstring() : _choiceReason; }
+	const std::vector<int>& ChoiceValues() const noexcept { return _choiceValues; }
+	Magpie::ScalingModeParameter Companion() const noexcept { return _companion; }
+	void Companion(Magpie::ScalingModeParameter value) { _companion = std::move(value); }
+	bool HasCompanion() const noexcept { return bool(_companion); }
 
 	double Value() const noexcept {
 		return _value;
 	}
 
 	void Value(double value) {
+		if (!IsFloat() || !_isEnabled) return;
 		if (_descriptor && _descriptor->inputStep > 0)
 			value = ::Magpie::NormalizeEffectParameterInput(*_descriptor, float(value));
 		if (!_isEnabled || _value == value) return;
@@ -179,6 +212,7 @@ struct ScalingModeParameter : ScalingModeParameterT<ScalingModeParameter>,
 		return tick;
 	}
 	void SliderValue(double value) {
+		if (!IsFloat() || !_isEnabled || !std::isfinite(value)) return;
 		if (!IsPreciseInput()) { Value(value); return; }
 		// Binding initialization must not quantize an existing non-grid value.
 		if (value == SliderValue()) return;
@@ -196,7 +230,10 @@ struct ScalingModeParameter : ScalingModeParameterT<ScalingModeParameter>,
 	void SynchronizeValue(float value) {
 		if (_value == value) return;
 		_value = value;
-		if (_isBoolean) RaisePropertyChanged(L"BooleanValue");
+		if (_isBoolean) {
+			RaisePropertyChanged(L"BooleanValue");
+			if (isDisclosure) RaisePropertyChanged(L"DisclosureGlyph");
+		}
 		else if (_isChoice) {
 			RaisePropertyChanged(L"ChoiceValue");
 			RaisePropertyChanged(L"ChoiceIndex");
@@ -269,6 +306,9 @@ private:
 	double _value;
 	IObservableVector<hstring> _choices{ nullptr };
 	std::vector<int> _choiceValues;
+	std::vector<bool> _choiceAllowed;
+	hstring _choiceReason;
+	Magpie::ScalingModeParameter _companion{ nullptr };
 	std::optional<::Magpie::EffectParameterDesc> _descriptor;
 	hstring _inputError;
 };
@@ -284,24 +324,67 @@ struct EffectParameterGroupViewModel :
 	hstring Label() const noexcept { return _label; }
 	bool HasLabel() const noexcept { return !_label.empty(); }
 	bool IsVisible() const noexcept { return _isVisible; }
-	double ColumnWidth() const noexcept { return _columnWidth; }
 	bool ShowLeadingSeparator() const noexcept { return _showLeadingSeparator; }
 	IVector<IInspectable> Params() const noexcept { return _params; }
 	void RefreshVisibility();
-	void ColumnWidth(double value);
 	void ShowLeadingSeparator(bool value);
+	void UpdateParameters(const std::vector<IInspectable>& parameters);
 
 private:
 	hstring _label;
 	IVector<IInspectable> _params{ nullptr };
 	bool _isVisible = true;
 	bool _showLeadingSeparator = false;
-	double _columnWidth = 260.0;
 };
 
 struct EffectParametersViewModel : EffectParametersViewModelT<EffectParametersViewModel>,
 		wil::notify_property_changed_base<EffectParametersViewModel> {
 	EffectParametersViewModel(uint32_t scalingModeIdx, uint32_t effectIdx);
+	bool IsOKLab() const noexcept;
+	int32_t OKSection() const noexcept { return _okSection; }
+	int32_t OKColor() const noexcept { return _okColor; }
+	int32_t OKSlot() const noexcept { return _okSlot; }
+	int32_t OKCurve() const noexcept { return _okCurve; }
+	int32_t OKPreset() const noexcept { return _okPreset; }
+	void OKSection(int32_t value);
+	void OKColor(int32_t value);
+	void OKSlot(int32_t value);
+	void OKCurve(int32_t value);
+	void OKPreset(int32_t value) noexcept { if(value>=0)_okPreset=std::clamp(value,0,5); }
+	int32_t OKWheel() const noexcept { return _okWheel; }
+	void OKWheel(int32_t value);
+	bool OKWheelVisible() const noexcept { return IsOKLab() && _okSection==4; }
+	IVector<hstring> OKWheels() const;
+	Media::ImageSource OKWheelImage();
+	double OKWheelX() const;
+	double OKWheelY() const;
+	void OKWheelPressed(IInspectable const&, Input::PointerRoutedEventArgs const&);
+	void OKWheelMoved(IInspectable const&, Input::PointerRoutedEventArgs const&);
+	void OKWheelReleased(IInspectable const&, Input::PointerRoutedEventArgs const&);
+	bool OKMixerVisible() const noexcept { return IsOKLab() && _okSection==3; }
+	bool OKSelectionVisible() const noexcept { return IsOKLab() && _okSection==5; }
+	bool OKCurveVisible() const noexcept { return IsOKLab() && _okSection==8; }
+	bool OKLutVisible() const noexcept { return IsOKLab() && _okSection==13; }
+	IVector<hstring> OKSections() const;
+	IVector<hstring> OKColors() const;
+	IVector<hstring> OKSlots() const;
+	IVector<hstring> OKCurves() const;
+	IVector<hstring> OKPresets() const;
+	hstring OKStatus() const noexcept { return _okStatus; }
+	Media::PointCollection OKCurvePoints() const;
+	Media::Geometry OKCurveGeometry() const;
+	void OKApplyPreset();
+	void OKResetGroup();
+	void OKResetAll();
+	void OKStoreA();
+	void OKSwapAB();
+	void OKUndo();
+	winrt::fire_and_forget OKImportLut();
+	winrt::fire_and_forget OKExportLut();
+	void OKClearLut();
+	void OKCurvePressed(IInspectable const&, Input::PointerRoutedEventArgs const&);
+	void OKCurveMoved(IInspectable const&, Input::PointerRoutedEventArgs const&);
+	void OKCurveReleased(IInspectable const&, Input::PointerRoutedEventArgs const&);
 
 	uint32_t ScalingModeIdx() const noexcept {
 		return _scalingModeIdx;
@@ -324,6 +407,11 @@ struct EffectParametersViewModel : EffectParametersViewModelT<EffectParametersVi
 	}
 	double ContentWidth() const noexcept { return _contentWidth; }
 	double ContentMaxHeight() const noexcept { return _contentMaxHeight; }
+	bool HasOKContextTools() const noexcept {
+		return OKMixerVisible() || OKSelectionVisible() || OKWheelVisible() || OKCurveVisible() || OKLutVisible();
+	}
+	hstring ValidationMessage() const noexcept { return _validationMessage; }
+	bool HasValidationMessage() const noexcept { return !_validationMessage.empty(); }
 
 	void UpdateLayoutSize(double availableWidth, double availableHeight);
 
@@ -336,23 +424,39 @@ private:
 	);
 
 	phmap::flat_hash_map<std::wstring, float>& _Data() const;
-	void _RefreshLayoutWidth();
+	void _RefreshVisibleGroups();
 	void _RefreshConditionalVisibility();
 
 	IVector<IInspectable> _groups{ nullptr };
 	std::vector<com_ptr<EffectParameterGroupViewModel>> _groupImpls;
+	std::vector<com_ptr<EffectParameterGroupViewModel>> _sourceGroups;
+	std::vector<uint32_t> _visibleParameters;
 	std::vector<com_ptr<ScalingModeParameter>> _parameterImpls;
 	::Magpie::Event<uint32_t, uint32_t>::EventRevoker _parameterChangedRevoker;
+	::Magpie::Event<>::EventRevoker _runtimeStatusChangedRevoker;
 	bool _synchronizing = false;
+	hstring _validationMessage;
 	void _SynchronizeParameters();
+	void _RefreshRuntimeResolution();
 
-	double _availableLayoutWidth = std::numeric_limits<double>::infinity();
 	double _contentWidth = 260.0;
 	double _contentMaxHeight = 600.0;
 
 	uint32_t _scalingModeIdx;
 	uint32_t _effectIdx;
 	const ::Magpie::EffectInfo* _effectInfo = nullptr;
+	int32_t _okSection=0,_okColor=0,_okSlot=0,_okCurve=0,_okPreset=0,_okDragPoint=-1;
+	int32_t _okWheel=0;
+	bool _okWheelDragging=false;
+	Media::ImageSource _okWheelImage{nullptr};
+	void _OKNotifyVisuals();
+	hstring _okStatus;
+	std::vector<float> _okA, _okUndo;
+	std::vector<float> _OKSnapshot() const;
+	void _OKApply(const std::vector<float>& values, bool remember=true);
+	void _OKRefreshEditor();
+	void _OKRefreshSourceGroup();
+	static void _LazySaveAppSettings();
 };
 
 }

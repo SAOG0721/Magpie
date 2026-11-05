@@ -6,9 +6,10 @@ namespace Magpie {
 
 // Return to the caller on messages; do not dispatch them inside a render
 // operation or keep a shared-resource mutex locked across this wait.
-inline void WaitForFramePacing(std::chrono::nanoseconds remaining,
+// Return the OS wait result, or WAIT_TIMEOUT without waiting if already due.
+inline DWORD WaitForFramePacing(std::chrono::nanoseconds remaining,
 	wil::unique_handle& timer, HANDLE event = nullptr) noexcept {
-	if (remaining.count() <= 0) return;
+	if (remaining.count() <= 0) return WAIT_TIMEOUT;
 	if (!timer) {
 		timer.reset(CreateWaitableTimerExW(nullptr, nullptr,
 			CREATE_WAITABLE_TIMER_HIGH_RESOLUTION, TIMER_MODIFY_STATE | SYNCHRONIZE));
@@ -18,12 +19,12 @@ inline void WaitForFramePacing(std::chrono::nanoseconds remaining,
 	LARGE_INTEGER due{ .QuadPart = -std::max<int64_t>(1, (remaining.count() + 99) / 100) };
 	if (timer && SetWaitableTimerEx(timer.get(), &due, 0, nullptr, nullptr, nullptr, 0)) {
 		HANDLE handles[]{timer.get(), event};
-		MsgWaitForMultipleObjectsEx(event ? 2 : 1, handles, INFINITE,
+		return MsgWaitForMultipleObjectsEx(event ? 2 : 1, handles, INFINITE,
 			QS_ALLINPUT, MWMO_INPUTAVAILABLE);
 	} else {
 		const DWORD timeout = static_cast<DWORD>(std::min<int64_t>(
 			(remaining.count() + 999'999) / 1'000'000, 50));
-		MsgWaitForMultipleObjectsEx(event ? 1 : 0, event ? &event : nullptr,
+		return MsgWaitForMultipleObjectsEx(event ? 1 : 0, event ? &event : nullptr,
 			timeout, QS_ALLINPUT, MWMO_INPUTAVAILABLE);
 	}
 }

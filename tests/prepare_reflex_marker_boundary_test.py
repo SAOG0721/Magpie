@@ -48,8 +48,10 @@ admission = render[render.index("\tconst auto beginFrameStart"):render.index("\t
 end = block(presenter, "bool AdaptivePresenter::EndFrame(")
 present = end[end.index("\t\tconst auto tracePresent"):end.index("\t\tFrameTrace::Presentation(")]
 fixture = (repo / "tests/ReflexMarkerBoundaryTests.cpp").read_text(encoding="utf-8-sig")
+motion = block((repo / "src/Magpie.Core/FrontendMotionTexture.h").read_text(encoding="utf-8-sig"),
+               "inline HRESULT EnsureFrontendMotionTexture(").replace("ID3D11Device*", "Device*")
 for name, value in {"GATE": gate, "METHODS": methods, "UPDATE": update,
-                    "ADMISSION": admission, "PRESENT": present}.items():
+                    "ADMISSION": admission, "PRESENT": present, "MOTION_TEXTURE": motion}.items():
     fixture = fixture.replace("/* " + name + " */", value)
 (out / "reflex-marker-boundaries.cpp").write_text(fixture, encoding="utf-8")
 

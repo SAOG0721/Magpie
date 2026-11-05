@@ -11,6 +11,10 @@ normalizer = source[source.index('struct V065NormalizationStats'):source.index('
 importer = source[source.index('bool ScalingModesService::Import('):source.rfind('\n}')]
 helper = (repo / 'src/Magpie/JsonHelper.cpp').read_text(encoding='utf-8-sig')
 helper = helper[helper.index('bool JsonHelper::ReadBool('):helper.rfind('\n}')]
+settings = (repo / 'src/Magpie/AppSettings.cpp').read_text(encoding='utf-8-sig')
+rules_start = settings.index('const ConfigRecovery::ParameterRules rules = []')
+rules_end = settings.index('\n\t\t};', rules_start) + len('\n\t\t};')
+recovery_rules = '\nConfigRecovery::ParameterRules ProductionRecoveryRules() {\n' + settings[rules_start:rules_end] + '\nreturn rules;\n}\n'
 prefix = r'''
 #include <windows.h>
 #include <rapidjson/prettywriter.h>
@@ -20,6 +24,9 @@ prefix = r'''
 #include "OpticalFlowDefaults.h"
 #include "ScalingModeNames.h"
 #include "DLSSNRDetailParameters.h"
+#include "FrameGenerationParameters.h"
+#include "OKLabConfig.h"
+#include "OKLabParameters.h"
 #include "RTXVideoParameters.h"
 #include "XeSSFGParameters.h"
 #include "DlssOpticalFlowParameters.h"
@@ -31,6 +38,8 @@ prefix = r'''
 #include <sstream>
 #include <span>
 #include <tuple>
+#include <variant>
+#include <type_traits>
 namespace fmt { template<class... Args> std::string format(const char*,Args...) { return {}; } }
 struct StrHelper {
  static std::wstring UTF8ToUTF16(std::string_view text) {
@@ -43,6 +52,23 @@ struct StrHelper {
  }
 };
 namespace Magpie {
+template<class T> struct EffectConstant { T defaultValue,minValue,maxValue,step; };
+struct EffectParameterDesc {
+ std::string name;
+ struct Choice { int value; };
+ std::variant<EffectConstant<float>,EffectConstant<int>> constant;
+ std::vector<Choice> choices;
+};
+struct EffectsService {
+ struct Info { std::vector<EffectParameterDesc> params; };
+ static EffectsService& Get() { static EffectsService value;return value; }
+ const Info* GetEffect(std::wstring_view name) const {
+  static const Info nr{{
+   {"processingMode",EffectConstant<int>{0,0,1,1},{{0},{1}}},
+   {"sparseUpdateInterval",EffectConstant<int>{2,2,4,1},{{2},{3},{4}}}}};
+  return name==L"DLSSNR\\DLSSNR_AI_Filter"?&nr:nullptr;
+ }
+};
 enum class ScalingType : uint32_t { Normal,Fit,Absolute,Fill };
 struct ParameterMap : std::map<std::wstring,float,std::less<>> {
  using Base=std::map<std::wstring,float,std::less<>>; using Base::Base; using Base::erase;
@@ -56,6 +82,7 @@ struct EffectItem {
  std::pair<float,float> scale{1.f,1.f};
  bool isRecoveryInvalid=false;
  std::string recoveryOriginal;
+ std::string oklabLut;
  bool HasScale() const { return scalingType!=ScalingType::Normal || scale!=std::pair<float,float>{1.f,1.f}; }
 };
 struct ScalingMode {
@@ -108,6 +135,18 @@ void VerifyMigration(const rapidjson::Document& original, const ScalingMode& mod
   assert(!now[i].HasMember("hdrManagedRole"));
   assert(Encode(old[i]["name"])==Encode(now[i]["name"]));
   for (const char* key:{"parameters","scalingType","scale"}) {
+   if (std::string_view(key)=="parameters"&&std::string_view(old[i]["name"].GetString())=="DLSSNR\\DLSSNR_AI_Filter") {
+    ParameterMap expected;
+    if(old[i].HasMember(key))for(const auto& parameter:old[i][key].GetObj())
+     expected[StrHelper::UTF8ToUTF16(parameter.name.GetString())]=parameter.value.GetFloat();
+    NormalizeDLSSNRDetailParameters(expected);
+    assert(now[i].HasMember(key)&&now[i][key].MemberCount()==expected.size());
+    for(const auto& [name,value]:expected) {
+     const auto utf8=StrHelper::UTF16ToUTF8(name);
+     assert(now[i][key].HasMember(utf8.c_str())&&now[i][key][utf8.c_str()].GetFloat()==value);
+    }
+    continue;
+   }
    assert(old[i].HasMember(key)==now[i].HasMember(key));
    if (!old[i].HasMember(key)) continue;
    if (old[i][key].IsObject()) {
@@ -138,7 +177,57 @@ ScalingMode FullImport(const rapidjson::Document& mode,unsigned expectedMarks) {
  assert(service.Import(std::as_const(root).GetObj(),true,nullptr) && app.modes.size()==1);
  assert(app.marks==expectedMarks); return app.modes.front();
 }
+void VerifyDlssnrModeMigration() {
+ const int legacyModes[]{0,1,0,0,0,1,0},versionedModes[]{0,1,0,1};
+ for (int version : {0,1,2}) for (int mode=0;mode<(version?4:7);++mode)
+  for (int interval : {-1,0,2,3,4,5}) {
+   const std::string parameters=std::string(R"({"processingMode":)")+std::to_string(mode)+
+    (version?R"(,"__dlssnrModeVersion":)"+std::to_string(version):"")+
+    (interval>=0?R"(,"sparseUpdateInterval":)"+std::to_string(interval):"")+
+    R"(,"recoveryPolicy":2,"bufferedDelayFrames":1,"asyncResidualComposition":0,
+      "modelPreset":2,"resolutionControl":1,"inputResolutionPercent":75,"residualTransfer":1,
+      "opticalFlowMethod":2,"amdOpticalFlowMode":1,"nvidiaOpticalFlowQuality":5,
+      "multiPass":3,"style":2,"pass2_intensity":1.5,"pass3_style":1,
+      "antiFlicker":4,"antiFlickerTimeMs":95,"residualChromaProtection":0.75})";
+   const std::string text=R"({"name":"DLSSNR schema roundtrip","effects":[{"name":"DLSSNR\\DLSSNR_AI_Filter","parameters":)"+parameters+"}]}";
+   rapidjson::Document raw;raw.Parse(text.c_str());assert(!raw.HasParseError());
+   // AppSettings validates generic parameters before the versioned loader.
+   // Its actual rule callback must preserve old mode 5 and the internal marker.
+   const auto recovery=ConfigRecovery::Prepare(std::string(R"({"version":4,"scalingModes":[)")+text+"]}","","Recovered",ProductionRecoveryRules());
+   const auto& recovered=recovery.document["scalingModes"][0];
+   assert(recovered["effects"][0]["parameters"]["processingMode"].GetInt()==mode);
+   if(version)assert(recovered["effects"][0]["parameters"]["__dlssnrModeVersion"].GetInt()==version);
+   rapidjson::Document prepared;prepared.CopyFrom(recovered,prepared.GetAllocator());
+   const auto imported=FullImport(prepared,1);
+   const auto& values=imported.effects.at(0).parameters;
+   const int expectedMode=version?versionedModes[mode]:legacyModes[mode];
+   const int expectedInterval=!version&&mode==1?2:(interval>=2&&interval<=4?interval:2);
+   assert(values.at(L"processingMode")==expectedMode&&values.at(L"sparseUpdateInterval")==expectedInterval);
+   assert(values.at(L"__dlssnrModeVersion")==DLSSNR_MODE_VERSION);
+   for (const auto key:{L"recoveryPolicy",L"bufferedDelayFrames",L"asyncResidualComposition"})assert(!values.contains(key));
+   assert(values.at(L"modelPreset")==2&&values.at(L"inputResolutionPercent")==75&&values.at(L"multiPass")==3);
+   assert(values.at(L"style")==2&&values.at(L"pass2_intensity")==1.5f&&values.at(L"pass3_style")==1);
+   assert(values.at(L"opticalFlowMethod")==2&&values.at(L"nvidiaOpticalFlowQuality")==5&&values.at(L"amdOpticalFlowMode")==1);
+   assert(values.at(L"antiFlicker")==4&&values.at(L"antiFlickerTimeMs")==95&&values.at(L"residualChromaProtection")==.75f);
+   const auto saved=Save(imported);const auto loaded=Load(saved);
+   assert(Save(loaded)==saved&&loaded.effects[0].parameters==values);
+   rapidjson::Document reopened;reopened.Parse(saved.c_str());
+   assert(Save(FullImport(reopened,0))==saved);
+   auto copied=loaded;copied.name=L"DLSSNR schema copy";
+   assert(!NormalizeDLSSNRDetailParameters(copied.effects[0].parameters));
+   assert(Load(Save(copied)).effects[0].parameters==values);
+   // Supported edits remain stable; retired raw values cannot re-enter on save.
+   for (int edited : {0,1,2,3}) {
+    copied.effects[0].parameters[L"processingMode"]=float(edited);
+    const auto normalized=Load(Save(copied));
+    assert(normalized.effects[0].parameters.at(L"processingMode")==versionedModes[edited]);
+    assert(Save(Load(Save(normalized)))==Save(normalized));
+   }
+  }
+ std::cout<<"PASS: DLSSNR legacy/v1/two-mode migration, hidden legacy cadence, preserved controls, production save/load/import/copy/restart and schema idempotence\n";
+}
 int main(int argc,char** argv) {
+ VerifyDlssnrModeMigration();
  ScalingMode legacy; legacy.name=L"旧参数 α";
  legacy.effects={{.name=L"CAS\\CAS"},{.name=L"Color\\SDR_to_HDR",.parameters={{L"whiteNits",80.f},{L"exposure",.1f}}}};
  const auto original=Save(legacy); const auto manual=Load(original);
@@ -244,4 +333,4 @@ int main(int argc,char** argv) {
 }
 int main(int argc,char** argv) { return Magpie::main(argc,argv); }
 '''
-(out / 'HdrManualMigrationTests.cpp').write_text(prefix + helper + writer + loader + normalizer + importer + tests,encoding='utf-8')
+(out / 'HdrManualMigrationTests.cpp').write_text(prefix + recovery_rules + helper + writer + loader + normalizer + importer + tests,encoding='utf-8')

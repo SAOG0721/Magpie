@@ -1,6 +1,7 @@
 #pragma once
 #include "FrameSourceBase.h"
 #include "CaptureTargetLifetime.h"
+#include "WgcMinUpdateIntervalPolicy.h"
 #include <memory>
 #include <ShlObj.h>
 #include <Windows.Graphics.Capture.Interop.h>
@@ -41,6 +42,7 @@ private:
 	std::shared_ptr<CaptureTargetLifetime> _targetLifetime;
 
 	bool _StartCapture(const char* reason) noexcept;
+	void _ApplyMinUpdateInterval();
 
 	bool _StopCapture() noexcept;
 	void _InterruptCapture(const char* reason) noexcept;
@@ -52,6 +54,7 @@ private:
 	bool _TryCreateGraphicsCaptureItem(IGraphicsCaptureItemInterop* interop) noexcept;
 
 	D3D11_BOX _frameBox{};
+	WgcMinUpdateIntervalPolicy _minUpdateIntervalPolicy;
 	uint64_t _captureSessionGeneration = 0;
 	uint64_t _rejectedFrames = 0;
 	int64_t _lastFrameTimestamp100ns = 0;

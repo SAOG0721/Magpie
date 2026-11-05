@@ -22,6 +22,7 @@ bool AdaptivePresenter::_Initialize(HWND hwndAttach) noexcept {
 		}
 
 		_isDCompPresenting = true;
+		Logger::Get().Info("Presentation path: DirectComposition (DirectFlip disabled)");
 		return true;
 	}
 
@@ -135,6 +136,7 @@ bool AdaptivePresenter::_Initialize(HWND hwndAttach) noexcept {
 		return false;
 	}
 
+	Logger::Get().Info("Presentation path: DXGI HWND flip-discard");
 	return true;
 }
 
@@ -166,6 +168,8 @@ void AdaptivePresenter::CancelReflexRender() noexcept {
 
 bool AdaptivePresenter::PrepareFrame() noexcept {
 	_frameCapacityBusy = false;
+	_TryRecoverSwapChain();
+	if (HasFatalError()) return false;
 	if (_reflex) _reflex->SetPresentationAvailable(!_isDCompPresenting && !!_dxgiSwapChain);
 	if (_isDCompPresenting) return true;
 	// FrameLatencyGate retains an acquired token across shared-slot retries and
@@ -176,11 +180,10 @@ bool AdaptivePresenter::PrepareFrame() noexcept {
 		FrameTrace::Mark(FrameTrace::Event::CapacityBusy);
 		return false;
 	} else if (waitResult == WAIT_FAILED) {
-		Logger::Get().Win32Error("Swap-chain frame-latency wait failed");
+		_Fail("Swap-chain frame-latency wait failed", HRESULT_FROM_WIN32(GetLastError()));
 		return false;
 	} else if (waitResult != WAIT_OBJECT_0) {
-		Logger::Get().Warn(fmt::format(
-			"Unexpected swap-chain frame-latency wait result: 0x{:x}", waitResult));
+		_Fail("Unexpected swap-chain frame-latency wait result", E_UNEXPECTED);
 		return false;
 	}
 	return true;
@@ -196,6 +199,7 @@ bool AdaptivePresenter::BeginFrame(
 		HRESULT hr = _dcompSurface->BeginDraw(nullptr, IID_PPV_ARGS(&frameTex), &drawOffset);
 		if (FAILED(hr)) {
 			Logger::Get().ComError("BeginDraw 失败", hr);
+			_CheckDeviceFailure("DirectComposition BeginDraw", hr);
 			return false;
 		}
 
@@ -203,6 +207,11 @@ bool AdaptivePresenter::BeginFrame(
 			frameTex.get(), nullptr, frameRtv.put());
 		if (FAILED(hr)) {
 			Logger::Get().ComError("CreateRenderTargetView 失败", hr);
+			_CheckDeviceFailure("DirectComposition CreateRenderTargetView", hr);
+			// BeginDraw succeeded; close it even when the view could not be
+			// created so the fallback remains drawable on the next attempt.
+			const HRESULT endResult = _dcompSurface->EndDraw();
+			if (FAILED(endResult)) _CheckDeviceFailure("DirectComposition EndDraw after view failure", endResult);
 			return false;
 		}
 	} else {
@@ -217,11 +226,11 @@ bool AdaptivePresenter::BeginFrame(
 }
 
 bool AdaptivePresenter::WaitForFrameCapacity(DWORD timeout) noexcept {
-	if (_isDCompPresenting) return false;
+	if (_isDCompPresenting || HasFatalError()) return false;
 	DWORD result = WAIT_TIMEOUT;
 	if (!_frameLatencyGate.Wait(_frameLatencyWaitableObject.get(), timeout, result)) return false;
 	if (result == WAIT_FAILED) {
-		Logger::Get().Win32Error("Swap-chain capacity event wait failed");
+		_Fail("Swap-chain capacity event wait failed", HRESULT_FROM_WIN32(GetLastError()));
 		return false;
 	}
 	return true;
@@ -233,6 +242,7 @@ bool AdaptivePresenter::EndFrame(bool waitForGpu) noexcept {
 		endDrawResult = _dcompSurface->EndDraw();
 		if (FAILED(endDrawResult)) {
 			Logger::Get().ComError("DirectComposition EndDraw failed", endDrawResult);
+			_CheckDeviceFailure("DirectComposition EndDraw", endDrawResult);
 		}
 	}
 
@@ -270,6 +280,7 @@ bool AdaptivePresenter::EndFrame(bool waitForGpu) noexcept {
 		traceCommit.End();
 		if (FAILED(commitResult)) {
 			Logger::Get().ComError("DirectComposition Commit failed", commitResult);
+			_CheckDeviceFailure("DirectComposition Commit", commitResult);
 		}
 		_lastPresentedFrameCount = SUCCEEDED(endDrawResult) && SUCCEEDED(commitResult) ? 1u : 0u;
 		return SUCCEEDED(endDrawResult) && SUCCEEDED(commitResult);
@@ -300,6 +311,7 @@ bool AdaptivePresenter::EndFrame(bool waitForGpu) noexcept {
 					scalingWindow.IsFirstFramePending()));
 			}
 		} else if (FAILED(presentResult)) {
+			_CheckDeviceFailure("DXGI Present", presentResult);
 			++_presentFailureCount;
 			if (ShouldLogPresentationDiagnostic(_presentFailureCount)) {
 				const ScalingWindow& scalingWindow = ScalingWindow::Get();
@@ -316,15 +328,13 @@ bool AdaptivePresenter::EndFrame(bool waitForGpu) noexcept {
 		_deviceResources->GetD3DDC()->DiscardView(_backBufferRtv.get());
 
 		if (_isSwitchingToSwapChain) {
-			_isSwitchingToSwapChain = false;
-
-			// 等待交换链呈现新帧
-			_WaitForGpu();
-			Win32Helper::WaitForDwmComposition();
-
-			// 清除 DirectCompostion 内容
-			_dcompVisual->SetContent(nullptr);
-			_dcompDevice->Commit();
+			if (presentResult == S_OK) {
+				_TryCompleteSwapChainSwitch();
+			} else {
+				// OCCLUDED is accepted by EndFrame for initial window showing,
+				// but it does not establish a replacement for the DComp image.
+				_KeepDCompFallback("DXGI recovery Present did not produce an image", presentResult);
+			}
 		}
 
 		return SUCCEEDED(presentResult);
@@ -332,6 +342,12 @@ bool AdaptivePresenter::EndFrame(bool waitForGpu) noexcept {
 }
 
 bool AdaptivePresenter::OnResize() noexcept {
+	if (HasFatalError()) return false;
+	const bool hadDCompContent = _isDCompPresenting || _isSwitchingToSwapChain;
+	_nextRecoveryAttempt.reset();
+	_recoveryAttempts = 0;
+	_switchCompletionQuery = nullptr;
+	_isSwitchingToSwapChain = false;
 	if (_reflex) {
 		CancelReflexRender();
 		_reflex->SetPresentationAvailable(false);
@@ -343,6 +359,9 @@ bool AdaptivePresenter::OnResize() noexcept {
 		_isDCompPresenting = _ResizeDCompVisual();
 		if (_isDCompPresenting) {
 			_VRRPathAvailable(false);
+			if (!hadDCompContent && _dxgiSwapChain) {
+				Logger::Get().Info("Presentation path: temporary DirectComposition during resize/move");
+			}
 			return true;
 		}
 
@@ -358,42 +377,50 @@ bool AdaptivePresenter::OnResize() noexcept {
 		Logger::Get().Error("_ResizeSwapChain 失败");
 		return false;
 	}
+	if (hadDCompContent) {
+		_isDCompPresenting = false;
+		_isSwitchingToSwapChain = true;
+		_nextRecoveryAttempt = std::chrono::steady_clock::now();
+	}
 	_VRRPathAvailable(!_isDCompPresenting);
 	
 	return true;
 }
 
 void AdaptivePresenter::OnEndResize(bool& shouldRedraw) noexcept {
-	if (!_isDCompPresenting || !_dxgiSwapChain) {
-		shouldRedraw = false;
-		return;
-	}
-
-	shouldRedraw = true;
-
-	if (!_ResizeSwapChain()) {
-		shouldRedraw = false;
-		return;
-	}
-	_isDCompPresenting = false;
-	_VRRPathAvailable(true);
-	// 交换链呈现新帧后再清除 DirectCompostion 内容，确保无缝切换
-	_isSwitchingToSwapChain = true;
+	shouldRedraw = false;
+	if (!_isDCompPresenting || !_dxgiSwapChain || HasFatalError()) return;
+	_recoveryAttempts = 0;
+	_nextRecoveryAttempt = std::chrono::steady_clock::now();
+	Logger::Get().Info("DXGI recovery scheduled after resize/move; retaining DirectComposition until a valid Present");
+	_TryRecoverSwapChain();
+	shouldRedraw = _isSwitchingToSwapChain && !HasFatalError();
 }
 
-bool AdaptivePresenter::_ResizeSwapChain() noexcept {
+bool AdaptivePresenter::_ResizeSwapChain(DWORD capacityTimeout) noexcept {
 	assert(_dxgiSwapChain);
 	_RefreshVRREnvironment(true);
 
 	// ResizeBuffers retains this swap chain and its already acquired token.
-	const DWORD capacity = _frameLatencyGate.TryAcquire(_frameLatencyWaitableObject.get(), 1000);
+	const DWORD capacity = _frameLatencyGate.TryAcquire(_frameLatencyWaitableObject.get(), capacityTimeout);
 	if (capacity != WAIT_OBJECT_0) {
-		Logger::Get().Error(fmt::format("Swap-chain resize capacity wait failed: 0x{:x}", capacity));
+		if (capacity == WAIT_FAILED) {
+			_Fail("Swap-chain resize capacity wait failed", HRESULT_FROM_WIN32(GetLastError()));
+		} else if (capacity != WAIT_TIMEOUT) {
+			_Fail("Unexpected swap-chain resize capacity wait result", E_UNEXPECTED);
+		} else {
+			_CheckDeviceFailure("Swap-chain resize capacity timeout", S_OK);
+			Logger::Get().Info("DXGI resize deferred: frame capacity is busy");
+		}
 		return false;
 	}
 
+	// Failed/occluded Present may leave indirect RTV references bound. Every
+	// resize attempt releases those as well as our owned buffer/view references.
+	_deviceResources->GetD3DDC()->ClearState();
 	_backBuffer = nullptr;
 	_backBufferRtv = nullptr;
+	_deviceResources->GetD3DDC()->Flush();
 
 	const RECT& swapChainRect = ScalingWindow::Get().RendererRect();
 	const SIZE swapChainSize = Win32Helper::GetSizeOfRect(swapChainRect);
@@ -406,12 +433,14 @@ bool AdaptivePresenter::_ResizeSwapChain() noexcept {
 	);
 	if (FAILED(hr)) {
 		Logger::Get().ComError("ResizeBuffers 失败", hr);
+		_CheckDeviceFailure("ResizeBuffers", hr);
 		return false;
 	}
 
 	hr = _dxgiSwapChain->GetBuffer(0, IID_PPV_ARGS(_backBuffer.put()));
 	if (FAILED(hr)) {
 		Logger::Get().ComError("获取后缓冲区失败", hr);
+		_CheckDeviceFailure("GetBuffer after resize", hr);
 		return false;
 	}
 
@@ -419,10 +448,103 @@ bool AdaptivePresenter::_ResizeSwapChain() noexcept {
 		_backBuffer.get(), nullptr, _backBufferRtv.put());
 	if (FAILED(hr)) {
 		Logger::Get().ComError("CreateRenderTargetView 失败", hr);
+		_CheckDeviceFailure("CreateRenderTargetView after resize", hr);
 		return false;
 	}
 
 	return true;
+}
+
+bool AdaptivePresenter::NeedsRedraw() const noexcept {
+	return _nextRecoveryAttempt && !HasFatalError() &&
+		!ScalingWindow::Get().IsResizingOrMoving() &&
+		std::chrono::steady_clock::now() >= *_nextRecoveryAttempt;
+}
+
+void AdaptivePresenter::_TryRecoverSwapChain() noexcept {
+	if (!NeedsRedraw()) return;
+	if (_CheckDeviceFailure("DXGI recovery", S_OK)) return;
+	// Eight attempts with zero-timeout capacity checks, separated by pump passes. Keep
+	// rendering through DComp after exhaustion; a new resize starts a new cycle.
+	if (_recoveryAttempts >= 8) {
+		_nextRecoveryAttempt.reset();
+		_KeepDCompFallback("DXGI recovery exhausted; staying on DirectComposition until the next resize or restart", S_FALSE);
+		return;
+	}
+	++_recoveryAttempts;
+	_nextRecoveryAttempt = std::chrono::steady_clock::now() + std::chrono::milliseconds(250);
+	if (!_isDCompPresenting || !_ResizeSwapChain(0)) return;
+	_isDCompPresenting = false;
+	_isSwitchingToSwapChain = true;
+	_VRRPathAvailable(true);
+	Logger::Get().Info(fmt::format("DXGI recovery buffers ready: attempt={}; awaiting a valid Present", _recoveryAttempts));
+}
+
+void AdaptivePresenter::_TryCompleteSwapChainSwitch() noexcept {
+	// A status-only event query replaces the old blocking GPU wait. Do not
+	// restart it on every frame: it fences the first successful replacement.
+	auto* context = _deviceResources->GetD3DDC();
+	if (!_switchCompletionQuery) {
+		const D3D11_QUERY_DESC desc{ D3D11_QUERY_EVENT, 0 };
+		const HRESULT hr = _deviceResources->GetD3DDevice()->CreateQuery(&desc, _switchCompletionQuery.put());
+		if (FAILED(hr)) {
+			_KeepDCompFallback("DXGI recovery completion query creation failed", hr);
+			return;
+		}
+		context->End(_switchCompletionQuery.get());
+		context->Flush();
+	}
+	HRESULT hr = context->GetData(_switchCompletionQuery.get(), nullptr, 0, D3D11_ASYNC_GETDATA_DONOTFLUSH);
+	if (hr == S_FALSE) return;
+	if (FAILED(hr)) {
+		_KeepDCompFallback("DXGI recovery completion query failed", hr);
+		return;
+	}
+	Win32Helper::WaitForDwmComposition();
+	hr = _dcompVisual->SetContent(nullptr);
+	if (SUCCEEDED(hr)) hr = _dcompDevice->Commit();
+	if (FAILED(hr)) {
+		// Undo the pending detach, too: a later DComp Commit must not expose a
+		// half-completed transition after this Commit failed.
+		const HRESULT restoreResult = _dcompVisual->SetContent(_dcompSurface.get());
+		_KeepDCompFallback("DXGI recovery could not detach DirectComposition", hr);
+		if (FAILED(restoreResult)) _Fail("DirectComposition fallback restoration failed", restoreResult);
+		return;
+	}
+	_isSwitchingToSwapChain = false;
+	_switchCompletionQuery = nullptr;
+	_nextRecoveryAttempt.reset();
+	Logger::Get().Info(fmt::format("Presentation path: DXGI restored after {} attempt(s); DirectComposition detached", _recoveryAttempts));
+}
+
+void AdaptivePresenter::_KeepDCompFallback(const char* context, HRESULT hr) noexcept {
+	_CheckDeviceFailure(context, hr);
+	_isDCompPresenting = true;
+	_isSwitchingToSwapChain = false;
+	_switchCompletionQuery = nullptr;
+	_VRRPathAvailable(false);
+	if (_reflex) _reflex->SetPresentationAvailable(false);
+	Logger::Get().ComWarn(context, hr);
+}
+
+void AdaptivePresenter::_Fail(const char* context, HRESULT hr) noexcept {
+	if (HasFatalError()) return;
+	_failure.Record(context, static_cast<uint32_t>(hr));
+	_nextRecoveryAttempt.reset();
+	CancelReflexRender();
+	Logger::Get().ComError(context, hr);
+}
+
+bool AdaptivePresenter::_CheckDeviceFailure(const char* context, HRESULT hr) noexcept {
+	if (HasFatalError()) return true;
+	const HRESULT removedReason = _deviceResources->GetD3DDevice()->GetDeviceRemovedReason();
+	if (FAILED(removedReason)) {
+		_Fail(context, removedReason);
+	} else if (hr == DXGI_ERROR_DEVICE_REMOVED || hr == DXGI_ERROR_DEVICE_RESET ||
+		hr == DXGI_ERROR_DEVICE_HUNG || hr == DXGI_ERROR_DRIVER_INTERNAL_ERROR) {
+		_Fail(context, hr);
+	}
+	return HasFatalError();
 }
 
 bool AdaptivePresenter::_ResizeDCompVisual(HWND hwndAttach) noexcept {

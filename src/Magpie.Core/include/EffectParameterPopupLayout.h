@@ -20,6 +20,16 @@ struct EffectParameterColumnLayout {
 	double columnWidth, viewportWidth;
 };
 
+inline double GetEffectParameterContentHeight(double availableHeight, bool isOKLab) noexcept {
+	// OKLab edits one section at a time. Leave room for its actions and use
+	// existing vertical wrapping instead of stretching one column down the screen.
+	return std::max(1.0, isOKLab ? std::min(600.0, availableHeight) : availableHeight);
+}
+
+inline double GetPairedCheckboxOffset(double columnWidth, double leftWidth, double gap) noexcept {
+	return std::max(columnWidth / 2.0, leftWidth + gap);
+}
+
 inline EffectParameterColumnLayout GetEffectParameterColumnLayout(
 	size_t visibleColumns, double availableWidth) noexcept {
 	const double count = double(std::max<size_t>(1, visibleColumns));
