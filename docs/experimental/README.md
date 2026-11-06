@@ -1,8 +1,8 @@
 # Magpie 实验分支文档索引
 
-## 0.6.12 Beta 5 本地候选 / Local candidate
+## 0.6.12 发布候选 / Release candidate
 
-- [Beta 5 中英说明](../RELEASE_NOTES_v0.6.12-beta5.md)：DLSSNR 仅保留逐帧／隔帧，旧异步模式自动回退并保留有效更新间隔、模型与输入比例；独立 Async 节奏继续保留。另有 WGC／DLSSNR／Front Edge＋VRR、无补帧路径的短暂空档补交及捕获恢复修复。
+- [0.6.12 完整中英说明](../RELEASE_NOTES_v0.6.12-experimental.md)：汇总相对 0.6.11 保留的功能、使用方法和升级说明；本地准备完成后仍按发布流程审核，尚未公开发布。
 - [开发基线](DEVELOPMENT-BASELINE.md)与[下一版计划](../RELEASE_NOTES_NEXT.md)：后续开发、构建和当前公开版本入口。
 - [DLSSNR 功能与参数](effects/DLSSNR-MULTIPASS.md)、[帧率与刷新](../FRAME_SYNC_GUIDE.md)、[发布流程](RELEASE-WORKFLOW.md)。
 
