@@ -54,6 +54,11 @@ VRR 仍为实验功能，默认关闭。更改捕获、节奏或 VRR 设置后�
 | `DLSSNR-DLL-Options.zip` | 沿用 NVIDIA 原版 RTX 50 与社区兼容 RTX 20／30／40 两个选项。切换前退出 Magpie 并备份原 DLL，将所选 `nvngx_dlssnr.dll` 放到 `Magpie.exe` 旁；具体步骤见包内说明。 |
 | `NGX_OTA_Switch.bat` | 可选的 NVIDIA NGX OTA 更新管理工具，需要管理员权限；Restore default 恢复默认设置。常规安装无需运行。 |
 
+## 致谢
+
+- 感谢 [Len-huan](https://github.com/Len-huan) 在 [issue #73](https://github.com/SAOG0721/Magpie/issues/73) 中提出 DLSSNR 权重预设建议并提供相关分析。
+- 感谢 [yejincheng420](https://github.com/yejincheng420) 在其 [Magpie 分支](https://github.com/yejincheng420/Magpie/tree/turing-ampere) 中分享隔帧处理的基础思路。
+
 ---
 
 # Magpie Experimental v0.6.12 User Guide
@@ -111,3 +116,8 @@ Keep the previous program folder and a pre-upgrade settings backup. To roll back
 | `Magpie-Experimental-x64.zip` | The complete, standalone installation package with matching program, resources and runtime files. It retains the 310.9.16 community compatibility DLSSNR for RTX 20 / 30 / 40 series. |
 | `DLSSNR-DLL-Options.zip` | Retains the NVIDIA original for RTX 50 and the community version for RTX 20 / 30 / 40. Exit Magpie and back up the existing DLL before placing the chosen `nvngx_dlssnr.dll` beside `Magpie.exe`. See the included instructions for details. |
 | `NGX_OTA_Switch.bat` | Optional NVIDIA NGX OTA update-management tool requiring administrator privileges. Restore default restores the default settings. Normal installation does not require this tool. |
+
+## Acknowledgments
+
+- Thanks to [Len-huan](https://github.com/Len-huan) for proposing DLSSNR weight presets and providing supporting analysis in [issue #73](https://github.com/SAOG0721/Magpie/issues/73).
+- Thanks to [yejincheng420](https://github.com/yejincheng420) for sharing the foundational idea behind alternating-frame processing in their [Magpie fork](https://github.com/yejincheng420/Magpie/tree/turing-ampere).
