@@ -25,5 +25,15 @@ int main() {
         }
         std::cout<<"Production EffectCompiler: "<<formats[format]<<", "<<desc.params.size()<<" parameters, 3 passes\n";
     }
+
+    EffectDesc metadataDesc; metadataDesc.name="OKLabImageAdjustment";
+    phmap::flat_hash_map<std::string,float> metadata{{"__dlssnrModeVersion",2.f}};
+    const uint32_t inlineFlags = EffectCompilerFlags::NoCache | EffectCompilerFlags::InlineParams;
+    if(EffectCompiler::Compile(metadataDesc,inlineFlags,&metadata)!=0) return 5;
+
+    phmap::flat_hash_map<std::string,float> invalid{{"unknownParameter",0.f}};
+    EffectDesc invalidDesc; invalidDesc.name="OKLabImageAdjustment";
+    if(EffectCompiler::Compile(invalidDesc,inlineFlags,&invalid)==0) return 6;
+
     Logger::Get().Flush();
 }

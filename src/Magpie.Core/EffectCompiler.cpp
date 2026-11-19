@@ -1591,9 +1591,10 @@ static uint32_t CompilePasses(
 			cbHlsl.append(";\n");
 		}
 
-		// 检查 inlineParams 是否存在非法参数
+		// Persisted effect options may carry reserved application metadata such as
+		// DLSSNR schema markers. These entries are not shader inputs.
 		for (const auto& pair : *inlineParams) {
-			if (!paramNames.contains(pair.first)) {
+			if (!paramNames.contains(pair.first) && !pair.first.starts_with("__")) {
 				return 1;
 			}
 		}
