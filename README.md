@@ -121,7 +121,7 @@ Start with the suggestions in Home's **recent-issue card** or open the log direc
 - Input and output resolution
 - Reproduction steps and relevant log files
 
-For general Magpie usage questions, see the [upstream Magpie FAQ](https://github.com/Blinue/Magpie/wiki/FAQ).
+For DLSSNR recovery steps see [DLSSNR Troubleshooting](docs/DLSSNR-TROUBLESHOOTING.md); for general Magpie usage questions see the [FAQ](docs/FAQ%20(EN).md) or the [upstream Magpie FAQ](https://github.com/Blinue/Magpie/wiki/FAQ).
 
 ## Development & Documentation
 

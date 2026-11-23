@@ -1,5 +1,5 @@
 DLSSNR DLL 可选包 / DLSSNR DLL Options
-Magpie Experimental v0.6.10
+Magpie Experimental v0.6.10+
 
 每次只选择一个目录。完全退出 Magpie，备份 Magpie.exe 旁的 nvngx_dlssnr.dll，
 再把所选目录中的 nvngx_dlssnr.dll 复制到 Magpie.exe 旁，重新启动。

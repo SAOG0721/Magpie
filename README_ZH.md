@@ -121,7 +121,7 @@ flowchart LR
 - 输入与输出分辨率
 - 复现步骤与相关日志文件
 
-通用使用问题也可参考 [Magpie 上游 FAQ](https://github.com/Blinue/Magpie/wiki/FAQ)。
+DLSSNR 异常排查见 [DLSSNR 状态与恢复](docs/DLSSNR-TROUBLESHOOTING.md)，常见报错汇总见[报错排查指南](docs/报错排查指南.md)；通用使用问题也可参考 [FAQ](docs/FAQ.md) 或 [Magpie 上游 FAQ](https://github.com/Blinue/Magpie/wiki/FAQ)。
 
 ## 开发与文档
 

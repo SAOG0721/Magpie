@@ -21,7 +21,7 @@ Enabling this option can change the behavior of the cursor and in-game overlay t
 
 ## What is "Disable DirectFlip"?
 
-DirectFlip is a technology to reduce input lags, but it may cause trouble in some circumstances. Please turn on this option when you are in the following situationsL:
+DirectFlip is a technology to reduce input lags, but it may cause trouble in some circumstances. Please turn on this option when you are in the following situations:
 
 1. The game lags unexpectedly (game known with the issue: Days Gone).
 2. Abnormal low frame rates.
@@ -39,11 +39,11 @@ The frame rate displayed by Magpie is that of its own rather than that of the ga
 
 Supported from v0.11, see [About touch support](About%20touch%20support.md) for details.
 
-### Does Magpie support frame generation?
+### Does Magpie support frame generation and AI effects?
 
-This enhanced version supports DLSS FG and XeSS FG/MFG through the Frame Generation & Frame Rate category; use one frame-generation implementation per group. Available multipliers depend on the GPU and driver. Optical flow defaults to off, with AMD or NVIDIA motion estimation selectable in effect parameters.
+Magpie Experimental supports **DLSS FG, XeSS FG/MFG, FSR3 FG, and NVIDIA VFG**; use one frame-generation implementation per effect group. Available backends, multipliers, and optical-flow options (AMDOF / NVOF) depend on your GPU, driver, and bundled runtimes.
 
-This version also provides DLSS SR, FSR 2/3 and XeSS upscaling effects. External capture lacks native game depth and camera jitter, so image quality can differ from in-game integration. See the [frame synchronization guide](FRAME_SYNC_GUIDE.md) for frame-rate and low-latency settings.
+This branch also provides **DLSS SR, FSR 2/3/4, and XeSS SR** temporal upscaling, **DLSSNR** AI image enhancement, **RTX Video** (VSR / Denoise / Deblur / TrueHDR), and **OKLab Image Adjustment** color grading. Because external window capture lacks native game motion vectors, depth buffers, and separated UI, results can differ from native in-game integration. See the [Built-in Effects Guide](Built-in%20effects.md#current-branch-setup) and [Frame Sync Guide](FRAME_SYNC_GUIDE.md) for setup details.
 
 ## What is the relationship between Magpie and Lossless Scaling?
 

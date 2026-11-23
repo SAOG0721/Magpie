@@ -40,11 +40,11 @@
 
 在对应配置的“捕获方式”中，可以选择现有的 `DwmSharedSurface`，停止并重新启用效果组后比较。它是 SDR 窗口捕获的兼容路线；游戏是否提供可捕获的共享表面需实际测试。若捕获失败或画面不正常，在同一配置中改回 `Graphics Capture` 后重新启用。HDR 捕获继续使用 `Graphics Capture`，避免改变亮度和颜色语义。
 
-启用重复帧检测时，Beta4 会在 DWM 等轮询捕获持续没有新内容后减少查重频率，恢复运动时继续正常捕获。关闭重复帧检测时，接纳帧率可能包含相同图像；应结合画面和功耗比较。
+启用重复帧检测时，v0.6.12+ 会在 DWM 等轮询捕获持续没有新内容后自动降低查重频率，恢复运动时再恢复正常捕获。关闭重复帧检测时，接纳帧率可能包含相同图像，请结合实际画面流畅度与功耗综合比较。
 
-比较时保留 NR 模型、处理比例、抗闪烁和残差参数，使用相同场景和目标帧率。测试工具里的重复呈现次数与新内容帧率分别统计；仅提高重复呈现频率并不表示捕获到了更多新画面。
+比较时保持 NR 模型、处理比例、抗闪烁和残差参数，使用相同场景和目标帧率。测试工具里的重复呈现次数与新内容帧率分别统计；仅提高重复呈现频率并不表示捕获到了更多新画面。
 
-Beta4 的 Graphics Capture 在 Windows 25H2 及之后的 VRR 会话中请求 0 最小更新间隔，其他会话保留 1ms。0 设置或读回失败时，本次缩放会话回退到 1ms；停止并重新启用后才重新选择。若更新后出现 WGC 兼容性回归，可在启动进程前设置 `MAGPIE_WGC_MIN_UPDATE_INTERVAL_US=1000` 强制旧策略，再比较实际 VRR 和日志；只接受 `0` 或 `1000`，并在日志中记录选择和读回。该兼容开关不改变 NR 参数。
+v0.6.12+ 的 Graphics Capture 在 Windows 25H2 及之后的 VRR 会话中默认请求 0 最小更新间隔，其他会话保留 1 ms。若 0 设置或读回失败，本次缩放会话会自动回退到 1 ms（停止并重新启用后才重新选择）。如遇到 WGC 兼容性回归，可在启动进程前设置环境变量 `MAGPIE_WGC_MIN_UPDATE_INTERVAL_US=1000` 强制旧策略再对比实际 VRR 和日志；该变量只接受 `0` 或 `1000`，并在日志中记录选择与读回结果，不改变 NR 参数。
 
 ## English quick steps
 
@@ -56,6 +56,6 @@ After the relevant change, enable the group and confirm **DLSSNR is running**. I
 
 For a VRR-related frame-rate drop, compare with actual VRR active in both runs; switching focus to another application may deactivate it. For SDR window capture, select the existing `DwmSharedSurface` capture method in the matching profile and restart scaling. Compatibility depends on the game's shared surface. If capture fails or the image is incorrect, select `Graphics Capture` and restart. HDR capture continues to require `Graphics Capture`. Keep the NR model, resolution, anti-flicker and residual settings identical when comparing.
 
-With duplicate-frame detection enabled, Beta4 reduces polling checks after a polled source such as DWM remains unchanged, then resumes normal capture when motion returns. Without duplicate detection, accepted-frame counts may include identical images; compare the visible motion and power as well.
+With duplicate-frame detection enabled, v0.6.12+ reduces polling checks after a polled source such as DWM remains unchanged, then resumes normal capture when motion returns. Without duplicate detection, accepted-frame counts may include identical images; compare the visible motion and power as well. On Windows 25H2+ VRR sessions, Graphics Capture requests a `0` minimum update interval (falling back to `1 ms` if unsupported); set `MAGPIE_WGC_MIN_UPDATE_INTERVAL_US=1000` before launch if you need to test the legacy `1 ms` interval.
 
 Beta4 requests a zero WGC minimum update interval for VRR sessions on Windows 25H2 and later, retaining 1ms elsewhere. A zero setter/readback failure keeps that scaling session on 1ms. For a compatibility regression, set `MAGPIE_WGC_MIN_UPDATE_INTERVAL_US=1000` before launching Magpie to force the previous policy; only `0` and `1000` are accepted. Selection and readback are logged, and NR parameters are unaffected.

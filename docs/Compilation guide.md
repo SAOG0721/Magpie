@@ -22,13 +22,19 @@ In order to compile Magpie, you need to first install:
 
 ### Compiling
 
-1. Clone the repo
+1. Clone the repository (`experimental` branch):
 
    ```bash
-   git clone https://github.com/Blinue/Magpie
+   git clone -b experimental https://github.com/SAOG0721/Magpie
    ```
 
-2. Open the Magpie.slnx in the root directory and build the solution.
+2. Open `Magpie.slnx` in the root directory and build the solution.
+
+### Experimental Branch Build Options
+
+- **Default clean build (no external SDKs required)**: Optional proprietary backends (DLSS, FSR, XeSS, NVIDIA VFX, NVOFA) are **disabled by default**, so you can build the core application directly with Visual Studio (MSVC or ClangCL).
+- **Enabling optional SDK backends**: Configure local SDK paths and backend toggles in the untracked `src/BuildOptions.props.user` file. See [Third-Party Dependencies and Redistribution](THIRD_PARTY_AND_REDISTRIBUTION.md) for SDK requirements and licensing boundaries.
+- **Release packaging**: Use `scripts/Build-Release.ps1` to stage release packages and manifests.
 
 ### Enabling Touch Support
 

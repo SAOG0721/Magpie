@@ -39,11 +39,11 @@ Magpie 显示的是自己的帧率而不是游戏的，基于非侵入性原则�
 
 从 v0.11 开始支持，详情见[关于触控支持](关于触控支持.md)。
 
-### 是否支持帧生成？
+### 是否支持帧生成与 AI 效果？
 
-本增强版支持 DLSS FG 和 XeSS FG／MFG，可在效果器选择器的“补帧与帧率”分类中添加，同一效果组使用一种补帧方案。可用倍率取决于显卡及驱动，光流默认关闭，可在参数中选择 AMD 或 NVIDIA 运动估算。
+Magpie Experimental 支持 **DLSS FG、XeSS FG／MFG、FSR3 FG 与 NVIDIA VFG**，同一效果组请只使用一种补帧方案。可用后端、倍率及光流选项（AMDOF／NVOF）取决于显卡、驱动和随附运行库。
 
-本增强版也提供 DLSS SR、FSR 2／3 和 XeSS 超分辨率效果；外部捕获缺少游戏原生深度和相机抖动信息，画质与游戏内集成可能不同。帧率与低延迟设置见[帧同步指南](FRAME_SYNC_GUIDE.md)。
+本分支同时提供 **DLSS SR、FSR 2/3/4、XeSS SR** 实验性时序超分、**DLSSNR** AI 画面增强、**RTX Video**（VSR／降噪／去模糊／TrueHDR）以及 **OKLab Image Adjustment** 调色。由于外部窗口捕获无法获取游戏原生的运动矢量、深度缓冲和独立 UI，画质表现可能与游戏内原生集成存在差异。搭配方式与帧率设置详见[内置效果说明](Built-in%20effects.md#当前分支组合与内置效果说明)和[帧同步指南](FRAME_SYNC_GUIDE.md)。
 
 ### Magpie 和 Lossless Scaling 有何关系？
 
