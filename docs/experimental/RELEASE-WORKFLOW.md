@@ -17,11 +17,11 @@
 - GitHub Release 始终标记为 **Pre-release**。Draft 只是审核状态，不是版本类型。
 - 首个紧急修复可使用 `vX.Y.Z-experimental-hotfix`；同一基础版本继续修复时在末尾增加序号，例如 `.2`。
 - 标签必须指向完成构建和运行验证的准确提交。已推送或已发布的标签不得移动、覆盖或重建。
-- 常规版的 `version.json`、程序“关于”页、包内 `build-manifest.json`、标签和 Release 标题中的版本必须一致。Hotfix 必须明确继承的基础版本，并在标签、标题和附件名中使用一致的 Hotfix 后缀。
+- 常规版的程序“关于”页、包内 `build-manifest.json`、拟发布标签和 Release 标题使用相同版本。版本公开后，同步更新 `version.json`、中英文 README 的下载入口和下一版说明中的公开版本。Hotfix 需明确基础版本，并在标签、标题和附件名中使用相同后缀。
 
 ## 日常本机部署（2026-10-30）
 
-- 日常构建运行 `scripts/Build-Release.ps1 -Version 0.6.13-beta1 -IncludeSymbols -RequireMagpieClosed`，或工作区根目录 `Update-Release.ps1`。直接更新 `release/v0.6.13-beta1/Magpie-Experimental-x64/`，同一版本不另建任务后缀目录。
+- 当前日常构建在 Beta 3 工作树运行 `scripts/Build-Release.ps1 -Version 0.6.13-beta3 -IncludeSymbols -RequireMagpieClosed`，或运行工作区根目录 `Update-Release.ps1`。输出位于 `release/v0.6.13-beta3/Magpie-Experimental-x64/`。日常构建目录按版本命名。
 - 默认只构建运行目录、符号和构建清单，保留配置、日志和缓存。原运行目录备份到工作区 `backups/local-deploy/`；日常部署前应关闭对应实例。
 - 正式准备发布前不生成主包 ZIP、Release note 和可选 DLL options。既有过期发布材料移到备份，避免与新程序混用；运行依赖 DLL 仍正常部署。
 - 维护者明确要求准备 Release 时，在干净工作树运行 `-PrepareRelease`，使用 Release 配置生成主包和版本说明。使用 `-SkipBuild` 重新打包时，脚本核对同一提交的构建清单、选项与文件哈希。测试报告放 `reports/`；历史任务构建放 `archive/release-iterations/`，移动映射随归档保存。

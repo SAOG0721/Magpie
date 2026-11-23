@@ -17,7 +17,7 @@
 
 <br>
 
-[**⬇ Download v0.6.12**](https://github.com/SAOG0721/Magpie/releases/tag/v0.6.12-experimental)
+**Current release: [⬇ Download v0.6.12](https://github.com/SAOG0721/Magpie/releases/tag/v0.6.12-experimental)**
 &nbsp;·&nbsp;
 [**🇨🇳 简体中文**](./README_ZH.md)
 &nbsp;·&nbsp;

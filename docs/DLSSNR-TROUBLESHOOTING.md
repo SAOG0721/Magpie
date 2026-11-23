@@ -46,6 +46,12 @@
 
 v0.6.12+ 的 Graphics Capture 在 Windows 25H2 及之后的 VRR 会话中默认请求 0 最小更新间隔，其他会话保留 1 ms。若 0 设置或读回失败，本次缩放会话会自动回退到 1 ms（停止并重新启用后才重新选择）。如遇到 WGC 兼容性回归，可在启动进程前设置环境变量 `MAGPIE_WGC_MIN_UPDATE_INTERVAL_US=1000` 强制旧策略再对比实际 VRR 和日志；该变量只接受 `0` 或 `1000`，并在日志中记录选择与读回结果，不改变 NR 参数。
 
+## 隔帧闪烁与自适应调档
+
+SDR 使用 NVIDIA 光流同步隔帧时，如果完整推理帧与复用帧交替出现亮度或细节跳变，可在**性能进阶**把 **NR 更新间隔**从每 3／4 帧缩短到每 2 帧。用相同场景和输入比例切到**逐帧**做对照。更改处理模式或更新间隔后重新开始缩放。
+
+自适应分辨率按有效供帧和交付情况试档，收益不足时会恢复上一档。排查频繁调档时，可切换到手动并固定输入比例，以相同场景比较画面和内容帧率。反馈时附上内容帧率模式（跟随源或固定目标）、捕获方式、当前输入比例及对应日志。
+
 ## English quick steps
 
 The current DLSSNR status is separate from the last diagnostic record. **Skipped** means the group continues without DLSSNR; **stopped** means the whole group stopped. HDR-only parameter restrictions are not backend failures.
@@ -56,6 +62,10 @@ After the relevant change, enable the group and confirm **DLSSNR is running**. I
 
 For a VRR-related frame-rate drop, compare with actual VRR active in both runs; switching focus to another application may deactivate it. For SDR window capture, select the existing `DwmSharedSurface` capture method in the matching profile and restart scaling. Compatibility depends on the game's shared surface. If capture fails or the image is incorrect, select `Graphics Capture` and restart. HDR capture continues to require `Graphics Capture`. Keep the NR model, resolution, anti-flicker and residual settings identical when comparing.
 
-With duplicate-frame detection enabled, v0.6.12+ reduces polling checks after a polled source such as DWM remains unchanged, then resumes normal capture when motion returns. Without duplicate detection, accepted-frame counts may include identical images; compare the visible motion and power as well. On Windows 25H2+ VRR sessions, Graphics Capture requests a `0` minimum update interval (falling back to `1 ms` if unsupported); set `MAGPIE_WGC_MIN_UPDATE_INTERVAL_US=1000` before launch if you need to test the legacy `1 ms` interval.
+With duplicate-frame detection enabled, v0.6.12+ reduces polling checks after a polled source such as DWM remains unchanged, then resumes normal capture when motion returns. Without duplicate detection, accepted-frame counts may include identical images; compare the visible motion and power as well. On Windows 25H2+ VRR sessions, Graphics Capture requests a `0` minimum update interval (falling back to `1 ms` if unsupported); set `MAGPIE_WGC_MIN_UPDATE_INTERVAL_US=1000` before launch if you need to test the legacy `1 ms` interval (only `0` and `1000` are accepted; selection and readback are logged, and NR parameters are unaffected).
 
-Beta4 requests a zero WGC minimum update interval for VRR sessions on Windows 25H2 and later, retaining 1ms elsewhere. A zero setter/readback failure keeps that scaling session on 1ms. For a compatibility regression, set `MAGPIE_WGC_MIN_UPDATE_INTERVAL_US=1000` before launching Magpie to force the previous policy; only `0` and `1000` are accepted. Selection and readback are logged, and NR parameters are unaffected.
+### Alternating-frame flicker and adaptive resolution
+
+If brightness or detail jumps between full inference and reused frames with NVIDIA Optical Flow and Alternating Frames in SDR, shorten the **NR Update Interval** from every 3 or 4 frames to every 2 under **Performance Advanced Adjustments**. For comparison, switch to **Every Frame** in the same scene and at the same input scale. Restart scaling after changing the processing mode or update interval.
+
+Adaptive resolution tries tiers based on effective source delivery and frame timing. It returns to the previous tier if the trial yields too little benefit. To investigate frequent tier changes, use Manual with a fixed input scale and compare the picture and content rate in the same scene. When reporting, include the content-rate mode (Follow source or fixed target), capture method, input scale, and the corresponding log.

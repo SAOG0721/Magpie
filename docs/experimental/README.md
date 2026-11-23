@@ -1,7 +1,8 @@
 # Magpie 实验分支文档索引
 
-## 0.6.13 Beta 1 本机验证 / Local validation
+## 0.6.13 本地候选与发布准备 / Local release candidate
 
+- [0.6.13 候选版本中英说明](../RELEASE_NOTES_v0.6.13-experimental.md)（本地候选／准备中；GitHub 公开入口仍为 v0.6.12）。
 - [开发基线](DEVELOPMENT-BASELINE.md)与[下一版计划](../RELEASE_NOTES_NEXT.md)：后续开发、构建和当前公开版本入口。
 - [DLSSNR 功能与参数](effects/DLSSNR-MULTIPASS.md)、[帧率与刷新](../FRAME_SYNC_GUIDE.md)、[发布流程](RELEASE-WORKFLOW.md)。
 

@@ -61,6 +61,7 @@ For smooth frame pacing—especially with **Frame Generation**—the source game
 - **Manual target**: You can also specify a custom cap (`15–360 FPS`, step `1`) directly in the RTSS group, even when sync is off.
 - **Cleanup on exit**: When scaling stops normally, Magpie tries to restore your previous RTSS limit. If the app crashes or is force-killed, restoration cannot be guaranteed.
 - The **"Written"** indicator only confirms that the RTSS config file was updated and verified—it does not guarantee the game obeyed RTSS. **Recheck** is read-only; **Retry** applies to the current session.
+- If Magpie asks you to start RTSS or MSI Afterburner manually, open it from its installation directory and select **Recheck**. Version 0.6.13 checks the installed executables and requires a protected directory for automatic launch.
 
 ---
 
@@ -167,6 +168,7 @@ When the source window has no new frames (such as a paused video or static menu)
 - **手动指定**：即使关闭同步，也可以在 RTSS 面板里直接指定 `15–360 FPS` 的限帧值。
 - **退出恢复**：正常停止缩放时会尝试恢复你原来的 RTSS 限帧；如果程序崩溃或被强制结束，无法保证恢复。
 - 状态显示**“已写入”**仅代表 RTSS 配置文件写入并通过核验，不代表游戏一定服从 RTSS。**重新检测**只读状态，**重试**仅针对当前会话。
+- 如果 Magpie 提示手动启动 RTSS 或 MSI Afterburner，请从对应安装目录启动，再点**重新检测**。0.6.13 会核验已安装的程序，并要求自动启动的安装目录受到写入权限保护。
 
 ---
 

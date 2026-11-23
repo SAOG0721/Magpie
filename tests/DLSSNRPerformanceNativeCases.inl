@@ -189,7 +189,7 @@ void RunPerformanceNativeCases(DeviceResources& resources, NgxD3D12Core& core) {
 			if (full) {
 				CheckPublishedDifference(resources,chain,selected);
 				if (ordinal>1) {
-					ID3D11ShaderResourceView* srvs[12]{};
+					DLSSNRFilter::Performance::ShaderResources srvs{};
 					DLSSNRFilter::Performance::Constants values{fixture.width,fixture.height,fixture.width,fixture.height};
 					Require(p.MotionInputs(previousFull,srvs,values) && values.age == interval);
 					for (uint32_t step=0;step<interval;++step) Require(srvs[3+step] != nullptr);
