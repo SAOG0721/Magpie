@@ -1,101 +1,163 @@
-Magpie ships with a handful of effects that can be used in combinations. Most of the effects have parameters that can be customized. All effects are stored in the `effects` folder. You can easily add effects if you are familiar with HLSL. Check the [MagpieFX](https://github.com/Blinue/Magpie/wiki/MagpieFX%20(EN)) page.
+Magpie ships with a wide collection of built-in effects that can be chained together in effect groups. Most effects expose customizable parameters. Custom HLSL effects are stored in the `effects` folder—see the [MagpieFX](https://github.com/Blinue/Magpie/wiki/MagpieFX%20(EN)) guide if you want to write your own.
 
 <a id="current-branch-setup"></a>
 
-## 当前分支的组合与 HDR 使用说明 / Current-branch setup
+## Magpie Experimental: Chains, HDR & Native Effects / 当前分支组合与内置效果说明
 
-本节对应 `feature/effect-description-standards` 的源码说明。各发布包的可用效果以该版本说明为准。选择器介绍单项用途，下面集中说明组合、颜色转换和共用设置。
+🌍 **English** | [简体中文](#当前分支组合与内置效果说明)
 
-This section describes the source on `feature/effect-description-standards`. Available effects depend on the release package. The picker explains individual effects; this section covers chains, color conversion, and shared settings.
+This section covers the experimental native effects, frame-generation chains, color-space rules, and shared settings on the `experimental` branch. Actual effect availability depends on your release package, GPU, driver, and runtimes. Individual effect summaries are shown directly in Magpie's effect picker; this guide explains how they work together.
 
-### 补帧的共用设置 / Shared frame-generation settings
+---
 
-每个效果组选择一种补帧方案，从 2× 开始，再按处理余量增加倍率。“帧率与刷新”设置基础帧率、重复检测和空闲持续重绘。补帧增加显示用的中间画面，游戏自身的更新频率仍由游戏决定。实际输出和延迟取决于捕获、处理能力与显示节奏。
+### 1. Shared Frame-Generation Rules
 
-补帧通常在图像处理后执行，拖动补帧条目不改变这个阶段；VFX 的 HDR 组合按下节规则处理。没有新画面时，空闲重绘显示缓存结果；恢复新内容后再继续补帧。快速运动、遮挡及捕获画面中的游戏文字可能出现插值伪影。
+- **One generator per group**: Pick a single frame-generation backend per effect group. Start at **2×** and only increase the multiplier if you have enough GPU headroom.
+- **Execution order**: Frame generation normally runs **after** all image-processing effects—dragging the FG entry up or down in the list does not change this stage. *(The only exception is VFX HDR chains with `TrueHDR`, covered below.)*
+- **Pacing & idle behavior**: Base frame rate, duplicate-frame detection, and idle static-picture redraw are configured under **Frame rate & refresh** (see [FRAME_SYNC_GUIDE.md](FRAME_SYNC_GUIDE.md)). Generated frames improve visual smoothness, while the game itself still controls its real simulation/input rate.
+- **Visual limits**: Fast motion, occlusions, and UI/text baked into the captured window can cause interpolation artifacts.
 
-Choose one frame generator per group, starting at 2x and increasing the multiplier according to processing headroom. Frame rate and refresh controls the base rate, duplicate detection, and continuous idle redraw. Generated images add display frames; the game controls its own update rate. Actual output and latency depend on capture, processing, and display pacing.
+### 2. NVIDIA VFX (VSR, Upscale, VFG) & TrueHDR Chains
 
-Frame generation normally runs after image processing; moving its entry does not change this stage. VFX HDR chains follow the rules below. Idle redraw reuses cached output while no new image arrives, and generation resumes with new content. Fast motion, occlusion, and game text baked into captured images can produce interpolation artifacts.
-
-### VFX 视频增强与 HDR 组合 / VFX video and HDR chains
-
-VSR 按常规、高码率或流媒体分类放大；降噪、去模糊分类保持输入尺寸。各分类分别保存质量和缩放设置。流媒体需 Ampere 及更新架构，提供中／极高档。分类修改需重新启动缩放，质量可实时切换。
-
-Upscale 可选 4/3×、1.5×、2×、3×、4× 固定倍率，宽高比例相同且输出须为整数尺寸。自动适配选择覆盖目标的最低合法倍率，然后等比整理到目标尺寸；超过 4× 时追加缩放。设备尺寸上限仍适用。运行面板显示原生处理与适配后的尺寸。锐化实时生效，倍率或目标尺寸修改需重新启动缩放。
-
-VFG 接收 SDR，支持 2×～8×，默认 2×、均衡模型、自动场切检测开启。需要 Windows x64、Ada／Blackwell 架构的 NVIDIA 渲染 GPU、适配驱动及 VFX 运行库。模型实时切换，倍率和场切检测修改需重新启动缩放。
-
-HDR 源使用 VFG 时，先将输入通过 HDR → SDR 转换为 SDR。若需 HDR 输出，可在 SDR 图像处理之后加入 TrueHDR；它会处理真实帧与生成帧。TrueHDR 需要输出屏幕开启 Windows HDR，峰值亮度按显示器能力设置，五项参数均可实时调整。
-
-链中的**首个 TrueHDR** 开始逐帧后处理段；其前面的图像效果先处理，再补帧。没有 TrueHDR 时，图像效果都在补帧前执行。后处理段允许的条目如下；其他图像效果放在首个 TrueHDR 之前。VFG 行用于标识组内唯一补帧器，拖动它不会移动处理分界。
+- **RTX Video (VSR / Denoise / Deblur)**:
+  - **VSR** upscales video using **Standard**, **High bitrate**, or **Streaming** categories (*Streaming requires Ampere or newer and offers Medium / Ultra*). **Denoise** and **Deblur** preserve the input resolution.
+  - Each category saves its own quality and scale settings. Quality switches **live**; changing category requires **restarting scaling**.
+- **Nvidia VFX Upscale**:
+  - Supports fixed **4/3×, 1.5×, 2×, 3×, and 4×** ratios (equal on both axes, integer output dimensions).
+  - **Auto fit** picks the lowest legal ratio that covers your target size, then proportionally resizes to fit (targets above 4× add a second resize pass). Sharpness applies **live**; changing ratio or target size requires **restarting scaling**.
+- **Nvidia VFX VFG (Video Frame Generation)**:
+  - Takes **SDR** input at **2×–8×** (default: **2×**, **Balanced** model, automatic shot detection **On**).
+  - Requires Windows x64, an **Ada or Blackwell** NVIDIA rendering GPU, a compatible driver, and the VFX runtime. Model switches **live**; multiplier and shot detection require **restarting scaling**.
+- **Combining VFG with HDR (`TrueHDR`)**:
+  - For **HDR sources**, convert to SDR first using **HDR → SDR** before VFG.
+  - For **HDR output**, place **Nvidia VFX TrueHDR** after your SDR processing effects—it will process both real and generated frames. TrueHDR requires **Windows HDR** enabled on the output monitor; set peak brightness to match your display (all five parameters apply **live**).
+  - The **first `TrueHDR`** in a group marks the start of the per-output-frame post-processing stage. Only the entries listed below are allowed after it; place all other image effects before the first `TrueHDR`. The `VFG` entry acts as the group's single generator marker and does not move this boundary.
 
 <!-- vfx-post-effects:start -->
-| 后处理段条目 / Post-stage entry | 效果 ID / Effect ID |
+| Post-stage entry / 后处理段条目 | Effect ID / 效果 ID |
 | --- | --- |
 | Nvidia VFX TrueHDR | `RTXVideo\RTXVideo_HDR` |
-| Nvidia VFX VFG（补帧标记 / generator marker） | `NvidiaVFX\VFG` |
+| Nvidia VFX VFG (generator marker / 补帧标记) | `NvidiaVFX\VFG` |
 | Bicubic | `Bicubic` |
 | Bilinear | `Bilinear` |
 | CAS | `CAS\CAS` |
 | FSR RCAS | `FSR\FSR_RCAS` |
 <!-- vfx-post-effects:end -->
 
-VSR upscales with Standard, High bitrate, or Streaming categories; Denoise and Deblur keep the input size. Each category saves its own quality and scale. Streaming requires Ampere or newer and offers Medium/Ultra. Category changes require restarting scaling; quality switches live.
+### 3. FSR3 Frame Generation Chains
 
-Upscale offers fixed 4/3x, 1.5x, 2x, 3x, and 4x ratios, equal on both axes with integer output dimensions. Auto fit selects the lowest legal ratio covering the target, then resizes proportionally to fit; targets above 4x add further resizing. Device size limits apply. The runtime panel shows native and fitted sizes. Sharpness applies live; ratio or target-size changes require restarting scaling.
+- **FSR3 FG** runs at a fixed **2×** multiplier and requires an enabled x64 build, matching runtimes, and a GPU that passes capability checks.
+- **SDR only**: Input, output, and every image effect in the group must stay in **SDR**.
+- **Optical flow**: Start with external **AMDOF (Quality)**, or use **NVOF** on supported NVIDIA hardware. Changing optical flow requires **restarting scaling**.
+- **Compatible effects**: Only effects on the [complete compatibility list](experimental/effects/FSR3FG.md#compatible-effect-list) are admitted. Unlisted effects, CRT shaders, geometric distortion, and cropping outside the output window are rejected (scaling, letterboxing, and aspect-ratio fitting within the output window are supported). FSR upscaling is optional.
 
-VFG takes SDR at 2x–8x, defaulting to 2x, Balanced, and automatic shot detection. Requires Windows x64, an Ada/Blackwell NVIDIA rendering GPU, a suitable driver, and the VFX runtime. The model switches live; multiplier and shot-detection changes require restarting scaling.
+### 4. HDR Processing & Compatibility Conversion
 
-For HDR sources, convert to SDR with HDR → SDR before VFG input. For HDR output, place TrueHDR after the SDR processing section; it processes both real and generated frames. TrueHDR requires Windows HDR on the output display. Set its peak brightness for the display; all five parameters apply live.
+- **Automatic SDR fallback**: Traditional SDR shaders (anime models, pixel art, conventional AA, CRT, most sharpeners, as well as VSR, Upscale, and video denoising) automatically run through an SDR compatibility conversion when placed in an HDR chain, then convert back to HDR. This can affect highlights, gradients, and color precision.
+- **Notable exceptions**: `Bicubic` runs in floating-point HDR; native upscalers use their backend's HDR path; `xBR Hybrid` falls back to nearest-neighbor 2× in HDR compatibility mode; `xBR NoBlend` preserves the SDR palette it receives. `FSR3 FG` requires a full SDR chain.
+- **Explicit `HDR → SDR` / `SDR → HDR` pairs**: You can wrap an SDR section manually by placing `HDR → SDR` (compatibility-pair mode) before it and `SDR → HDR` at the end to restore upstream parameters. *(Choose SDR display mode instead if you want direct SDR viewing.)*
+- **Native `SDR → HDR` vs. `TrueHDR`**: Native white-point mapping simply maps SDR content onto an HDR display at your chosen paper-white brightness, whereas `TrueHDR` uses AI to reshape highlights and color.
 
-The **first TrueHDR** starts per-output-frame post-processing. Earlier image effects run before generation; without TrueHDR, all image effects run before generation. The table lists all admitted post-stage entries. Place other image effects before the first TrueHDR. The VFG row is the group's single generator marker; moving it does not move the stage boundary.
+### 5. OKLab Image Adjustment
 
-### FSR3 FG 组合 / FSR3 FG chains
+Search for **OKLab** in the effect list to add it. It preserves resolution and provides full real-time color grading:
 
-FSR3 FG 固定 2×，需要支持该功能的 x64 程序、匹配运行库与通过能力检查的渲染 GPU。使用 SDR 输入及输出；效果组中的图像处理也须保持 SDR。外部光流从 AMDOF 质量档开始，也可使用硬件支持的 NVOF；修改光流需重新启动缩放。
+- **Color & tone**: Exposure, tonal controls, white balance, chroma, hue, an 8-color mixer, 3-way color wheels, color selections, curves, and `.cube` LUT import/export (LUTs are saved with your profile).
+- **Detail & finishing** *(disabled by default to save GPU cost)*: Local contrast, texture, chroma-noise reduction, debanding, bloom, dehaze, geometric masks, and lockable Auto Exposure / Auto White Balance.
+- **Live tools**: Six built-in presets, split comparison, A/B toggle, undo, and a draggable eyedropper in the running overlay to sample colors directly from the screen.
+- **Applying changes**: Numeric adjustments apply **live**; **importing or clearing a LUT requires restarting scaling**.
 
-支持的图像组合以[完整清单](experimental/effects/FSR3FG.md#compatible-effect-list)为准。清单外效果、CRT、几何变形与超出输出窗口的裁剪会被拒绝；支持输出区域内的缩放、留黑边与宽高比调整。它可独立于 FSR 超分使用，捕获方式按程序提供的选项选择。
+### 6. DLSSNR, Temporal Upscalers, DLSS/XeSS FG & Frame-Rate Limiter
 
-FSR3 FG is fixed at 2x and requires an enabled x64 build, matching runtimes, and a rendering GPU that passes capability checks. Input, output, and image processing must remain SDR. Start with external AMDOF at Quality, or use NVOF on supported hardware; optical-flow changes require restarting scaling.
+- **DLSSNR**:
+  - **Passes**: Start with 1 pass (up to 3 passes, each with independent style and intensity).
+  - **Model presets**: **Automatic (DLL Default)**, **HT**, and **CC Small FP8** (shared across passes; actual support depends on GPU and DLL).
+  - **Resolution control (SDR)**: Choose **Adaptive** *(default for new effects, adjusts in 5% steps to meet your content-rate target)* or **Manual** (`25%–100%`, step `1%`). SDR always runs residual reconstruction, so residual/detail controls work even at 100% scale, alongside **Midtone Strength** (`0–2`, default `1`) and **global Chroma Protection** (`0–1`, default `0`).
+  - **Processing modes**: **Every Frame** *(default)* or **Alternating Frames** *(SDR only; updates full NR every **2 / 3 / 4** new captures, default `2`, reusing historical enhancement in place or aligned via **AMDOF / NVOF**)*.
+  - **Live vs. Restart**: Style, intensity, and SDR residual/detail sliders apply **live**; model, processing mode, pass count, anti-flicker, input scale, reuse method, and optical flow require **restarting scaling**.
+  - *Tip*: If DLSSNR fails to initialize, single-pass may pass through the original image while multi-pass refuses to start—check the log for initialization details.
+- **Temporal Super Resolution (`DLSS SR`, `FSR 2/3/4`, `XeSS SR`)**:
+  - `DLSS SR` currently uses **Balanced/Preset J**; other backends follow their own scale and runtime requirements. Changing optical-flow method or quality requires **restarting scaling**. Inspect fast motion, occlusions, and HUD edges when tuning.
+- **DLSS FG & XeSS FG**:
+  - `XeSS FG` defaults to **2×, AMD optical flow, Quality** (3×/4× on non-Intel GPUs uses the bundled runtime's experimental compatibility path).
+  - `DLSS FG` uses the bundled compatibility runtime with multipliers determined by the rendering GPU (restart Magpie after switching the rendering GPU).
+  - Changing multiplier or optical flow on either generator requires **restarting scaling**.
+- **Frame-rate limiter effect**: Controls the group's base input rate regardless of its position in the list. If multiple caps are active, the lowest target wins. When frame sync is enabled, **Frame rate & refresh** manages pacing.
 
-Use the [complete compatibility list](experimental/effects/FSR3FG.md#compatible-effect-list). Unlisted effects, CRT, geometry distortion, and cropping outside the output window are rejected. Scaling, letterboxing, and aspect-ratio fitting within the output area are supported. FSR upscaling is optional; capture methods follow the options available in the application.
+---
 
-### HDR 处理与兼容转换 / HDR processing and conversion
+<a id="当前分支组合与内置效果说明"></a>
 
-传统 SDR 效果在 HDR 链中通过 SDR 兼容转换处理，再回到 HDR。这适用于动画模型、像素画、常规抗锯齿、CRT、多数锐化等沿用 SDR 运算的效果，也包括 VSR、Upscale 和视频降噪。转换涉及亮度范围与颜色精度，高光、渐变和颜色会受到影响；这是一条共用处理规则。
+## 当前分支组合与内置效果说明（简体中文）
 
-具体区别：Bicubic 使用 HDR 浮点处理；原生超分的 HDR 路径按对应后端处理；xBR Hybrid 在 HDR 兼容模式采用最近邻 2×；xBR NoBlend 保留的是它收到的 SDR 调色板。FSR3 FG 仅接受全 SDR 链；VFG 的 SDR 输入及 HDR 输出组合见上节。
+[English](#current-branch-setup) | **简体中文**
 
-显式 HDR → SDR / SDR → HDR 配对可以在中间加入 SDR 处理段：前者选兼容配对，后者放在该段末尾并恢复上游参数。配对中间画面不是直接观看用的 SDR，若直接输出 SDR 则选择 SDR 显示模式。转换、量化或后续处理会影响恢复结果。原生 SDR → HDR 白点映射调节白色亮度，TrueHDR 则用 AI 重塑亮度与颜色。两者用途分别是呈现 SDR 内容和改变 HDR 观感。
+本节介绍 `experimental` 分支的实验性原生效果、补帧组合、HDR 颜色转换规则及共用设置。具体可用效果以对应发布包、显卡、驱动和运行库为准；单项效果简介可在软件内的效果选择器直接查看，本指南重点说明**怎么搭配使用**。
 
-Traditional SDR effects process HDR chains through SDR compatibility conversion and then return to HDR. This covers anime models, pixel art, conventional anti-aliasing, CRT, and most sharpeners that use SDR arithmetic, as well as VSR, Upscale, and video denoising. The conversions affect brightness range and color precision, including highlights, gradients, and colors; this is a shared processing rule.
+---
 
-Specific cases: Bicubic uses floating-point HDR processing; native upscalers use their respective backend HDR paths; xBR Hybrid uses nearest-neighbor 2x in HDR compatibility mode; xBR NoBlend preserves the SDR palette it receives. FSR3 FG requires an entirely SDR chain. VFG SDR input and HDR output combinations are covered above.
+### 1. 补帧共用规则
 
-An explicit HDR → SDR / SDR → HDR pair allows an SDR section in between: select compatibility-pair mode upstream and restore its settings after the section. The intermediate image is for processing; choose SDR display mode for direct SDR viewing. Conversion, quantization, and subsequent processing affect restoration. Native SDR → HDR white-point mapping sets white brightness, while TrueHDR uses AI to reshape brightness and color: one presents SDR content, the other changes the HDR look.
+- **每组只选一种补帧**：从 **2×** 起步，确认显卡有余量后再提高倍率。
+- **执行顺序**：补帧默认在所有图像处理效果**之后**执行，在列表里上下拖动补帧条目不会改变这个阶段。*（唯一例外是下文 VFX 的 `TrueHDR` 后处理段。）*
+- **节奏与空闲**：基础帧率、重复帧检测与静态画面重绘统一在**帧率与刷新**里设置（详见 [FRAME_SYNC_GUIDE.md](FRAME_SYNC_GUIDE.md)）。补帧提高视觉流畅度，但游戏本身的逻辑与输入响应频率仍由游戏决定。
+- **画面限制**：快速运动、物体遮挡以及捕获画面中的游戏文字／HUD 可能出现插值伪影。
 
-### 其他原生效果设置 / Other native-effect settings
+### 2. NVIDIA VFX（VSR、Upscale、VFG）与 TrueHDR 组合
 
-DLSS SR 当前使用 Balanced／Preset J；其余时序超分按各自倍率与运行库要求使用。时序超分的光流方式和质量修改需重新启动缩放。运动来自捕获图像估计，快速运动、遮挡与界面边缘是选择时重点观察的部位。
+- **RTX Video（VSR / 降噪 / 去模糊）**：
+  - **VSR** 提供**常规、高码率、流媒体**三种放大分类（*流媒体需 Ampere 及更新架构，提供中／极高档*）；**降噪**与**去模糊**保持原分辨率。
+  - 各分类独立保存质量与缩放设置。质量**实时生效**，切换分类需**重新开始缩放**。
+- **Nvidia VFX Upscale**：
+  - 支持 **4/3×、1.5×、2×、3×、4×** 固定倍率（宽高同比例且输出为整数尺寸）。
+  - **自动适配**会自动选择覆盖目标尺寸的最低合法倍率，再等比缩放到目标尺寸（超过 4× 会追加一次缩放）。锐化**实时生效**，更改倍率或目标尺寸需**重新开始缩放**。
+- **Nvidia VFX VFG（视频补帧）**：
+  - 接收 **SDR** 输入，支持 **2×–8×**（默认 **2×**、**均衡**模型、自动场切检测**开启**）。
+  - 需要 Windows x64、**Ada 或 Blackwell** 架构 NVIDIA 渲染显卡、匹配驱动及 VFX 运行库。模型**实时切换**，倍率和场切检测修改需**重新开始缩放**。
+- **VFG 搭配 HDR（`TrueHDR`）**：
+  - **HDR 源**进 VFG 前，先用 **HDR → SDR** 转为 SDR。
+  - 若需要 **HDR 输出**，把 **Nvidia VFX TrueHDR** 放在 SDR 图像处理之后，它会同时处理真实帧与生成帧。TrueHDR 需要输出显示器开启 **Windows HDR**，峰值亮度按显示器能力设置（五项参数均**实时生效**）。
+  - 链中的**首个 `TrueHDR`** 开启逐帧后处理段，其后仅允许上方英文表格中列出的 6 种条目，其他图像效果请全部放在首个 `TrueHDR` 之前；`VFG` 条目仅作组内唯一补帧标记，拖动它不会移动分界。
 
-DLSSNR 从单次处理开始，可增加至三次并逐次设置风格与强度。SDR 下“调整输入分辨率”启用工作尺寸和细节控制；细节控制在全部处理结束后应用一次。HDR 路径不提供这组控制。风格、强度等实时生效；处理次数、抗闪烁、输入尺寸与光流修改需重新启动缩放。功能初始化失败时，单次路径可能输出原图，多次路径会拒绝启动；排查无变化时查看日志中的功能初始化结果。
+### 3. FSR3 补帧组合
 
-处理模式依次为逐帧、隔帧、异步逐帧、异步隔帧。两个隔帧模式可选每 2／3／4 个新捕获帧更新完整 NR，默认每 2 帧。隔帧固定连续复用受保护的历史增强，硬失效时同规格重建；异步逐帧在后台更新并连续复用同规格增强，允许最多 3 帧真实历史龄期，仅硬失效时重建；异步隔帧在后台更新，失效区域使用当前原图。四模式均输出当前画面，不运行轻量 NR，也不提供恢复策略或整图延后选项。处理模式和更新间隔修改需重新启动缩放。
+- **FSR3 FG** 固定为 **2×**，需要启用该功能的 x64 构建、匹配运行库及通过能力检查的渲染显卡。
+- **全链 SDR**：输入、输出与组内所有图像效果必须保持 **SDR**。
+- **光流设置**：建议从外部 **AMDOF（质量）** 起步，支持硬件的 NVIDIA 显卡也可选 **NVOF**；更改光流需**重新开始缩放**。
+- **兼容清单**：仅接受[完整兼容清单](experimental/effects/FSR3FG.md#compatible-effect-list)中的效果，清单外效果、CRT、几何变形与超出输出窗口的裁剪会被拒绝（支持输出区域内的缩放、留黑边与宽高比适配）。不强制搭配 FSR 超分。
 
-XeSS FG 默认 2×、AMD 光流、质量。各倍率的可用光流选项按当前程序与硬件能力提供；非 Intel 显卡的 3×／4× 使用随附运行库的实验兼容路径。DLSS FG 使用随附兼容运行库，可用倍率以渲染 GPU 的能力为准；切换渲染 GPU 后需重启喜鹊。两者的倍率与光流修改均需重新启动缩放。
+### 4. HDR 处理与兼容转换
 
-帧率限制效果控制整组的基础输入频率，拖动条目不改变限帧范围；多个有效上限共同生效并取较低目标。启用帧同步时由“帧率与刷新”的目标管理节奏。
+- **自动 SDR 兼容转换**：传统 SDR 效果（动画模型、像素画、常规抗锯齿、CRT、多数锐化，以及 VSR、Upscale 和视频降噪）放在 HDR 链中时，会自动转到 SDR 处理再回到 HDR，可能影响高光、渐变与颜色精度。
+- **特殊说明**：`Bicubic` 原生支持 HDR 浮点处理；原生超分走各自后端的 HDR 路径；`xBR Hybrid` 在 HDR 兼容模式下回退为最近邻 2×；`xBR NoBlend` 保留收到的 SDR 调色板；`FSR3 FG` 仅支持全 SDR 链。
+- **显式 `HDR → SDR` / `SDR → HDR` 配对**：可用兼容配对模式手动包裹一段 SDR 处理（结尾放 `SDR → HDR` 恢复上游参数；如果直接看 SDR，请改选 SDR 显示模式）。
+- **原生 `SDR → HDR` vs `TrueHDR`**：原生白点映射只是按指定白点亮度在 HDR 屏上呈现 SDR 内容；`TrueHDR` 则用 AI 重塑亮度与色彩观感。
 
-DLSS SR currently uses Balanced/Preset J; other temporal upscalers follow their own scale and runtime requirements. Changing temporal-upscaler optical-flow method or quality requires restarting scaling. Motion comes from captured images; fast motion, occlusion, and UI edges are useful areas to inspect when choosing settings.
+### 5. OKLab Image Adjustment 调色
 
-Start DLSSNR with one pass; up to three passes have independent style and intensity. In SDR, Adjust Input Resolution enables working-resolution and detail controls; detail controls apply once after all passes. The HDR path does not offer these controls. Style and intensity apply live; pass count, anti-flicker, working resolution, and optical flow require restarting scaling. If feature initialization fails, the single-pass path can pass through the image and multiple passes reject startup. Check feature initialization in the log when diagnosing an unchanged image.
+在效果器列表搜索 **OKLab** 即可添加。它保持原分辨率，提供完整的实时调色能力：
 
-Processing modes are Every Frame, Alternating Frames, Async Every Frame and Async Alternating Frames. Both alternating modes update full NR every 2, 3 or 4 new captures, defaulting to 2. Alternating Frames continuously reuses protected history and rebuilds hard-invalid history at the same specification. Async Every Frame continuously reuses same-spec history up to 3 captures old while updating in the background; only hard-invalid or unavailable history requires rebuilding. Async Alternating Frames updates in the background and uses the current original image in invalid regions. All four output the current picture without lightweight NR or a whole-picture delay control. Changing the mode or update interval requires restarting scaling.
+- **色彩与明暗**：曝光、明暗分区、白平衡、色度、色相、八色混合、三向色轮、选色、曲线与 `.cube` LUT 导入／导出（LUT 随配置保存）。
+- **细节与质感** *（默认关闭以节省 GPU 开销）*：局部对比度、纹理、彩噪抑制、去色带、辉光、去雾、几何蒙版，以及可锁定的自动曝光／自动白平衡。
+- **实时工具**：内置六组预设、分屏对比、A/B 切换、撤销，运行浮窗内可直接拖动吸管到画面上取色。
+- **生效方式**：常规数值调节**实时生效**；**导入或清除 LUT 后需重新开始缩放**。
 
-XeSS FG defaults to 2x, AMD optical flow, Quality. Optical-flow options at each multiplier depend on the current application and hardware capabilities; 3x/4x on non-Intel GPUs uses the bundled runtime's experimental compatibility path. DLSS FG uses the bundled compatibility runtime, with multipliers determined by the rendering GPU; restart Magpie after changing that GPU. Multiplier and optical-flow changes in either generator require restarting scaling.
+### 6. DLSSNR、时序超分、DLSS/XeSS 补帧与限帧效果
 
-The frame-rate limiter controls the group's base input rate regardless of its position. Multiple active caps combine at the lower target. With frame synchronization enabled, Frame rate and refresh manages pacing.
+- **DLSSNR**：
+  - **处理次数**：默认 1 次，最多 3 次，每次可独立设置风格与强度。
+  - **模型预设**：**自动（DLL 默认）**、**HT**、**CC Small FP8**（所有处理层共用，实际支持取决于显卡与运行库）。
+  - **输入分辨率（SDR）**：支持**自适应** *（新建效果默认，按内容帧率目标以 5% 步进自动调档）* 与**手动**（`25%–100%`，步进 `1%`）。SDR 始终启用残差重建（100% 比例也能调残差与细节），并新增**中间调强度**（`0–2`，默认 `1`）与**全域色度保护**（`0–1`，默认 `0`）。
+  - **处理模式**：**逐帧** *（默认）* 或 **隔帧** *（仅 SDR，每 **2 / 3 / 4** 个新捕获帧更新完整 NR，默认 `2`，支持原位复用或通过 **AMDOF / NVOF** 对齐复用历史增强）*。
+  - **生效方式**：风格、强度和 SDR 残差／细节数值**实时生效**；模型、处理模式、处理次数、抗闪烁、输入尺寸、复用方式与光流等结构设置更改后需**重新开始缩放**。
+  - *排查提示*：若初始化失败，单次路径可能直接输出原图，多次路径会拒绝启动，请在日志中查看初始化结果。
+- **时序超分（`DLSS SR`、`FSR 2/3/4`、`XeSS SR`）**：
+  - `DLSS SR` 当前使用 **Balanced/Preset J**，其余按各自倍率与运行库要求使用。更改光流方式或质量需**重新开始缩放**；调参时重点观察快速运动、遮挡与 UI 边缘。
+- **DLSS FG 与 XeSS FG**：
+  - `XeSS FG` 默认 **2×、AMD 光流、质量**（非 Intel 显卡的 3×／4× 使用随附运行库的实验兼容路径）。
+  - `DLSS FG` 使用随附兼容运行库，可用倍率由渲染显卡决定（切换渲染显卡后需重启 Magpie）。
+  - 两者的倍率与光流修改均需**重新开始缩放**。
+- **帧率限制效果**：无论放在效果组哪个位置，都控制整组的基础输入帧率；多个上限同时存在时取较低值。启用帧同步时由**帧率与刷新**统一管理节奏。
 
 ## Introduction to shipped effects
 
