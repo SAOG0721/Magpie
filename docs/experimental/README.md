@@ -1,14 +1,14 @@
 # Magpie 实验分支文档索引
 
-## 0.6.13 本地候选与发布准备 / Local release candidate
+## 0.6.13 已公开版本 / Published release
 
-- [0.6.13 候选版本中英说明](../RELEASE_NOTES_v0.6.13-experimental.md)（本地候选／准备中；GitHub 公开入口仍为 v0.6.12）。
+- [GitHub 下载](https://github.com/SAOG0721/Magpie/releases/tag/v0.6.13-experimental)与[完整中英更新说明](../RELEASE_NOTES_v0.6.13-experimental.md)。
 - [开发基线](DEVELOPMENT-BASELINE.md)与[下一版计划](../RELEASE_NOTES_NEXT.md)：后续开发、构建和当前公开版本入口。
 - [DLSSNR 功能与参数](effects/DLSSNR-MULTIPASS.md)、[帧率与刷新](../FRAME_SYNC_GUIDE.md)、[发布流程](RELEASE-WORKFLOW.md)。
 
-## 0.6.12 已公开版本 / Published release
+## 历史版本 / Previous releases
 
-[Magpie Experimental v0.6.12](https://github.com/SAOG0721/Magpie/releases/tag/v0.6.12-experimental) 的功能与升级方法见[完整中英更新说明](../RELEASE_NOTES_v0.6.12-experimental.md)。上一版的[说明](../RELEASE_NOTES_v0.6.11-experimental.md)和[发布准备记录](todos/20261023-xess-output-interval-release-TODO.md)保留在历史文档中。
+[Magpie Experimental v0.6.12](https://github.com/SAOG0721/Magpie/releases/tag/v0.6.12-experimental) 的功能与升级方法见[完整中英更新说明](../RELEASE_NOTES_v0.6.12-experimental.md)。另见 [0.6.11 更新说明](../RELEASE_NOTES_v0.6.11-experimental.md)和[发布准备记录](todos/20261023-xess-output-interval-release-TODO.md)。
 
 ## 维护规范
 

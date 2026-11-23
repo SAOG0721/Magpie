@@ -17,7 +17,7 @@
 
 <br>
 
-**当前版本：[⬇ 下载 v0.6.12](https://github.com/SAOG0721/Magpie/releases/tag/v0.6.12-experimental)**
+**当前版本：[⬇ 下载 v0.6.13](https://github.com/SAOG0721/Magpie/releases/tag/v0.6.13-experimental)**
 &nbsp;·&nbsp;
 [**🌍 English**](./README.md)
 &nbsp;·&nbsp;
@@ -42,14 +42,14 @@
 > [!NOTE]
 > 本项目**不代表** Magpie 官方发布。实验分支相关的使用问题与兼容性反馈请提交到[本仓库 Issues](https://github.com/SAOG0721/Magpie/issues)。
 
-## 最新更新 · v0.6.12
+## 最新更新 · v0.6.13
 
-- **新增 OKLab Image Adjustment 调色效果器**：保持画面尺寸，支持曝光、曲线、三向色轮、八色混合、`.cube` LUT 导入／导出、实时吸管取色与分屏／A/B 对比。
-- **DLSSNR 模型与性能升级**：新增模型预设（**自动 / HT / CC Small FP8**）、**自适应／手动**输入分辨率缩放、**逐帧／隔帧**（2/3/4 帧，支持 AMDOF/NVOF 对齐复用），以及中间调强度与全域色度保护。
-- **实时参数面板与性能分析改进**：自适应分组布局与纵向滚动、运行浮窗内 **Ctrl＋滚轮缩放界面（50%–200%）**、记忆分析器折叠状态，无补帧时按新内容统计帧率。
-- **捕获与 VRR 优化**：改进 WGC 捕获恢复与光标处理，并在受支持的 `WGC + DLSSNR + Front Edge + VRR`（无补帧）路径支持短暂空档补交。
+- **DLSSNR 自适应分辨率**结合源端供帧和 GPU 负载减少误降档，试档收益不足时自动回退。
+- **SDR 同步隔帧**改进 NVIDIA 光流路径的亮度与细节衔接，低输入比例下更明显。
+- **原生效果器**改进 FSR 和 XeSS 的 GPU 同步与恢复，修复 DLSSNR 和 NVIDIA VFX VSR 的内联着色器编译。
+- **档案与设置**支持用键盘调整档案顺序，补齐繁中效果目录，改进配置恢复、自启任务权限和 RTSS 安装校验。
 
-👉 [查看 v0.6.12 完整更新说明（中／英）](docs/RELEASE_NOTES_v0.6.12-experimental.md)
+👉 [查看 v0.6.13 完整更新说明（中／英）](docs/RELEASE_NOTES_v0.6.13-experimental.md)
 
 ## 主要功能
 

@@ -169,7 +169,7 @@ Contributor: [GitHub 用户名](https://github.com/用户名) 具体贡献。
 - 每个已发布常规版本和 Hotfix 都保留对应的本地 Markdown 快照。
 - 未发布的历史草稿必须在文档标题和索引中明确标记，不能伪装成已发布版本。
 - GitHub 上最终正文发生修改时，应追加文档提交同步本地快照，不改写已经推送的历史。
-- 发布完成后更新 `docs/experimental/README.md` 的索引，并检查 `version.json` 指向当前常规版本或维护者指定的更新入口。
+- 发布完成后更新 `docs/experimental/README.md` 的索引，并同步 `version.json` 与 `rtx-video/version.json`。已发布的桌面客户端从后一路径读取更新入口。
 
 ## 7. 历史发布经验
 

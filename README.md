@@ -17,7 +17,7 @@
 
 <br>
 
-**Current release: [⬇ Download v0.6.12](https://github.com/SAOG0721/Magpie/releases/tag/v0.6.12-experimental)**
+**Current release: [⬇ Download v0.6.13](https://github.com/SAOG0721/Magpie/releases/tag/v0.6.13-experimental)**
 &nbsp;·&nbsp;
 [**🇨🇳 简体中文**](./README_ZH.md)
 &nbsp;·&nbsp;
@@ -42,14 +42,14 @@
 > [!NOTE]
 > This is **not** an official Magpie release. Please report experimental-fork issues and discussions in [this repository](https://github.com/SAOG0721/Magpie/issues).
 
-## Latest Update · v0.6.12
+## Latest Update · v0.6.13
 
-- **OKLab Image Adjustment**: New same-size color grading effect with exposure, curves, color wheels, 8-color mixer, `.cube` LUT import/export, live eyedropper, and A/B split comparison.
-- **DLSSNR Models & Performance**: Added model presets (**Automatic / HT / CC Small FP8**), **Adaptive / Manual** input resolution scaling, **Every Frame / Alternating Frames** (2/3/4) with AMDOF/NVOF reprojection, plus Midtone Strength and global Chroma Protection.
-- **Live Overlay & Profiler**: Adaptive grouped layout with vertical scrolling, **Ctrl + Mouse Wheel** overlay zoom (50%–200%), remembered profiler collapse states, and new-content FPS accounting.
-- **Capture & VRR**: Improved WGC capture recovery and cursor handling, plus experimental gap-fill resubmission on supported WGC + DLSSNR + Front Edge + VRR paths.
+- **DLSSNR adaptive resolution.** Uses source delivery and GPU load to avoid unnecessary downshifts and rolls back trials that yield too little benefit.
+- **SDR alternating frames.** NVIDIA Optical Flow improves brightness and detail consistency between full inference and reused frames, especially at lower input scales.
+- **Native effects.** Improves GPU synchronization and recovery for FSR and XeSS, and fixes inline shader compilation for DLSSNR and NVIDIA VFX VSR.
+- **Profiles and settings.** Adds keyboard-accessible profile reordering and expands the Traditional Chinese effect catalog. Improves configuration recovery, auto-start task permissions, and RTSS installation checks.
 
-👉 [Read the full v0.6.12 release notes (EN / 中文)](docs/RELEASE_NOTES_v0.6.12-experimental.md)
+👉 [Read the full v0.6.13 release notes (EN / 中文)](docs/RELEASE_NOTES_v0.6.13-experimental.md)
 
 ## Main Features
 
