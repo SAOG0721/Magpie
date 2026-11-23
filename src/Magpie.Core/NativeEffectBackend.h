@@ -32,8 +32,12 @@ struct NativeEffectDrawContext {
 	uint64_t captureFrameIndex = 0;
 	int64_t captureAdmissionTime100ns = 0;
 	uint64_t captureReflexFrameId = 0;
-	// Content target excludes generated frames and same-capture quality updates.
+	// Effective configured content target, or zero when following the source.
 	double targetContentFrameRate = 0;
+	// Actual content pacing ceiling, including caps in Follow Source.
+	double contentFrameRateLimit = 0;
+	// The acquisition for this capture coalesced distinct source timestamps.
+	bool captureQueued = false;
 	double guidanceGpuMs = 0;
 	uint64_t guidanceGpuSample = 0;
 	const FrameGuidanceView& frameGuidance;

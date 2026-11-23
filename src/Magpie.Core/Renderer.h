@@ -45,9 +45,14 @@ public:
 
 	ScalingError Initialize(HWND hwndAttach, OverlayOptions& overlayOptions) noexcept;
 	void BeginShutdown() noexcept;
+	bool CanFinishShutdown() noexcept;
 	bool IsStopping() const noexcept { return _sessionLifetime->IsStopping(); }
-	const std::string& InitializationContext() const noexcept { return _backendInitContext; }
-	uint32_t InitializationSystemError() const noexcept { return _backendInitSystemError; }
+	const std::string& InitializationContext() const noexcept {
+		return _backendHandshakeFailure.code ? _backendHandshakeFailure.context : _backendInitContext;
+	}
+	uint32_t InitializationSystemError() const noexcept {
+		return _backendHandshakeFailure.code ? _backendHandshakeFailure.code : _backendInitSystemError;
+	}
 	const std::wstring& MotionConfigurationNotice() const noexcept { return _motionConfigurationNotice; }
 
 	bool Render(bool force = false, bool waitForGpu = false) noexcept;
@@ -353,6 +358,10 @@ private:
 	void _HandleDLSSFrameGenerationFailure(ID3D11Texture2D* input) noexcept;
 	void _DisableDLSSFrameGenerationForSession() noexcept;
 	bool _DrainNgxConsumers() noexcept;
+	bool _DrainBackendPublication() noexcept;
+	bool _WaitForPublicationFence(uint64_t value, HRESULT registration, const char* operation) noexcept;
+	void _RetirePublicationFence(uint64_t value, bool signalled) noexcept;
+	void _StopForBackendWaitFailure(const char* operation, HRESULT hr) noexcept;
 	bool _ReleaseNgxConsumers() noexcept;
 
 	bool _UpdateDynamicConstants(uint32_t frameCount) const noexcept;
@@ -400,6 +409,7 @@ private:
 	bool _frontendMotionReset = true;
 	bool _frontendBaseValid = false;
 	bool _frontendPresentedBaseValid = false;
+	bool _frontendBaseIsPresented = false;
 	bool _frontendBaseNeedsPresent = false;
 	RECT _destRect{};
 	
@@ -494,6 +504,9 @@ private:
 	winrt::com_ptr<ID3D11Fence> _d3dFence;
 	uint64_t _fenceValue = 0;
 	wil::unique_event_nothrow _fenceEvent;
+	// Backend-owned. Only the audited SDR NR path defers publication CPU waits
+	// to the owner lifecycle; all shared-slot and native-resource fences remain.
+	bool _publicationUsesGpuOrdering = false;
 
 	std::array<winrt::com_ptr<ID3D11Texture2D>, MAX_SHARED_TEXTURE_SLOTS>
 		_backendSharedTextures;
@@ -610,9 +623,15 @@ private:
 		FrameGenerationEffectKind::None;
 	MotionVectorRequest _proxyMotionRequest{};
 
-	// INVALID_HANDLE_VALUE 表示后端初始化失败
-	std::atomic<HANDLE> _sharedTextureHandle{ NULL };
-	// 下面四个成员由 _sharedTextureHandle 同步
+	bool _WaitForBackendTextures(DWORD timeout, const char* operation) noexcept;
+	void _NotifyBackendTexturesReady(bool succeeded) noexcept;
+	bool _PollBackendShutdown() noexcept;
+	wil::unique_event_nothrow _backendTexturesReadyEvent;
+	bool _backendQuitPosted = false;
+	std::atomic<bool> _deferBackendRetirement{ false };
+	PresenterFailure _backendHandshakeFailure;
+	// Release/acquire publication also covers the texture handles and startup diagnostics.
+	std::atomic<bool> _backendTexturesReady{ false };
 	winrt::Windows::System::DispatcherQueue _backendThreadDispatcher{ nullptr };
 	ScalingError _backendInitError = ScalingError::NoError;
 	std::string _backendInitContext;

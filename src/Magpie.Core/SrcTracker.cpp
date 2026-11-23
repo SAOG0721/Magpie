@@ -27,6 +27,8 @@ ScalingError SrcTracker::Set(HWND hWnd, const ScalingOptions& options, bool& isI
 	assert(!isInvisibleOrMinimized);
 
 	_hWnd = hWnd;
+	_placementTransition.Reset();
+	_placementChangeDeferred = false;
 	
 	// 这里不检查源窗口是否挂起，将在创建缩放窗口前检查
 
@@ -201,6 +203,8 @@ bool SrcTracker::UpdateState(
 	assert(!isInvisibleOrMinimized && !focusedChanged &&
 		!rectChanged && !sizeChanged && !movingChanged);
 
+	_placementChangeDeferred = false;
+
 	if (!IsWindow(_hWnd)) {
 		Logger::Get().Info("源窗口已销毁");
 		return false;
@@ -224,10 +228,6 @@ bool SrcTracker::UpdateState(
 		}
 	}
 
-	// Internal parameter input keeps the scaling session active while the actual
-	// Windows keyboard focus belongs exclusively to its input host.
-	if (UpdateForeground(hwndFore)) focusedChanged = true;
-
 	const bool oldMaximized = _isMaximized;
 
 	WINDOWPLACEMENT wp{ sizeof(wp) };
@@ -236,10 +236,13 @@ bool SrcTracker::UpdateState(
 		return false;
 	}
 
-	_isMaximized = wp.showCmd == SW_SHOWMAXIMIZED;
+	const bool candidateMaximized = wp.showCmd == SW_SHOWMAXIMIZED;
 
 	RECT curWindowRect;
 	if (wp.showCmd == SW_SHOWMINIMIZED) {
+		_placementTransition.Reset();
+		_isMaximized = candidateMaximized;
+		if (UpdateForeground(hwndFore)) focusedChanged = true;
 		// 窗口最小化有两步：先将窗口状态设为最小化，然后将窗口移出屏幕 (左上角坐标
 		// (-32000,-32000))。如果我们刚好在两步之间停止缩放，第二步将无法执行，这和缩
 		// 放窗口被源窗口所有有关，不确定是否是 OS 的 bug。这个检查确保第二步完成后再
@@ -266,6 +269,18 @@ bool SrcTracker::UpdateState(
 			Logger::Get().Win32Error("GetWindowRect 失败");
 			return false;
 		}
+	}
+
+	_placementChangeDeferred = _placementTransition.ShouldDeferPlacement(
+		oldMaximized != candidateMaximized, curWindowRect == _windowRect,
+		!isInvisibleOrMinimized && wp.showCmd != SW_SHOWMINIMIZED, SourcePlacementTransition::Clock::now());
+	if (_placementChangeDeferred) return true;
+
+	_isMaximized = candidateMaximized;
+	// Commit foreground state only when the caller can consume its notification.
+	// Internal parameter input still belongs to its own input host.
+	if (wp.showCmd != SW_SHOWMINIMIZED && UpdateForeground(hwndFore)) {
+		focusedChanged = true;
 	}
 
 	sizeChanged = oldMaximized != _isMaximized ||

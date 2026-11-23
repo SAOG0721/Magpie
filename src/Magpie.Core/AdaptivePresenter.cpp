@@ -247,8 +247,6 @@ bool AdaptivePresenter::EndFrame(bool waitForGpu) noexcept {
 	}
 
 	if (waitForGpu || _isResized) {
-		_isResized = false;
-
 		// 下面两个调用用于减少调整窗口尺寸时的边缘闪烁。
 		// 
 		// 我们希望 DWM 绘制新的窗口框架时刚好合成新帧，但这不是我们能控制的，尤其是混合架构
@@ -266,7 +264,19 @@ bool AdaptivePresenter::EndFrame(bool waitForGpu) noexcept {
 
 		// 等待渲染完成
 		FrameTrace::Scope traceGpuWait(FrameTrace::Event::PresentGpuWait);
-		_WaitForGpu();
+		const HRESULT hr = _WaitForGpu();
+		if (FAILED(hr)) {
+			if (!_CheckDeviceFailure("Wait for render before presenting", hr)) {
+				if (hr == HRESULT_FROM_WIN32(ERROR_TIMEOUT)) {
+					CancelReflexRender();
+					Logger::Get().ComWarn("Deferred presentation: render fence timed out", hr);
+				} else {
+					_Fail("Wait for render before presenting", hr);
+				}
+			}
+			return false;
+		}
+		_isResized = false;
 
 		// 等待 DWM 开始合成新一帧
 		Win32Helper::WaitForDwmComposition();

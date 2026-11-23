@@ -24,6 +24,8 @@ struct ConfigSaveState {
 
 namespace ConfigPersistence {
 
+inline constexpr size_t MaxFileBytes = 16 * 1024 * 1024;
+
 inline std::string_view JsonText(std::string_view text) noexcept {
 	if (text.starts_with("\xEF\xBB\xBF")) text.remove_prefix(3);
 	return text;
@@ -35,11 +37,6 @@ inline bool IsValid(std::string_view json) {
 	rapidjson::Document doc;
 	doc.Parse<rapidjson::kParseValidateEncodingFlag>(json.data(), json.size());
 	return !doc.HasParseError() && doc.IsObject();
-}
-
-inline std::string Read(const std::filesystem::path& path) {
-	std::ifstream stream(path, std::ios::binary);
-	return { std::istreambuf_iterator<char>(stream), std::istreambuf_iterator<char>() };
 }
 
 // Keep complete top-level members, and complete objects in a top-level array
@@ -113,6 +110,7 @@ inline std::string RecoverPrefix(std::string_view damaged, IncompleteChain* inco
 // Preserve exact bytes for recovery fingerprints and immutable originals.
 // Text-mode CRT reads would translate CRLF from upstream's configuration.
 inline bool ReadFileBytes(const std::filesystem::path& path, std::string& result, uint32_t* systemError = nullptr) {
+	result.clear();
 	if (systemError) *systemError = 0;
 	HANDLE file = CreateFileW(path.c_str(), GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
 		nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
@@ -123,7 +121,7 @@ inline bool ReadFileBytes(const std::filesystem::path& path, std::string& result
 	DWORD error = ERROR_SUCCESS;
 	LARGE_INTEGER size{};
 	if (!GetFileSizeEx(file, &size)) error = GetLastError();
-	else if (size.QuadPart < 0 || static_cast<uint64_t>(size.QuadPart) > result.max_size()) error = ERROR_FILE_TOO_LARGE;
+	else if (size.QuadPart < 0 || static_cast<uint64_t>(size.QuadPart) > MaxFileBytes) error = ERROR_FILE_TOO_LARGE;
 	if (!error) {
 		try {
 			result.resize(static_cast<size_t>(size.QuadPart));
@@ -142,8 +140,15 @@ inline bool ReadFileBytes(const std::filesystem::path& path, std::string& result
 	return error == ERROR_SUCCESS;
 }
 
+inline std::string Read(const std::filesystem::path& path) {
+	std::string result;
+	ReadFileBytes(path, result);
+	return result;
+}
+
 inline bool WriteAtomic(const std::filesystem::path& path, std::string_view json,
 	uint64_t revision, ConfigSaveState& state) {
+	if (json.size() > MaxFileBytes) { SetLastError(ERROR_FILE_TOO_LARGE); return false; }
 	if (!IsValid(json)) { SetLastError(ERROR_INVALID_DATA); return false; }
 	std::lock_guard lock(state.mutex);
 	if (revision < state.savedRevision) return true;

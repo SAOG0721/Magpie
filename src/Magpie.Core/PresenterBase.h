@@ -110,7 +110,7 @@ protected:
 	virtual bool _Initialize(HWND hwndAttach) noexcept = 0;
 
 	virtual UINT _PresentSyncInterval(UINT) const noexcept { return 0; }
-	void _WaitForGpu() noexcept;
+	HRESULT _WaitForGpu() noexcept;
 	void _RefreshVRREnvironment(bool force = false) noexcept;
 	void _LogVRRState(std::string_view event) noexcept;
 	void _VRRPathAvailable(bool available) noexcept;

@@ -10,7 +10,8 @@ public:
 
 	void RequestStop() noexcept { _stopping.store(true, std::memory_order_release); }
 	bool IsStopping() const noexcept { return _stopping.load(std::memory_order_acquire); }
-	bool IsCurrent(uint32_t runId) const noexcept { return _runId == runId && !IsStopping(); }
+	bool MatchesRun(uint32_t runId) const noexcept { return _runId == runId; }
+	bool IsCurrent(uint32_t runId) const noexcept { return MatchesRun(runId) && !IsStopping(); }
 
 private:
 	const uint32_t _runId;

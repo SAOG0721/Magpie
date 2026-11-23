@@ -12,9 +12,10 @@ backend = '\n'.join(line for line in backend.splitlines() if not line.startswith
 (out / 'OverlayBackendProduction.inc').write_text(backend, encoding='utf-8')
 
 renderer = (core / 'Renderer.cpp').read_text(encoding='utf-8-sig')
-start = renderer.index('\tbool overlayColorChanged = false;')
-end = renderer.index('\n\t\t\t// Only a successfully submitted real scene', start)
-commit = renderer[start:end] + '\n\t\t}\n\t}\n'
+start = renderer.index('\t\tif (!stableBaseOnly && _frontendPresentedBaseTexture) {',
+                       renderer.index('\tbool overlayColorChanged = false;'))
+end = renderer.index('\n\t\t\t_TryCompleteSceneScreenshot();', start)
+commit = '\tbool overlayColorChanged = false;\n\tif (submitted) {\n' + renderer[start:end] + '\n\t\t}\n\t}\n'
 start = renderer.index('\tif (overlayColorChanged) ++_overlayActionRevision;', end)
 end = renderer.index('\n\treturn submitted;', start)
 (out / 'OverlaySubmitProduction.inc').write_text(commit + renderer[start:end], encoding='utf-8')

@@ -55,6 +55,8 @@ private:
 		std::vector<uint8_t> executed;
 		std::chrono::steady_clock::time_point submitted{};
 		ProfilerHistory::Time frameTime{};
+		uint64_t traceFrame = 0;
+		int64_t traceTick = 0;
 	};
 	void _Disable(const char* operation, HRESULT hr) noexcept;
 	bool _ReadQuery(ID3D11DeviceContext* d3dDC, ID3D11Query* query,

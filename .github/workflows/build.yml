@@ -2,12 +2,37 @@ name: build
 
 on:
   push:
-    paths: [ '.github/workflows/build.yml', 'Magpie.slnx', '*.props', 'scripts/publish.py', 'src/**' ]
+    paths: [ '.github/workflows/build.yml', 'Magpie.slnx', '*.props', 'README*.md', 'version.json', 'scripts/**', 'src/**', 'tests/**', 'docs/**', 'presets/**', 'conan-locks/**' ]
   pull_request:
-    paths: [ '.github/workflows/build.yml', 'Magpie.slnx', '*.props', 'scripts/publish.py', 'src/**' ]
+    paths: [ '.github/workflows/build.yml', 'Magpie.slnx', '*.props', 'README*.md', 'version.json', 'scripts/**', 'src/**', 'tests/**', 'docs/**', 'presets/**', 'conan-locks/**' ]
+
+env:
+  CONAN_VERSION: '2.30.0'
 
 jobs:
+  checks:
+    runs-on: windows-2025-vs2026
+    steps:
+    - uses: actions/checkout@v7
+
+    - uses: actions/setup-python@v6
+      with:
+        python-version: '3.13'
+
+    - name: Repository consistency
+      run: python -B -X utf8 tests/consistency/run.py
+
+    - name: Effect catalog structure and generated files
+      run: ./tests/Validate-EffectCatalog.ps1 -CatalogOnly
+
+    - name: Effect description contracts
+      run: python -B -X utf8 tests/validate_effect_descriptions.py
+
+    - name: Source placement CPU tests
+      run: ./tests/Run-SourcePlacementTransitionTests.ps1
+
   build:
+    needs: checks
     runs-on: windows-2025-vs2026
     strategy:
       matrix:
@@ -22,13 +47,13 @@ jobs:
         python-version: '3.13'
 
     - name: Setup Conan
-      run: pip install conan
+      run: python -m pip install "conan==$env:CONAN_VERSION"
 
     - name: Load Conan cache
       uses: actions/cache@v6
       with:
         path: ~/.conan2/p
-        key: Conan-${{ hashFiles('src/**/conanfile.txt') }}-${{ matrix.compiler }}-${{ matrix.platform }}
+        key: Conan-${{ env.CONAN_VERSION }}-${{ hashFiles('src/**/conanfile.py', 'src/**/conanfile.txt', 'src/_ConanDeps/*.profile', 'conan-locks/*.lock') }}-${{ matrix.compiler }}-${{ matrix.platform }}
 
     - name: Build
       if: github.ref != 'refs/heads/dev' && github.ref != 'refs/heads/main'

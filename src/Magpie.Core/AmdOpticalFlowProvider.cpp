@@ -41,7 +41,6 @@ void Prepare(uint3 tid : SV_DispatchThreadID) {
 constexpr char DENSIFY_HLSL[] = R"(
 Texture2D<int2> SparseFlow : register(t0);
 RWTexture2D<float2> DenseMotion : register(u0);
-RWTexture2D<float> DenseConfidence : register(u1);
 cbuffer Params : register(b0) {
     uint2 SourceExtent;
     uint2 OpticalFlowExtent;
@@ -66,9 +65,6 @@ void Densify(uint3 tid : SV_DispatchThreadID) {
     float2 d = float2(LoadFlow(p0 + int2(1, 1)));
     DenseMotion[tid.xy] = lerp(lerp(a, b, f.x), lerp(c, d, f.x), f.y) *
         VectorScale;
-    // FidelityFX OF does not expose a confidence surface. Preserve an honest,
-    // conservative baseline; reset/first frames are cleared to zero instead.
-    DenseConfidence[tid.xy] = 0.65;
 }
 )";
 
@@ -144,6 +140,7 @@ struct AmdOpticalFlowProvider::Impl {
 		lastSubmittedValue = 0;
 		fenceValue = 0;
 		historyValid = false;
+		confidenceIsNormal = false;
 	}
 
 	bool CreateSharedTexture(
@@ -461,9 +458,17 @@ struct AmdOpticalFlowProvider::Impl {
 			float(extent.height) / float(opticalFlowExtent.height)
 		};
 		context11->Unmap(densifyParams.get(), 0);
+		// FFX supplies no confidence surface: every valid pixel uses the same
+		// conservative value. Reset frames clear it to zero; restore it once on
+		// this ordered D3D11 context before the next valid output is consumed.
+		if (!confidenceIsNormal) {
+			static constexpr float CONFIDENCE[4]{ 0.65f, 0.65f, 0.65f, 0.65f };
+			context11->ClearUnorderedAccessViewFloat(denseConfidenceUav.get(), CONFIDENCE);
+			confidenceIsNormal = true;
+		}
 		ID3D11ShaderResourceView* srv = sparseFlowSrv.get();
 		ID3D11UnorderedAccessView* uavs[]{
-			denseMotionUav.get(), denseConfidenceUav.get()
+			denseMotionUav.get(), nullptr
 		};
 		ID3D11Buffer* cb = densifyParams.get();
 		context11->CSSetShader(densifyShader.get(), nullptr, 0);
@@ -518,6 +523,7 @@ struct AmdOpticalFlowProvider::Impl {
 	uint64_t executeCount = 0;
 	bool contextCreated = false;
 	bool historyValid = false;
+	bool confidenceIsNormal = false;
 	OpticalFlowInitializationError initializationError =
 		OpticalFlowInitializationError::ProviderUnavailable;
 };
@@ -605,6 +611,7 @@ bool AmdOpticalFlowProvider::BeginFrame(
 			impl.denseMotionUav.get(), ZERO);
 		impl.context11->ClearUnorderedAccessViewFloat(
 			impl.denseConfidenceUav.get(), ZERO);
+		impl.confidenceIsNormal = false;
 	} else if (!impl.Densify()) {
 		impl.historyValid = false;
 		impl.resetReason = FrameGuidanceResetReason::ProviderFailure;

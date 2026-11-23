@@ -89,12 +89,12 @@ void SettingsViewModel::Theme(int value) {
 }
 
 bool SettingsViewModel::IsRunAtStartup() const noexcept {
-	return AutoStartHelper::IsAutoStartEnabled();
+	return AutoStartHelper::IsAutoStartEnabled(AutoStartHelper::Scope::CurrentUser);
 }
 
 void SettingsViewModel::IsRunAtStartup(bool value) {
 	if (value) {
-		AutoStartHelper::EnableAutoStart(AppSettings::Get().IsAlwaysRunAsAdmin());
+		AutoStartHelper::EnableAutoStart(AppSettings::Get().IsAlwaysRunAsAdmin(), AutoStartHelper::Scope::CurrentUser);
 	} else {
 		AutoStartHelper::DisableAutoStart();
 	}

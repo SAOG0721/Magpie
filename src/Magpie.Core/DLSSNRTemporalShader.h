@@ -2,9 +2,10 @@
 #include <string_view>
 #include <string>
 #include "DLSSNRColorShader.h"
+#include "DLSSNRLocalHistoryShader.h"
 
 namespace Magpie {
-inline const std::string DLSSNR_TEMPORAL_SHADER = std::string(DLSSNR_COLOR_HLSL) + R"hlsl(
+inline const std::string DLSSNR_TEMPORAL_SHADER = std::string(DLSSNR_COLOR_HLSL) + std::string(DLSSNR_LOCAL_HISTORY_HLSL) + R"hlsl(
 Texture2D<float4> Input : register(t0);
 Texture2D<float4> Base : register(t1);
 Texture2D<float4> Raw : register(t2);
@@ -32,6 +33,9 @@ float4 FinalTemporalColor(float4 color) {
 }
 float3 Guide(float3 c) { return Hdr ? c / (1 + abs(c)) : c; }
 bool Inside(int2 p) { return all(p >= int2(Region.xy)) && all(p < int2(Region.zw)); }
+bool PreviousFootprintInside(float2 previous) {
+    return all(previous >= float2(Region.xy)) && all(previous <= float2(Region.zw) - 1);
+}
 bool PreviousPosition(int2 p, out float2 previous) {
     previous = p;
     if (!Inside(p)) return false;
@@ -41,8 +45,7 @@ bool PreviousPosition(int2 p, out float2 previous) {
         previous += mv;
     }
     // Validate the entire bilinear footprint before a history/guide read.
-    return all(previous >= float2(Region.xy)) &&
-        all(previous <= float2(Region.zw) - 1);
+    return PreviousFootprintInside(previous);
 }
 // G: signed half-resolution observations, upsampled with original-color guidance.
 // Return support explicitly: a failed reconstruction must not publish history.
@@ -95,10 +98,51 @@ bool GatherHistory(float2 previous, float3 color, out float4 result) {
     result /= mass;
     return true;
 }
-[numthreads(8,8,1)]
-void main(uint3 id : SV_DispatchThreadID) {
-    int2 p = id.xy;
-    if (any(id.xy >= Size)) return;
+struct TemporalPatch {
+    float2 previous;
+    float3 lo, hi;
+    float confidence;
+};
+bool TemporalPosition(int2 p, bool localMatch, float2 offset, out float2 previous) {
+    if (!localMatch) return PreviousPosition(p,previous);
+    previous=p+offset;
+    return Inside(p) && PreviousFootprintInside(previous);
+}
+TemporalPatch MatchTemporalPatch(int2 p, float3 current, bool localMatch, float2 offset, float errorLimit) {
+    TemporalPatch patch;
+    patch.lo=patch.hi=current;
+    patch.confidence=0;
+    if (!TemporalPosition(p,localMatch,offset,patch.previous)) return patch;
+    float error=0, maximumError=0;
+    bool valid=true;
+    [unroll] for (int y=-1; y<=1; ++y) {
+        [unroll] for (int x=-1; x<=1; ++x) {
+            int2 n=p+int2(x,y);
+            float2 previousN;
+            if (!TemporalPosition(n,localMatch,offset,previousN)) { valid=false; continue; }
+            // Keep patches on the same side of a motion discontinuity.
+            if (!localMatch && UseMotion && any(abs((previousN-n)-(patch.previous-p))>2)) {
+                valid=false; continue;
+            }
+            float4 inputN=Input.Load(int3(n,0));
+            float4 old=PreviousGuide.SampleLevel(LinearClamp,(previousN+.5)/Size,0);
+            float3 residualN=Raw.Load(int3(n,0)).rgb-Base.Load(int3(n,0)).rgb;
+            if (!all(isfinite(inputN)) || !all(isfinite(old)) || old.a<.999 ||
+                !all(isfinite(residualN))) { valid=false; continue; }
+            float e=LocalHistoryColorError(Guide(inputN.rgb),old.rgb);
+            error+=e/9;
+            maximumError=max(maximumError,e);
+            patch.lo=min(patch.lo,residualN);
+            patch.hi=max(patch.hi,residualN);
+        }
+    }
+    if (valid && maximumError<=errorLimit)
+        patch.confidence=(1-smoothstep(.008,.04,error))*(1-smoothstep(.025,.10,maximumError));
+    return patch;
+}
+void ProcessTemporal(uint2 pixel, bool recoverNvidiaHistory, float2 offset, float recoveryTrust) {
+    int2 p=pixel;
+    if (any(pixel>=Size)) return;
     float4 original = Input.Load(int3(p,0));
     float4 base = Base.Load(int3(p,0));
     float4 raw = Raw.Load(int3(p,0));
@@ -157,35 +201,28 @@ void main(uint3 id : SV_DispatchThreadID) {
     float observed = smoothstep(.005,.02,max(delta.r,max(delta.g,delta.b)));
     float support = observed;
     float3 result = current;
-    float2 previous;
-    if (historyWeight > 0 && PreviousPosition(p, previous)) {
-        float error = 0;
-        float maximumError = 0;
-        bool valid = true;
-        float3 lo = current, hi = current;
-        [unroll] for (int y=-1; y<=1; ++y) {
-            [unroll] for (int x=-1; x<=1; ++x) {
-                int2 n = p + int2(x,y);
-                float2 previousN;
-                if (!PreviousPosition(n, previousN)) { valid = false; continue; }
-                // Reject patch support crossing a motion discontinuity.
-                if (UseMotion && any(abs((previousN-n)-(previous-p)) > 2)) { valid = false; continue; }
-                float4 inputN = Input.Load(int3(n,0));
-                float4 old = PreviousGuide.SampleLevel(LinearClamp, (previousN+.5)/Size, 0);
-                float3 residualN = Raw.Load(int3(n,0)).rgb - Base.Load(int3(n,0)).rgb;
-                if (!all(isfinite(inputN)) || !all(isfinite(old)) || old.a < .999 ||
-                    !all(isfinite(residualN))) { valid = false; continue; }
-                float3 delta = abs(Guide(inputN.rgb) - old.rgb);
-                float e = max(delta.r, max(delta.g, delta.b));
-                error += e / 9;
-                maximumError = max(maximumError, e);
-                lo = min(lo, residualN); hi = max(hi, residualN);
+    if (historyWeight > 0) {
+        TemporalPatch patch=MatchTemporalPatch(p,current,false,0,1);
+        if (recoverNvidiaHistory && patch.confidence<.5) {
+            if (recoveryTrust>0) {
+                TemporalPatch local=MatchTemporalPatch(p,current,true,offset,1);
+                local.confidence*=recoveryTrust;
+                if (local.confidence>patch.confidence) patch=local;
+            }
+            // A stationary patch needs no textured landmark. Verify every
+            // color in the footprint before keeping history at this pixel.
+            if (patch.confidence<.5 && Inside(p)) {
+                float4 same=PreviousGuide.Load(int3(p,0));
+                if (all(isfinite(same)) && same.a>=.999 &&
+                    LocalHistoryColorError(original.rgb,same.rgb)<=LocalHistoryExactError) {
+                    TemporalPatch stationary=MatchTemporalPatch(p,current,true,0,LocalHistoryExactError);
+                    if (stationary.confidence>patch.confidence) patch=stationary;
+                }
             }
         }
-        // Raw-color patch matching is the initial B.1 baseline: no residual blur.
-        float q = (1-smoothstep(.008, .04, error)) *
-                  (1-smoothstep(.025, .10, maximumError));
-        if (valid && q > 0) {
+        float q=patch.confidence;
+        if (q>0) {
+            float2 previous=patch.previous;
             float4 old = 0;
             bool historyValid = true;
             if (Route == 4) historyValid = GatherHistory(previous, Guide(original.rgb), old);
@@ -195,7 +232,7 @@ void main(uint3 id : SV_DispatchThreadID) {
                 // when the current residual vanishes. A tight variance box would
                 // erase the very on/off history this filter needs to stabilize.
                 float3 margin = .02 + q * abs(old.rgb);
-                float3 safe = clamp(old.rgb, lo-margin, hi+margin);
+                float3 safe = clamp(old.rgb, patch.lo-margin, patch.hi+margin);
                 if (Route == 3) {
                     float oldSupport = saturate(old.a-1);
                     // 60 ms attack / 180 ms release, derived from the same capture
@@ -232,6 +269,37 @@ void main(uint3 id : SV_DispatchThreadID) {
     NextHistory[p] = float4(clamp(result,-65504,65504),Route == 3 ? 1+support : 1);
     float3 color = base.rgb + detail + (Route == 3 ? support*result : result);
     Output[p] = FinalTemporalColor(float4(color,raw.a));
+}
+[numthreads(8,8,1)]
+void main(uint3 id : SV_DispatchThreadID) {
+    ProcessTemporal(id.xy,false,0,0);
+}
+[numthreads(8,8,1)]
+void mainNvidiaAlternating(uint3 id : SV_DispatchThreadID, uint3 group : SV_GroupID, uint lane : SV_GroupIndex) {
+    float2 offset=0;
+    float patchError=1;
+    bool recovered=false;
+    bool allowRecovery=UseMotion && HistoryWeight>0 && !BypassHistory && !Hdr;
+    if (allowRecovery) {
+        float3 color=0;
+        bool needsRecovery=false;
+        if (IsLocalHistoryAnchor(lane) && all(id.xy<Size)) {
+            int2 p=id.xy;
+            color=Input.Load(int3(p,0)).rgb;
+            float2 previous;
+            needsRecovery=!PreviousPosition(p,previous);
+            if (!needsRecovery) {
+                float4 guide=PreviousGuide.SampleLevel(LinearClamp,(previous+.5)/Size,0);
+                needsRecovery=guide.a<.999 || !all(isfinite(guide)) ||
+                              LocalHistoryColorError(color,guide.rgb)>.02;
+            }
+        }
+        // This guide and history always belong to the previous output frame,
+        // including when a fresh reconstruction replaces the older residual.
+        const LocalHistoryPatch patch={int2(group.xy*8),Size,Region,float2(1,1),3,true,false};
+        recovered=FindLocalHistoryOffset(PreviousGuide,LinearClamp,patch,lane,color,needsRecovery,offset,patchError);
+    }
+    ProcessTemporal(id.xy,allowRecovery,offset,recovered ? LocalHistoryTrust(patchError) : 0);
 }
 )hlsl";
 

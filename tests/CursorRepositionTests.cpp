@@ -199,9 +199,11 @@ struct SourceTracker {
 struct Renderer {
     RECT source{ 100, 200, 1100, 700 }, dest{ 0, 0, 2000, 1000 };
     bool parameters = false;
+    bool shutdownReady = true;
     const RECT& SrcRect() const { return source; }
     const RECT& DestRect() const { return dest; }
     bool IsEffectParametersVisible() const { return parameters; }
+    bool CanFinishShutdown() const { return shutdownReady; }
 };
 struct ScalingWindow {
     static inline uint32_t runId = 1;
@@ -219,6 +221,7 @@ struct ScalingWindow {
     ScalingOptions options;
     SourceTracker source;
     Magpie::Renderer renderer;
+    Magpie::Renderer* _renderer = &renderer;
     RECT rendererRect{ 0, 0, 2000, 1000 };
     bool foreground = true;
     bool live = true;
@@ -532,6 +535,17 @@ int main() try {
             "Final coordinate cleanup could not complete without remapping/recreating the hold");
         Check(clip == (failure == 2 ? foreignClip : desktop), "Final coordinate cleanup overwrote its restore target");
         if (failure == 2) Check(clipCalls == calls, "Final coordinate retry overwrote a foreign clip");
+    }
+    {
+        Fixture f;
+        auto& window = ScalingWindow::Get();
+        window._retirement.pending = true;
+        window.renderer.shutdownReady = false;
+        Check(!window.CompletePendingDestroy() && window.IsRetiring() && window.finished == 0,
+            "Retirement must retain the renderer until the backend stops");
+        window.renderer.shutdownReady = true;
+        Check(window.CompletePendingDestroy() && !window.IsRetiring() && window.finished == 1,
+            "The normal outer retirement pass must finish after the backend stops");
     }
     {
         Fixture f;

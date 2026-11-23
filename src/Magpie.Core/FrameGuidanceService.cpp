@@ -500,6 +500,10 @@ struct FrameGuidanceService::GpuTiming {
 	struct Slot {
 		winrt::com_ptr<ID3D11Query> disjoint, start, end;
 		uint64_t generation = 0, sequence = 0;
+#ifdef MP_ENABLE_NATIVE_BACKEND_TIMING
+		FrameGuidanceFrameId frameId = 0;
+		uint64_t captureSequence = 0, resourceGeneration = 0;
+#endif
 		bool pending = false;
 	};
 	std::array<Slot, 8> slots;
@@ -517,7 +521,7 @@ struct FrameGuidanceService::GpuTiming {
 		return true;
 	}
 	void Reset() noexcept { ++generation; milliseconds = 0; sample = 0; }
-	Slot* Begin(ID3D11DeviceContext* context) noexcept {
+	Slot* Begin(ID3D11DeviceContext* context, [[maybe_unused]] const FrameGuidanceFrame& frame) noexcept {
 		for (auto& slot : slots) {
 			if (!slot.pending) continue;
 			D3D11_QUERY_DATA_TIMESTAMP_DISJOINT disjoint{};
@@ -530,12 +534,25 @@ struct FrameGuidanceService::GpuTiming {
 				!disjoint.Disjoint && disjoint.Frequency && end >= start) {
 				milliseconds = double(end - start) * 1000.0 / double(disjoint.Frequency);
 				sample = slot.sequence;
+#ifdef MP_ENABLE_NATIVE_BACKEND_TIMING
+				// This is the completed query's original input, never the capture
+				// active while the delayed result is polled. The existing scope
+				// brackets _Produce, including GPU dependencies of its providers.
+				if (sample <= 4 || sample % 120 == 0) Logger::Get().Info(fmt::format(
+					"Frame Guidance GPU sample: frameId={} sample={} captureSequence={} resourceGeneration={} scope=FrameGuidanceService::_Produce timestampValid=true ms={:.6f}",
+					slot.frameId, sample, slot.captureSequence, slot.resourceGeneration, milliseconds));
+#endif
 			}
 		}
 		if (++sequence % 4 != 0) return nullptr;
 		for (auto& slot : slots) {
 			if (slot.pending) continue;
 			slot.sequence = sequence; slot.generation = generation; slot.pending = true;
+#ifdef MP_ENABLE_NATIVE_BACKEND_TIMING
+			slot.frameId = frame.frameId;
+			slot.captureSequence = frame.captureSequence;
+			slot.resourceGeneration = frame.resourceGeneration;
+#endif
 			context->Begin(slot.disjoint.get()); context->End(slot.start.get());
 			return &slot;
 		}
@@ -879,7 +896,7 @@ const FrameGuidanceView& FrameGuidanceService::_Produce(
 	const FrameGuidanceRequirements& requirements
 ) noexcept {
 	auto* dc = _resources->GetD3DDC();
-	auto* timing = _gpuTiming ? _gpuTiming->Begin(dc) : nullptr;
+	auto* timing = _gpuTiming ? _gpuTiming->Begin(dc, frame) : nullptr;
 	auto endTiming = wil::scope_exit([&] { GpuTiming::End(dc, timing); });
 	if (!_hasLoggedRequirements || requirements != _lastLoggedRequirements) {
 		Logger::Get().Info(fmt::format("Frame Guidance selected shared provider: method={} quality={} instances={}",

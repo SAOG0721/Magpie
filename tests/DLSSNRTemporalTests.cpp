@@ -45,15 +45,16 @@ struct Harness {
 		unsigned left = 0, top = 0, right = W, bottom = H;
 		float chromaStrength = 0; unsigned enforceZero = 0, useReuseValidity = 0, bypassHistory = 0;
 	} constants;
-	Harness(unsigned w=W, unsigned h=H) : width(w), height(h) {
+	Harness(unsigned w=W, unsigned h=H, bool recoverNvidiaHistory=false) : width(w), height(h) {
 		auto create = D3D11CreateDevice(nullptr,D3D_DRIVER_TYPE_WARP,nullptr,D3D11_CREATE_DEVICE_DEBUG,nullptr,0,D3D11_SDK_VERSION,&device,nullptr,&dc);
 		if (create == DXGI_ERROR_SDK_COMPONENT_MISSING)
 			create = D3D11CreateDevice(nullptr,D3D_DRIVER_TYPE_WARP,nullptr,0,nullptr,0,D3D11_SDK_VERSION,&device,nullptr,&dc);
 		Check(create);
 		device.As(&debug);
 		ComPtr<ID3DBlob> blob, errors;
+		const char* entry = recoverNvidiaHistory ? "mainNvidiaAlternating" : "main";
 		auto hr = D3DCompile(DLSSNR_TEMPORAL_SHADER.data(),DLSSNR_TEMPORAL_SHADER.size(),"DLSSNRTemporal",nullptr,nullptr,
-			"main","cs_5_0",D3DCOMPILE_ENABLE_STRICTNESS|D3DCOMPILE_WARNINGS_ARE_ERRORS|D3DCOMPILE_ALL_RESOURCES_BOUND|D3DCOMPILE_OPTIMIZATION_LEVEL3,0,&blob,&errors);
+			entry,"cs_5_0",D3DCOMPILE_ENABLE_STRICTNESS|D3DCOMPILE_WARNINGS_ARE_ERRORS|D3DCOMPILE_ALL_RESOURCES_BOUND|D3DCOMPILE_OPTIMIZATION_LEVEL3,0,&blob,&errors);
 		if (errors) std::cerr << static_cast<const char*>(errors->GetBufferPointer());
 		Check(hr);
 		Check(device->CreateComputeShader(blob->GetBufferPointer(),blob->GetBufferSize(),nullptr,&shader));
@@ -241,6 +242,35 @@ int main(int argc, char** argv) {
 	}
 	h.Set(0,input); h.Set(4,guide); h.Constant(5,{-1,0,0,0}); Near(h.Run()[center][0],.66f);
 	h.Constant(5,{2,0,0,0}); Near(h.Run()[center][0],.5f);
+	// A wrong NVOF pair cannot drop adjacent history on a fresh NR frame if
+	// the original colors verify a local match. Occluded pixels still reject.
+	{
+		Harness nvidia(W,H,true);
+		nvidia.Default();
+		nvidia.constants.motion=1;
+		const auto color = [](float x,float y) -> Pixel {
+			return {.15f+.03f*x+.01f*y, .16f+.022f*y, .26f+.014f*x-.008f*y, 1};
+		};
+		for (unsigned y=0;y<H;++y) for (unsigned x=0;x<W;++x) {
+			guide[y*W+x]=color(float(x),float(y));
+			input[y*W+x]=color((std::min)(x+1.5f,float(W-1)),(std::min)(y+.5f,float(H-1)));
+			residual[y*W+x]={.1f+.01f*x,0,0,1};
+		}
+		nvidia.Set(0,input); nvidia.Set(3,residual); nvidia.Set(4,guide);
+		const float expected=.42f+.8f*(.1f+.01f*(float(center%W)+1.5f));
+		nvidia.Constant(5,{1.5f,.5f,0,0});
+		Near(nvidia.Run()[center][0],expected);
+		nvidia.Constant(5,{-40,22,0,0});
+		Near(nvidia.Run()[center][0],expected);
+		input[center]={.94f,.91f,.85f,1};
+		nvidia.Set(0,input);
+		Near(nvidia.Run()[center][0],.5f);
+		nvidia.Default();
+		nvidia.constants.motion=1;
+		nvidia.Constant(5,{-40,22,0,0});
+		Near(nvidia.Run()[center][0],.66f);
+		nvidia.CheckDebug();
+	}
 	// HDR values are not clamped to SDR [0,1].
 	h.Default(); h.constants.hdr=1; h.constants.weight=0;
 	h.Constant(2,{2,-.1f,.5f,1}); out=h.Run(); Near(out[center][0],2); Near(out[center][1],-.1f);

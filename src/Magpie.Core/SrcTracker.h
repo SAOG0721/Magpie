@@ -1,5 +1,6 @@
 #pragma once
 #include "ScalingOptions.h"
+#include "SourcePlacementTransition.h"
 
 namespace Magpie {
 
@@ -82,6 +83,10 @@ public:
 		return _isMoving;
 	}
 
+	bool IsPlacementChangeDeferred() const noexcept {
+		return _placementChangeDeferred;
+	}
+
 private:
 	ScalingError _CalcSrcRect(
 		const ScalingOptions& options,
@@ -99,6 +104,8 @@ private:
 	bool _isSourceForeground = false;
 	bool _isMaximized = false;
 	bool _isMoving = false;
+	SourcePlacementTransition _placementTransition;
+	bool _placementChangeDeferred = false;
 };
 
 }

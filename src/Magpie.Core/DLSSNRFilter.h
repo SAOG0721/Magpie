@@ -13,6 +13,7 @@ struct DLSSNRPerformanceSnapshot {
 	uint64_t fullSubmissions = 0, sameSpecRecoveries = 0, continuousReuseOutputs = 0;
 	uint64_t captureSequence = 0, fullCompleted = 0, fullLate = 0, fullPublished = 0;
 	uint64_t foregroundGpuSamples = 0;
+	uint64_t foregroundGpuSampleId = 0;
 	uint64_t fullGpuSamples = 0, fullReadySamples = 0, fullAdoptionSamples = 0;
 	uint64_t fullAdopted = 0, coverageSamples = 0;
 	double foregroundGpuMs = 0, fullTurnaroundMs = 0;
@@ -21,6 +22,8 @@ struct DLSSNRPerformanceSnapshot {
 	double enhancementCoverage = -1;
 	uint64_t sparseFullSubmissions = 0, sparseHeldOutputs = 0, sparseBurstSubmissions = 0;
 	double sparsePastContributionFraction = 0;
+	// Phase of the query that produced foregroundGpuMs.
+	bool foregroundGpuFullInference = true;
 };
 
 struct DLSSNRSparseOutputInfo {
@@ -109,9 +112,10 @@ public:
 		ID3D11Texture2D* output
 	) noexcept override;
 	// One scheduling/resource owner, with independent features and cached outputs.
+	// Direct callers can request foreground timings in fixed-resolution EveryFrame.
 	bool InitializeChain(DeviceResources& resources, NgxD3D12Core& ngxCore,
 		ID3D11Texture2D* input, ID3D11Texture2D* output,
-		std::span<const DLSSNRSettings> passes) noexcept;
+		std::span<const DLSSNRSettings> passes, bool collectForegroundTiming = true) noexcept;
 
 	bool Draw(const NativeEffectDrawContext& context) noexcept override;
 	NativeEffectDrawContext OutputDrawContext(const NativeEffectDrawContext& context) const noexcept override;
@@ -141,6 +145,7 @@ public:
 		ID3D11Texture2D* output, uint32_t fullPercent) noexcept;
 	bool WarmPreparedResolution(const NativeEffectDrawContext& context) noexcept;
 	bool GetHotResolution(uint32_t& fullPercent) const noexcept;
+	bool GetRecoveryResolution(uint32_t& fullPercent) const noexcept;
 	bool HasHotResolution(uint32_t fullPercent) const noexcept;
 	void InvalidateHotResolution() noexcept;
 	DLSSNRPerformanceSnapshot GetPerformanceSnapshot() const noexcept;
@@ -187,6 +192,7 @@ private:
 	[[maybe_unused]] std::unique_ptr<ResolutionChange> _resolutionChange;
 	[[maybe_unused]] uint64_t _outputVersionBase = 0;
 	[[maybe_unused]] bool _foregroundQueue = false;
+	[[maybe_unused]] bool _collectForegroundTiming = true;
 	DlssNrFailure _failure;
 	std::string _libraryInfo;
 	// 仅在 MP_ENABLE_DLSSNR 构建中使用；无 SDK 的 CI 构建里 ClangCL -Werror 会报未使用

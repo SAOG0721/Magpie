@@ -192,10 +192,16 @@ FrameSourceState GraphicsCaptureFrameSource::_Update() noexcept {
 		winrt::Direct3D11CaptureFrame frame = _captureFramePool.TryGetNextFrame();
 		if (frame) {
 			uint32_t dequeued = 1;
+			int64_t oldestQueuedTimestamp = 0;
 			// Drain at most the pool capacity, so a fast producer cannot keep us here.
 			for (uint32_t i = 1; i < 4; ++i) {
 				auto nextFrame = _captureFramePool.TryGetNextFrame();
 				if (!nextFrame) break;
+				const int64_t discardedTimestamp = frame.SystemRelativeTime().count();
+				if (discardedTimestamp > _lastFrameTimestamp100ns &&
+					(!oldestQueuedTimestamp || discardedTimestamp < oldestQueuedTimestamp)) {
+					oldestQueuedTimestamp = discardedTimestamp;
+				}
 				frame.Close();
 				frame = std::move(nextFrame);
 				++dequeued;
@@ -253,6 +259,8 @@ FrameSourceState GraphicsCaptureFrameSource::_Update() noexcept {
 				_deviceResources->GetD3DDC()->CopySubresourceRegion(
 					_output.get(), 0, 0, 0, 0, texture.get(), 0, &_frameBox);
 				frame.Close();
+				// Queue evidence requires an earlier distinct source timestamp.
+				_captureQueued = oldestQueuedTimestamp > 0 && oldestQueuedTimestamp < timestamp;
 				_captureTimestamp100ns = timestamp;
 				_lastFrameTimestamp100ns = timestamp;
 				if (_captureInterrupted) {

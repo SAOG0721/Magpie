@@ -6,6 +6,7 @@
 #include "Logger.h"
 
 #ifdef MP_ENABLE_XESS_ZEROMV
+#include "XeSSUpscaleFence.h"
 #include <d3d12.h>
 #include <xess/xess.h>
 #include <xess/xess_d3d12.h>
@@ -34,6 +35,7 @@ struct XeSSZeroMVUpscaler::Impl {
 	winrt::com_ptr<ID3D12DescriptorHeap> descriptorHeap12;
 	winrt::com_ptr<ID3D11Fence> fence11;
 	winrt::com_ptr<ID3D12Fence> fence12;
+	wil::unique_event_nothrow fenceEvent;
 	xess_context_handle_t xessContext = nullptr;
 	std::unique_ptr<HalfResOpticalFlow> opticalFlow;
 	uint64_t fenceValue = 0;
@@ -42,6 +44,7 @@ struct XeSSZeroMVUpscaler::Impl {
 	uint32_t outputWidth = 0;
 	uint32_t outputHeight = 0;
 	uint64_t lastSubmittedValue = 0;
+	bool submitted = false;
 	bool convertInputToRgba = false;
 	bool enableOpticalFlow = false;
 	bool enableJitter = false;
@@ -70,44 +73,34 @@ static bool XessSucceeded(xess_result_t result, std::string_view operation) noex
 	return false;
 }
 
+static bool WaitForFenceValue(XeSSZeroMVUpscaler::Impl& impl, uint64_t value) noexcept {
+	const HRESULT hr = WaitForXeSSUpscaleFence(impl.device12.get(), impl.fence12.get(), impl.fenceEvent.get(), value);
+	if (FAILED(hr)) Logger::Get().ComError("Wait for XeSS upscaler fence", hr);
+	return SUCCEEDED(hr);
+}
+
 static bool WaitForD3D12(XeSSZeroMVUpscaler::Impl& impl) noexcept {
 	const uint64_t value = ++impl.fenceValue;
-	HRESULT hr = impl.queue12->Signal(impl.fence12.get(), value);
+	const HRESULT hr = impl.queue12->Signal(impl.fence12.get(), value);
 	if (FAILED(hr)) {
 		Logger::Get().ComError("Signal XeSS D3D12 fence failed", hr);
 		return false;
 	}
-
-	wil::unique_event_nothrow event;
-	hr = event.create();
-	if (FAILED(hr)) {
-		Logger::Get().ComError("Create XeSS fence event failed", hr);
-		return false;
-	}
-	hr = impl.fence12->SetEventOnCompletion(value, event.get());
-	if (FAILED(hr)) {
-		Logger::Get().ComError("Set XeSS fence event failed", hr);
-		return false;
-	}
-	WaitForSingleObject(event.get(), INFINITE);
-	return true;
+	return WaitForFenceValue(impl, value);
 }
 
-static bool WaitForFenceValue(XeSSZeroMVUpscaler::Impl& impl, uint64_t value) noexcept {
-	if (!value || impl.fence12->GetCompletedValue() >= value) return true;
-	wil::unique_event_nothrow event;
-	HRESULT hr = event.create();
-	if (FAILED(hr)) {
-		Logger::Get().ComError("Create XeSS completion event failed", hr);
-		return false;
+void XeSSZeroMVUpscaler::ImplDeleter::operator()(Impl* impl) const noexcept {
+	if (!impl) return;
+	const bool safeToDestroy = !impl->submitted || WaitForD3D12(*impl) ||
+		FAILED(impl->device12->GetDeviceRemovedReason());
+	if (safeToDestroy && (!impl->xessContext ||
+		XessSucceeded(xessDestroyContext(impl->xessContext), "xessDestroyContext"))) {
+		delete impl;
+		return;
 	}
-	hr = impl.fence12->SetEventOnCompletion(value, event.get());
-	if (FAILED(hr)) {
-		Logger::Get().ComError("Set XeSS completion event failed", hr);
-		return false;
-	}
-	WaitForSingleObject(event.get(), INFINITE);
-	return true;
+	// If the queue or SDK will not retire, retain its owner and reject a new session.
+	xessUpscaleRestartRequired.store(true, std::memory_order_release);
+	Logger::Get().Error("XeSS upscaler resources retained after failed teardown; restart Magpie before using XeSS SR");
 }
 
 static bool CreateSharedTexture(
@@ -160,15 +153,7 @@ static xess_quality_settings_t SelectQuality(float scale) noexcept {
 
 XeSSZeroMVUpscaler::XeSSZeroMVUpscaler() = default;
 
-XeSSZeroMVUpscaler::~XeSSZeroMVUpscaler() {
-	if (_impl && _impl->xessContext) {
-		if (_impl->queue12 && _impl->fence12) {
-			WaitForD3D12(*_impl);
-		}
-		xessDestroyContext(_impl->xessContext);
-		_impl->xessContext = nullptr;
-	}
-}
+XeSSZeroMVUpscaler::~XeSSZeroMVUpscaler() = default;
 
 bool XeSSZeroMVUpscaler::Initialize(
 	DeviceResources& deviceResources,
@@ -180,7 +165,11 @@ bool XeSSZeroMVUpscaler::Initialize(
 	_enableOpticalFlow = enableOpticalFlow;
 	_enableJitter = enableJitter;
 	_impl.reset();
-	auto impl = std::make_unique<Impl>();
+	if (xessUpscaleRestartRequired.load(std::memory_order_acquire)) {
+		Logger::Get().Error("Restart Magpie before creating another XeSS upscaler");
+		return false;
+	}
+	std::unique_ptr<Impl, ImplDeleter> impl(new Impl);
 	impl->enableOpticalFlow = enableOpticalFlow;
 	impl->enableJitter = enableJitter;
 	impl->device11 = deviceResources.GetD3DDevice();
@@ -403,9 +392,6 @@ bool XeSSZeroMVUpscaler::Initialize(
 		Logger::Get().ComError("Close XeSS initialization command list failed", hr);
 		return false;
 	}
-	ID3D12CommandList* commandLists[] = { impl->commandList12.get() };
-	impl->queue12->ExecuteCommandLists(1, commandLists);
-
 	hr = impl->device11->CreateFence(0, D3D11_FENCE_FLAG_SHARED, IID_PPV_ARGS(impl->fence11.put()));
 	if (FAILED(hr)) {
 		Logger::Get().ComError("Create XeSS shared fence failed", hr);
@@ -419,10 +405,19 @@ bool XeSSZeroMVUpscaler::Initialize(
 	}
 	wil::unique_handle fenceHandle(rawFenceHandle);
 	hr = impl->device12->OpenSharedHandle(fenceHandle.get(), IID_PPV_ARGS(impl->fence12.put()));
-	if (FAILED(hr) || !WaitForD3D12(*impl)) {
-		if (FAILED(hr)) Logger::Get().ComError("Open XeSS fence in D3D12 failed", hr);
+	if (FAILED(hr)) {
+		Logger::Get().ComError("Open XeSS fence in D3D12 failed", hr);
 		return false;
 	}
+	if (FAILED(impl->fenceEvent.create())) {
+		Logger::Get().Error("Create XeSS fence event failed");
+		return false;
+	}
+
+	ID3D12CommandList* commandLists[] = { impl->commandList12.get() };
+	impl->queue12->ExecuteCommandLists(1, commandLists);
+	impl->submitted = true;
+	if (!WaitForD3D12(*impl)) return false;
 
 	const xess_result_t createResult = xessD3D12CreateContext(impl->device12.get(), &impl->xessContext);
 	if (!XessSucceeded(createResult, "xessD3D12CreateContext")) return false;
@@ -434,8 +429,6 @@ bool XeSSZeroMVUpscaler::Initialize(
 	if (!impl->enableOpticalFlow) initParams.initFlags |= XESS_INIT_FLAG_HIGH_RES_MV;
 	if (!XessSucceeded(xessD3D12Init(impl->xessContext, &initParams), "xessD3D12Init") ||
 		!XessSucceeded(xessSetVelocityScale(impl->xessContext, 1.0f, 1.0f), "xessSetVelocityScale")) {
-		xessDestroyContext(impl->xessContext);
-		impl->xessContext = nullptr;
 		return false;
 	}
 
@@ -595,6 +588,7 @@ bool XeSSZeroMVUpscaler::Draw(const NativeEffectDrawContext& drawContext) noexce
 namespace Magpie {
 
 struct XeSSZeroMVUpscaler::Impl {};
+void XeSSZeroMVUpscaler::ImplDeleter::operator()(Impl* impl) const noexcept { delete impl; }
 XeSSZeroMVUpscaler::XeSSZeroMVUpscaler() = default;
 XeSSZeroMVUpscaler::~XeSSZeroMVUpscaler() = default;
 bool XeSSZeroMVUpscaler::Initialize(DeviceResources&, ID3D11Texture2D*, ID3D11Texture2D*, bool, bool) noexcept {

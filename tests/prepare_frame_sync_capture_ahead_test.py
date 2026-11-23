@@ -55,11 +55,12 @@ cancel_start = resize.index('_pendingFrameSyncOutput = nullptr;')
 cancel_end = resize.index('\n\t\t_pendingFrameGenerationInput', cancel_start)
 cancel = resize[cancel_start:cancel_end]
 assert cancel_start < resize.index('_ResizeEffects();')
-cleanup = loop[loop.index('const auto cleanupBackend'):loop.index('\n\tif (const HANDLE sharedHandle')]
+cleanup = function(loop, 'const auto cleanupBackend = wil::scope_exit(')
 assert cleanup.index('_ReleaseNgxConsumers()') < cleanup.index('_pendingFrameSyncOutput = nullptr;') < cleanup.index('_frameSource.reset();')
 publish = function(source, 'bool Renderer::_PublishBackendTexture(')
-assert publish.index('d3dDC->Signal(_d3dFence.get(), ++_fenceValue)') < publish.index('_fenceEvent.wait();')
-assert publish.index('_fenceEvent.wait();') < publish.index('backend->ServiceAfterOutput();')
+wait = publish.index('if (waitForCopy && !_WaitForPublicationFence(')
+assert publish.index('d3dDC->Signal(_d3dFence.get(), ++_fenceValue)') < wait
+assert wait < publish.index('backend->ServiceAfterOutput();')
 submit = function(source, 'bool Renderer::_SubmitFrontendFrame()')
 assert 'if (submitted && !stableBaseOnly && _frameSyncEnabled && _frameSyncUsesSharedSlot)' in submit
 assert 'if (submitStart < due)' in submit

@@ -87,9 +87,7 @@ Magpie 没有广泛的测试过，因此错误不可避免。希望你能向开�
 
 ### 我想贡献文档 📖
 
-因为开发者的懒惰，Magpie 的文档长期处于缺失/过时的状态，因此文档的贡献是非常欢迎的。Magpie 的 wiki 是从 main 分支的 docs 文件夹自动发布的，因此修改文档和[贡献代码](#我想贡献代码-)的方式相同。
-
-如果你想改进已发布功能的文档，请合并到 main 分支，否则请合并到 dev 分支。每次发布版本时，dev 分支的更改都将合并到 main 分支，wiki 也会相应的自动更新。
+Magpie Experimental 的文档修改提交到 `experimental`。维护者审核公开页面后，可在 GitHub Actions 中从默认分支手动运行 **Publish wiki**。工作流同步 `docs/` 顶层已跟踪的 Markdown 页面。
 
 ### 我想资助 Magpie 💰
 

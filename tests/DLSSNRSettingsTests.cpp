@@ -33,7 +33,7 @@ int main() {
 	assert(ParseDLSSNRSettings({}).sparseUpdateInterval == 2);
 	constexpr std::array legacyModes{0.f,1.f,0.f,0.f,0.f,1.f,0.f};
 	constexpr std::array versionedModes{0.f,1.f,0.f,1.f};
-	for (int version : {0,1,2}) for (float mode : {-1.f,0.f,1.f,2.f,3.f,4.f,5.f,6.f,9.f,1.5f,
+	for (int version : {0,1,2,3}) for (float mode : {-1.f,0.f,1.f,2.f,3.f,4.f,5.f,6.f,9.f,1.5f,
 		std::numeric_limits<float>::infinity(),std::numeric_limits<float>::quiet_NaN()})
 		for (int present : {0,1}) for (float interval : {2.f,3.f,4.f,0.f,2.5f,5.f,
 			std::numeric_limits<float>::infinity(),std::numeric_limits<float>::quiet_NaN()}) {
@@ -91,7 +91,7 @@ int main() {
 			assert(option.parameters.at("__dlssnrModeVersion") == DLSSNR_MODE_VERSION);
 		}
 	}
-	for (float invalidVersion : {-1.f,0.f,.5f,3.f,std::numeric_limits<float>::infinity(),
+	for (float invalidVersion : {-1.f,0.f,.5f,4.f,std::numeric_limits<float>::infinity(),
 		std::numeric_limits<float>::quiet_NaN()}) {
 		std::map<std::wstring,float> saved{{L"__dlssnrModeVersion",invalidVersion},{L"processingMode",2.f}};
 		assert(NormalizeDLSSNRDetailParameters(saved));

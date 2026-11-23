@@ -35,7 +35,7 @@ struct serializer<
 		HRESULT hr = D3DCreateBlob(size, blob.put());
 		if (FAILED(hr)) {
 			Logger::Get().ComError("D3DCreateBlob 失败", hr);
-			throw new std::exception();
+			throw std::exception();
 		}
 
 		ar.read(blob->GetBufferPointer(), size);

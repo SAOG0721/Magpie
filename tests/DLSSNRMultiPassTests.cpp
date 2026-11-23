@@ -14,6 +14,7 @@
 #include <string>
 #include <vector>
 #include "DLSSNRParameters.h"
+#include "DlssOpticalFlowParameters.h"
 #include "DlssNrStatus.h"
 #include "EffectParameterRules.h"
 #include "MotionVectorRequest.h"
@@ -51,7 +52,12 @@ namespace fmt {
 template<class... Args> std::string format(const char* value, Args&&...) { return value; }
 }
 namespace Magpie {
-struct EffectOption { std::map<std::string, float> parameters; uint32_t inputResolutionPercent = 100; };
+struct EffectOption {
+	std::map<std::string, float> parameters;
+	uint32_t inputResolutionPercent = 100;
+	DLSSNRProcessingMode processingMode = DLSSNRProcessingMode::EveryFrame;
+	MotionVectorRequest motionRequest;
+};
 enum class EffectParameterApplyMode { Live, RestartRequired, Unavailable };
 enum class EffectParameterRestartReason { None, ResourceRecreation, FrameGuidance };
 struct HdrEffectBoundaryContext {};
@@ -76,6 +82,8 @@ struct NativeEffectDrawContext {
 	bool inputHistoryReset = false;
 	bool isNewCaptureFrame = true;
 	double targetContentFrameRate = 0;
+	double contentFrameRateLimit = 0;
+	bool captureQueued = false;
 	double guidanceGpuMs = 0;
 	uint64_t guidanceGpuSample = 0;
 	FixtureFrameGuidance frameGuidance;
@@ -122,12 +130,13 @@ struct NgxD3D12Core {};
 struct DLSSNRTemporal {
 	inline static int resets = 0, draws = 0;
 	inline static float timeMs = 0;
+	inline static bool recoverNvidiaHistory = false;
 	inline static ID3D11Texture2D* lastBase = nullptr;
 	inline static std::optional<NativeEffectDrawContext> lastContext;
 	ID3D11Texture2D* raw = nullptr;
 	bool Initialize(DeviceResources&, ID3D11Texture2D*, ID3D11Texture2D* base,
-		ID3D11Texture2D* value, ID3D11Texture2D*, int, bool, float time) {
-		raw = value; lastBase = base; timeMs = time; return true;
+		ID3D11Texture2D* value, ID3D11Texture2D*, int, bool, float time, bool recover) {
+		raw = value; lastBase = base; timeMs = time; recoverNvidiaHistory = recover; return true;
 	}
 	void Reset() { ++resets; }
 	void SetTimeConstant(float value) { timeMs = NormalizeDLSSNRAntiFlickerTimeMs(value); }
@@ -143,12 +152,26 @@ struct Logger {
 	void Warn(std::string_view) {}
 	void ComError(std::string_view, HRESULT) {}
 };
-inline EffectOption ParseDLSSNRSettings(const EffectOption& value, bool) { return value; }
+inline EffectOption ParseDLSSNRSettings(const EffectOption& value, bool) {
+	auto parsed = value;
+	const auto get = [&](std::string_view name) -> std::optional<float> {
+		const auto it = value.parameters.find(std::string(name));
+		return it == value.parameters.end() ? std::nullopt : std::optional<float>(it->second);
+	};
+	parsed.processingMode = DLSSNRMode([&](std::string_view name, float fallback) {
+		return get(name).value_or(fallback);
+	});
+	const auto flow = ReadDlssOpticalFlowChoices(get);
+	if (flow.method == 1) parsed.motionRequest = MotionVectorRequest::Amd(static_cast<AmdOpticalFlowMode>(flow.amdQuality));
+	if (flow.method == 2) parsed.motionRequest = MotionVectorRequest::Nvidia(static_cast<NvidiaOpticalFlowQuality>(flow.nvidiaQuality));
+	return parsed;
+}
 using DLSSNRSettings = EffectOption;
 struct DLSSNRFilter {
 	inline static int liveInstances = 0, featureCount = 0;
 	inline static bool failInit = false, failApply = false, failDraw = false, healthy = true;
 	inline static bool failPrewarm = false, failWarm = false;
+	inline static bool foregroundTimingRequested = false;
 	inline static int prewarmCalls = 0, warmCalls = 0, hotInvalidations = 0;
 	inline static std::vector<std::string> operations;
 	inline static std::vector<std::string> receivedNames;
@@ -195,20 +218,24 @@ struct DLSSNRFilter {
 		if (!hot) return false;
 		full = hotFull; return true;
 	}
+	bool GetRecoveryResolution(uint32_t&) const noexcept { return false; }
 	bool HasHotResolution(uint32_t full) const noexcept { return hot && hotFull == full; }
 	void InvalidateHotResolution() noexcept { ++hotInvalidations; hot = prewarmed = false; }
 	struct Snapshot {
 		double foregroundGpuMs = 0, fullTurnaroundMs = 0, enhancementCoverage = 1;
 		uint64_t foregroundGpuSamples = 0, fullCompleted = 0, fullLate = 0, fullPublished = 0;
+		uint64_t foregroundGpuSampleId = 0;
 		double fullGpuMs = 0, compositionGpuMs = 0, fullReadyMs = 0, fullAdoptionMs = 0;
 		uint64_t fullGpuSamples = 0, fullReadySamples = 0, fullAdoptionSamples = 0, fullAdopted = 0, coverageSamples = 0;
+		bool foregroundGpuFullInference = true;
 	};
 	Snapshot GetPerformanceSnapshot() const noexcept { return {}; }
 	DlssNrFailure GetDlssNrFailure() const { return { DlssNrStage::Evaluate, DlssNrReason::Unknown, DlssNrCodeKind::Ngx, 0xBAD00001, "fixture Evaluate" }; }
 	bool InitializeChain(DeviceResources&, NgxD3D12Core&, ID3D11Texture2D* input,
-		ID3D11Texture2D* output, std::span<const EffectOption> options) {
+		ID3D11Texture2D* output, std::span<const EffectOption> options, bool collectForegroundTiming) {
 		assert(input != output);
 		if (failInit) return false;
+		foregroundTimingRequested = collectForegroundTiming;
 		settings.assign(options.begin(), options.end());
 		initializedPercents.clear();
 		for (const auto& setting:settings) initializedPercents.push_back(setting.inputResolutionPercent);
@@ -327,6 +354,19 @@ int main() {
 	{ DLSSNRMultiPass chain; assert(!chain.Initialize(resources, core, &input, &output, option, false)); }
 	DLSSNRFilter::failInit = false;
 	assert(DLSSNRFilter::liveInstances == 0);
+	{
+		EffectOption route;
+		route.parameters = {{"__dlssnrModeVersion", 2.f}, {"antiFlicker", 2.f}, {"residualTransfer", 1.f}};
+		struct Case { int mode, flow; bool hdr, recover; };
+		for (const auto test : {Case{1,2,false,true}, Case{0,2,false,false},
+			Case{1,1,false,false}, Case{1,2,true,false}}) {
+			route.parameters["processingMode"] = float(test.mode);
+			route.parameters["opticalFlowMethod"] = float(test.flow);
+			DLSSNRMultiPass chain;
+			assert(chain.Initialize(resources, core, &input, &output, route, test.hdr));
+			assert(DLSSNRTemporal::recoverNvidiaHistory == test.recover);
+		}
+	}
 	option.parameters["antiFlicker"] = 2;
 	option.parameters["opticalFlowMethod"] = 0;
 	{ DLSSNRMultiPass chain; assert(!chain.Initialize(resources, core, &input, &output, option, false)); }
@@ -386,10 +426,12 @@ int main() {
 		DLSSNRMultiPass chain;
 		assert(chain.Initialize(resources,core,&input,&output,manual,false));
 		assert(DLSSNRFilter::initializedPercents==std::vector<uint32_t>(3,percent));
+		assert(!DLSSNRFilter::foregroundTimingRequested);
 		assert(chain.GetDlssNrResolutionPercent()==percent);
 		assert(chain.Draw({&input,&output,1}) && chain.GetDlssNrResolutionPercent()==percent);
 		assert(chain.Resize(resources,&input,&output));
 		assert(DLSSNRFilter::initializedPercents==std::vector<uint32_t>(3,percent));
+		assert(!DLSSNRFilter::foregroundTimingRequested);
 	}
 	for (const float retired : {2.f,3.f}) {
 		EffectOption unsupported{{{"processingMode",retired}}};
@@ -407,6 +449,8 @@ int main() {
 		DLSSNRFilter::operations.clear();
 		DLSSNRMultiPass chain;
 		assert(chain.Initialize(resources,core,&input,&output,automatic,false));
+		assert(DLSSNRFilter::foregroundTimingRequested);
+		assert(chain.GetParameterApplyMode("resolutionControl") == EffectParameterApplyMode::RestartRequired);
 		assert(DLSSNRFilter::prewarmCalls == 1 && chain.GetDlssNrResolutionPercent() == 65);
 		assert(chain.Draw({&input,&output,1}));
 		assert(output.value == 2);
@@ -416,6 +460,13 @@ int main() {
 		assert(DLSSNRFilter::warmCalls == (failPrewarm ? 0 : 1));
 	}
 	DLSSNRFilter::failPrewarm = DLSSNRFilter::failWarm = false;
+	{
+		NativeEffectDrawContext context{&input, &output};
+		context.captureAdmissionTime100ns = 10'000'000;
+		assert(DLSSNRMultiPass::CaptureTime(context) == 1.);
+		context.frameGuidance.motion.metadata.timestamp100ns = 20'000'000;
+		assert(DLSSNRMultiPass::CaptureTime(context) == 2.);
+	}
 	{
 		DLSSNRMultiPass chain;
 		assert(chain.Initialize(resources,core,&input,&output,automatic,false));
@@ -445,6 +496,12 @@ int main() {
 		assert(DLSSNRFilter::hotInvalidations == invalidations+1);
 		assert(chain.Draw({&input,&output,1}));
 		assert(DLSSNRFilter::warmCalls == warms);
+	}
+	{
+		DLSSNRMultiPass chain;
+		assert(chain.Initialize(resources,core,&input,&output,automatic,true));
+		assert(!DLSSNRFilter::foregroundTimingRequested);
+		assert(chain.GetDlssNrResolutionPercent() == 100);
 	}
 	{
 		automatic.parameters["resolutionControl"] = 1;

@@ -21,10 +21,10 @@
 
 ## 日常本机部署（2026-10-30）
 
-- 日常构建运行 `scripts/Build-Release.ps1 -Version 0.6.12-beta1 -IncludeSymbols -RequireMagpieClosed`，或工作区根目录 `Update-Release.ps1`。直接更新 `release/v0.6.12-beta1/Magpie-Experimental-x64/`，同一版本不另建任务后缀目录。
+- 日常构建运行 `scripts/Build-Release.ps1 -Version 0.6.13-beta1 -IncludeSymbols -RequireMagpieClosed`，或工作区根目录 `Update-Release.ps1`。直接更新 `release/v0.6.13-beta1/Magpie-Experimental-x64/`，同一版本不另建任务后缀目录。
 - 默认只构建运行目录、符号和构建清单，保留配置、日志和缓存。原运行目录备份到工作区 `backups/local-deploy/`；日常部署前应关闭对应实例。
 - 正式准备发布前不生成主包 ZIP、Release note 和可选 DLL options。既有过期发布材料移到备份，避免与新程序混用；运行依赖 DLL 仍正常部署。
-- 维护者明确要求准备 Release 时才加 `-PrepareRelease` 生成主包和版本说明，再按以下发布规范准备其余附件。测试报告放 `reports/`；历史任务构建放 `archive/release-iterations/`，移动映射随归档保存。
+- 维护者明确要求准备 Release 时，在干净工作树运行 `-PrepareRelease`，使用 Release 配置生成主包和版本说明。使用 `-SkipBuild` 重新打包时，脚本核对同一提交的构建清单、选项与文件哈希。测试报告放 `reports/`；历史任务构建放 `archive/release-iterations/`，移动映射随归档保存。
 
 ## 2. 发布门禁
 

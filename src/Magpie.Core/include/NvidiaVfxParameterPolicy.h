@@ -12,9 +12,21 @@ inline void FilterNvidiaVfxVsrChoices(std::string_view effect, EffectParameterDe
 	std::erase_if(parameter.choices, [](const auto& choice) { return choice.value != 1 && choice.value != 3; });
 }
 
+inline constexpr std::string_view NVIDIA_VFX_VSR_STATE_PREFIX = "__nvidiaVfx";
+
 template<class Char> std::basic_string<Char> NvidiaVfxStateKey(int category, std::string_view suffix) {
-	const std::string key = "__nvidiaVfx" + std::to_string(category) + "." + std::string(suffix);
+	const std::string key = std::string(NVIDIA_VFX_VSR_STATE_PREFIX) + std::to_string(category) + "." + std::string(suffix);
 	return { key.begin(), key.end() };
+}
+
+inline bool IsNvidiaVfxVsrStateKey(std::string_view name) noexcept {
+	if (!name.starts_with(NVIDIA_VFX_VSR_STATE_PREFIX)) return false;
+	name.remove_prefix(NVIDIA_VFX_VSR_STATE_PREFIX.size());
+	if (name.size() < 3 || name[0] < '0' || name[0] > '4' || name[1] != '.') return false;
+	const int category = name[0] - '0';
+	const auto suffix = name.substr(2);
+	return suffix == "tier" || (!NvidiaVfxSameSize(category) &&
+		(suffix == "scalingType" || suffix == "scaleX" || suffix == "scaleY"));
 }
 
 // Persist the per-family choices in the same parameter map used by config

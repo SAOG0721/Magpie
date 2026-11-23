@@ -219,6 +219,7 @@ bool PassThroughFrames::OpenFrontend(DeviceResources& resources, uint32_t slotCo
 	_presented = nullptr;
 	_baseValid = false;
 	_presentedValid = false;
+	_baseIsPresented = false;
 	_allocationFailed = false;
 	_baseFrameId = _presentedFrameId = 0;
 	_baseMetadata = _presentedMetadata = {};
@@ -394,6 +395,7 @@ bool PassThroughFrames::Consume(uint32_t slot) noexcept {
 		}
 	}
 	_frontendResources->GetD3DDC()->CopyResource(_base.get(), _frontendSlots[slot].texture.get());
+	_baseIsPresented = false;
 	_baseFrameId = _frameIds[slot];
 	_baseMetadata = _metadata[slot];
 	_baseValid = true;
@@ -404,7 +406,10 @@ void PassThroughFrames::OnPresented() noexcept {
 	FrameTrace::Scope traceReference(FrameTrace::Event::ReferencePresented);
 	_presentedValid = _baseValid && _presented;
 	if (_presentedValid) {
-		_frontendResources->GetD3DDC()->CopyResource(_presented.get(), _base.get());
+		if (!_baseIsPresented) {
+			std::swap(_base, _presented);
+			_baseIsPresented = true;
+		}
 		_presentedFrameId = _baseFrameId;
 		_presentedMetadata = _baseMetadata;
 		_presentedMetadata.stage = HdrFrameStage::PresentedOutput;

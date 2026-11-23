@@ -169,6 +169,7 @@
     <ClInclude Include="GroupBEffectProtocol.h" />
     <ClInclude Include="DLSSNRFilter.h" />
     <ClInclude Include="DLSSNRColorShader.h" />
+    <ClInclude Include="DLSSNRLocalHistoryShader.h" />
     <ClInclude Include="DLSSNRDetailShader.h" />
     <ClInclude Include="DLSSNRPerformanceShader.h" />
     <ClInclude Include="DLSSNRPerformance.inl" />
@@ -193,6 +194,8 @@
     <ClInclude Include="FramePresentationTiming.h" />
     <ClInclude Include="FrameUpdateReason.h" />
     <ClInclude Include="FramePacingWait.h" />
+    <ClInclude Include="GpuFenceWait.h" />
+    <ClInclude Include="XeSSUpscaleFence.h" />
     <ClInclude Include="include\FramePacingOptions.h" />
     <ClInclude Include="include\FrameRefreshSettings.h" />
     <ClInclude Include="FrameGuidanceTypes.h" />

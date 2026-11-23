@@ -108,7 +108,7 @@ void DLSSNRTemporal::ConfigureDetail(float strength, bool enforceZero) noexcept 
 
 bool DLSSNRTemporal::Initialize(DeviceResources& resources, ID3D11Texture2D* input,
 	ID3D11Texture2D* base, ID3D11Texture2D* raw, ID3D11Texture2D* output,
-	int mode, bool hdr, float timeMs) noexcept {
+	int mode, bool hdr, float timeMs, bool recoverNvidiaHistory) noexcept {
 	_impl.reset();
 	if (!mode) return true;
 	auto impl = std::make_unique<Impl>();
@@ -128,7 +128,9 @@ bool DLSSNRTemporal::Initialize(DeviceResources& resources, ID3D11Texture2D* inp
 	}
 	if (FAILED(impl->device->CreateUnorderedAccessView(output, nullptr, impl->output.put()))) return false;
 	winrt::com_ptr<ID3DBlob> blob;
-	if (!DirectXHelper::CompileComputeShader(DLSSNR_TEMPORAL_SHADER, "main", blob.put(), "DLSSNRTemporal")) return false;
+	const char* entry = recoverNvidiaHistory ? "mainNvidiaAlternating" : "main";
+	const char* name = recoverNvidiaHistory ? "DLSSNRTemporalNvidiaAlternating" : "DLSSNRTemporal";
+	if (!DirectXHelper::CompileComputeShader(DLSSNR_TEMPORAL_SHADER, entry, blob.put(), name)) return false;
 	if (FAILED(impl->device->CreateComputeShader(blob->GetBufferPointer(), blob->GetBufferSize(), nullptr, impl->shader.put()))) return false;
 	if (mode == 4) {
 		blob = nullptr;

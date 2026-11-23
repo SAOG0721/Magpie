@@ -1,4 +1,4 @@
-﻿param(
+param(
     [string]$PackageName = "Magpie-Experimental-x64",
     [string]$ReleaseDirectory,
     [string]$Configuration = "Release",
@@ -182,7 +182,14 @@ $commit = Invoke-Git @("rev-parse", "HEAD")
 $shortCommit = Invoke-Git @("rev-parse", "--short=12", "HEAD")
 $commitTimeText = Invoke-Git @("show", "-s", "--format=%cI", "HEAD")
 $exactTag = Invoke-Git @("describe", "--tags", "--exact-match", "HEAD")
-$sourceDirty = [bool](Invoke-Git @("status", "--porcelain=v1", "--untracked-files=all"))
+$sourceStatus = Invoke-Git @("status", "--porcelain=v1", "--untracked-files=all")
+if (!$commit -or !$shortCommit -or !$commitTimeText -or $null -eq $sourceStatus) {
+    throw "Cannot verify the source identity for $sourceRoot."
+}
+$sourceDirty = [bool]$sourceStatus
+if ($PrepareRelease -and ($sourceDirty -or $Configuration -ne 'Release')) {
+    throw 'Release preparation requires a clean checkout and the Release configuration.'
+}
 if ($sourceDirty -and !$AllowDirtySource) {
     throw "The source tree has uncommitted changes. Commit them first, or use -AllowDirtySource for a local test package."
 }
@@ -241,6 +248,56 @@ Write-Host "Workspace root:    $workspaceRoot"
 Write-Host "Release directory: $stagingDir"
 if ($PrepareRelease) { Write-Host "Release ZIP:       $zipPath" }
 
+$runtimeStateNames = @("cache", "logs", "config", "PortableAppData", "config.json")
+$manifestPath = Join-Path $stagingDir 'build-manifest.json'
+$featureOptions['EnableFrameTrace'] = if ($EnableFrameTrace) { 'true' } else { 'false' }
+if ($featureOptions['EnableNvidiaVfx'] -eq 'true') {
+    $featureOptions['NvidiaVfxRuntimeLayout'] = $NvidiaVfxRuntimeLayout
+}
+
+function Get-StagedPayload {
+    Get-ChildItem -LiteralPath $stagingDir -File -Recurse | Where-Object {
+        $relative = [IO.Path]::GetRelativePath($stagingDir, $_.FullName).Replace('\', '/')
+        ($relative.Split('/')[0] -notin $runtimeStateNames) -and $relative -ne 'build-manifest.json'
+    } | Sort-Object FullName
+}
+
+$toolchain = $null
+if ($SkipBuild) {
+    if ($sourceDirty -or !(Test-Path -LiteralPath $manifestPath -PathType Leaf)) {
+        throw '-SkipBuild requires a clean checkout and a prior build manifest.'
+    }
+    $existing = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json -AsHashtable
+    if ($existing['schemaVersion'] -ne 1 -or $existing['sourceDirty'] -ne $false -or
+        $existing['commit'] -ne $commit -or $existing['package'] -ne $PackageName -or
+        $existing['version'] -ne $Version -or $existing['configuration'] -ne $Configuration -or
+        $existing['platform'] -ne $Platform) {
+        throw 'Existing build identity does not match the requested package. Rebuild from this checkout.'
+    }
+    foreach ($option in $featureOptions.Keys) {
+        if ($existing['featureOptions'][$option] -ne $featureOptions[$option]) {
+            throw "Existing build option $option does not match. Rebuild from this checkout."
+        }
+    }
+    $expectedFiles = @{}
+    foreach ($record in $existing['files']) {
+        $expectedFiles.Add([string]$record['path'], $record)
+    }
+    $stagedFiles = @(Get-StagedPayload)
+    if ($stagedFiles.Count -ne $expectedFiles.Count) {
+        throw 'Existing package files do not match the manifest. Rebuild from this checkout.'
+    }
+    foreach ($file in $stagedFiles) {
+        $relative = [IO.Path]::GetRelativePath($stagingDir, $file.FullName).Replace('\', '/')
+        $record = $expectedFiles[$relative]
+        if (!$record -or $file.Length -ne $record['bytes'] -or
+            (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash -ne $record['sha256']) {
+            throw "Existing package file differs from its manifest: $relative. Rebuild from this checkout."
+        }
+    }
+    $toolchain = $existing['toolchain']
+}
+
 function Stop-RunningMagpie {
     $running = Get-Process -Name "Magpie" -ErrorAction SilentlyContinue
     if (!$running) { return }
@@ -285,7 +342,6 @@ if ($RequireMagpieClosed -or !$PrepareRelease) {
 
 # Local iterations update the version's existing runtime directly. A recovery
 # copy is outside release/, and runtime settings/logs/cache stay in place.
-$runtimeStateNames = @("cache", "logs", "config", "PortableAppData", "config.json")
 $backupDirectory = Join-Path $workspaceRoot ("backups/local-deploy/" + (Get-Date -Format 'yyyyMMdd-HHmmss-fff') + "-" + (Split-Path $releaseContainer -Leaf))
 if (!$SkipBuild -and (Test-Path -LiteralPath $buildOutput)) {
     New-Item -ItemType Directory -Path $backupDirectory -Force | Out-Null
@@ -308,12 +364,17 @@ if (!$SkipBuild) {
     $msbuild = Find-MSBuild
     Add-ConanToPath
     Add-CMakeToPath
+    $toolchain = [ordered]@{
+        msbuildVersion = (Get-Item -LiteralPath $msbuild).VersionInfo.ProductVersion
+        conanVersion = ((& conan --version | Out-String).Trim() -replace '^Conan version\s+')
+    }
 
     $disablePdb = if ($IncludeSymbols) { "false" } else { "true" }
     $multiToolTask = if ($MaxCompilerProcesses -gt 1) { "true" } else { "false" }
     $buildTarget = if ($PrepareRelease) { 'Rebuild' } else { 'Build' }
     $msbuildArgs = @(
-        "Magpie.slnx", "/m:$MaxCpuCount", "/nr:false", "/v:minimal", "/t:$buildTarget",
+        "Magpie.slnx", "/m:$MaxCpuCount", "/nr:false", "/v:minimal", "/t:$buildTarget", "/restore",
+        "/p:RestorePackagesConfig=true",
         "/p:Configuration=$Configuration", "/p:Platform=$Platform",
         "/p:MajorVersion=$($versionMatch.Groups[1].Value)",
         "/p:MinorVersion=$($versionMatch.Groups[2].Value)",
@@ -326,8 +387,7 @@ if (!$SkipBuild) {
         ('/p:OutDir=' + $buildOutput.Replace('\', '/') + '/'),
         ('/p:MagpieIntermediateRoot=' + $intermediateRoot.Replace('\', '/') + '/')
     )
-    $traceEnabled = if ($EnableFrameTrace) { "true" } else { "false" }
-    $msbuildArgs += "/p:EnableFrameTrace=$traceEnabled"
+    $msbuildArgs += "/p:EnableFrameTrace=$($featureOptions['EnableFrameTrace'])"
     $msbuildArgs += "/p:NvidiaVfxRuntimeLayout=$NvidiaVfxRuntimeLayout"
     if ($IncludeSymbols) {
         $msbuildArgs += @(
@@ -341,6 +401,16 @@ if (!$SkipBuild) {
         if ($LASTEXITCODE -ne 0) {
             throw "Release build failed with exit code $LASTEXITCODE."
         }
+        $propertyArgs = @(
+            'src/Magpie/Magpie.vcxproj', '/nologo', "/p:Configuration=$Configuration", "/p:Platform=$Platform",
+            '/p:PreferredToolArchitecture=x64', '/getProperty:WindowsTargetPlatformVersion,VCToolsVersion,PlatformToolset'
+        )
+        $projectProperties = & $msbuild @propertyArgs
+        if ($LASTEXITCODE -ne 0) { throw 'Cannot record the toolchain selected for Magpie.' }
+        $projectProperties = ($projectProperties | Out-String | ConvertFrom-Json).Properties
+        $toolchain['windowsSdkVersion'] = $projectProperties.WindowsTargetPlatformVersion
+        $toolchain['vcToolsVersion'] = $projectProperties.VCToolsVersion
+        $toolchain['platformToolset'] = $projectProperties.PlatformToolset
     } finally {
         Pop-Location
     }
@@ -359,6 +429,11 @@ $missingRuntimePaths = @($requiredRuntimePaths | Where-Object {
 })
 if ($missingRuntimePaths.Count -ne 0) {
     throw "Release runtime layout is incomplete in $buildOutput. Missing: $($missingRuntimePaths -join ', ')"
+}
+foreach ($executable in @('Magpie.exe', 'TouchHelper.exe', 'Updater.exe')) {
+    if ((Get-Item -LiteralPath (Join-Path $buildOutput $executable)).VersionInfo.ProductVersion -cne $Version) {
+        throw "The staged $executable does not report product version $Version."
+    }
 }
 
 if ($Platform -eq 'x64' -and $featureOptions['EnableDLSSNR'] -eq 'true') {
@@ -417,12 +492,17 @@ Set-Content -LiteralPath $packagedReadmePath -Value $packagedReadme -Encoding UT
 Copy-Item -LiteralPath (Join-Path $sourceRoot "docs\THIRD_PARTY_AND_REDISTRIBUTION.md") `
     -Destination (Join-Path $stagingDir "THIRD-PARTY-NOTICES.md")
 
+$releaseNotesSource = $null
 $versionNotes = Join-Path $sourceRoot "docs\RELEASE_NOTES_v$Version.md"
 if (!(Test-Path -LiteralPath $versionNotes)) {
     $versionNotes = Join-Path $sourceRoot "docs\RELEASE_NOTES_v$Version-experimental.md"
 }
 if ($PrepareRelease -and (Test-Path -LiteralPath $versionNotes)) {
     Copy-Item -LiteralPath $versionNotes -Destination (Join-Path $stagingDir "RELEASE-NOTES.md")
+    $releaseNotesSource = [ordered]@{
+        repositoryPath = [IO.Path]::GetRelativePath($sourceRoot, $versionNotes).Replace('\', '/')
+        commit = $commit
+    }
 }
 $frameSyncGuide = Join-Path $sourceRoot "docs\FRAME_SYNC_GUIDE.md"
 if (Test-Path -LiteralPath $frameSyncGuide) {
@@ -442,7 +522,6 @@ foreach ($guide in @(
     Copy-Item -LiteralPath (Join-Path $sourceRoot $guide.source) -Destination (Join-Path $stagingDir $guide.target)
 }
 
-$featureOptions["EnableFrameTrace"] = if ($EnableFrameTrace) { "true" } else { "false" }
 if ($featureOptions["EnableDLSSFrameGeneration"] -eq 'true') {
     # Includes -SkipBuild: old native/mixed output must not become a new package.
     & (Join-Path $PSScriptRoot 'Test-DlssgSm86Package.ps1') -PackageDirectory $stagingDir
@@ -454,7 +533,6 @@ if ($featureOptions["EnableNvidiaVfx"] -eq 'true') {
     # Also protects -SkipBuild: a former full-Core output cannot silently be
     # repackaged as the Minimal four-feature distribution.
     & (Join-Path $PSScriptRoot 'Test-NvidiaVfxPackage.ps1') -PackageDirectory $stagingDir -Layout $NvidiaVfxRuntimeLayout
-    $featureOptions['NvidiaVfxRuntimeLayout'] = $NvidiaVfxRuntimeLayout
 }
 if ($Platform -eq 'x64' -and $featureOptions["EnableFSR3FrameGeneration"] -eq 'true') {
     & (Join-Path $PSScriptRoot 'Test-FSR3FGPackage.ps1') -PackageDirectory $stagingDir
@@ -466,13 +544,10 @@ if ($featureOptions["EnableFrameTrace"] -eq "true") {
     Copy-Item -LiteralPath (Join-Path $sourceRoot "docs\FRAME_TRACE_GUIDE.md") -Destination (Join-Path $diagnosticsDir "README.md")
 }
 
-$fileRecords = Get-ChildItem -LiteralPath $stagingDir -File -Recurse | Where-Object {
-    $relative = $_.FullName.Substring($stagingDir.Length).TrimStart('\', '/').Replace('\', '/')
-    ($relative.Split('/')[0] -notin $runtimeStateNames) -and $relative -ne 'build-manifest.json'
-} | Sort-Object FullName | ForEach-Object {
-    $relativePath = $_.FullName.Substring($stagingDir.Length).TrimStart('\', '/')
+$fileRecords = Get-StagedPayload | ForEach-Object {
+    $relativePath = [IO.Path]::GetRelativePath($stagingDir, $_.FullName).Replace('\', '/')
     [ordered]@{
-        path = $relativePath.Replace('\', '/')
+        path = $relativePath
         bytes = $_.Length
         sha256 = (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash
         fileVersion = $_.VersionInfo.FileVersion
@@ -497,8 +572,10 @@ $manifest = [ordered]@{
     featureOptions = $featureOptions
     files = @($fileRecords)
 }
+if ($toolchain) { $manifest['toolchain'] = $toolchain }
+if ($releaseNotesSource) { $manifest['releaseNotesSource'] = $releaseNotesSource }
 $manifest | ConvertTo-Json -Depth 8 | Set-Content `
-    -LiteralPath (Join-Path $stagingDir "build-manifest.json") -Encoding utf8
+    -LiteralPath $manifestPath -Encoding utf8
 
 if (!$PrepareRelease) {
     # Move obsolete release assets out of the active version instead of leaving
@@ -515,7 +592,7 @@ if (!$PrepareRelease) {
     }
     # RELEASE-NOTES may have been present before this local build's manifest.
     $manifest.files = @($manifest.files | Where-Object { $_.path -ne 'RELEASE-NOTES.md' })
-    $manifest | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $stagingDir 'build-manifest.json') -Encoding utf8
+    $manifest | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $manifestPath -Encoding utf8
     [ordered]@{ commit=$commit; version=$Version; runtime=$stagingDir; backup=$backupDirectory;
         distributionPrepared=$false; userStatePreserved=$true } | ConvertTo-Json |
         Set-Content -LiteralPath (Join-Path $releaseContainer 'LOCAL-DEPLOYMENT.json') -Encoding utf8

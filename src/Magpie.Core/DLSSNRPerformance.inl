@@ -21,10 +21,12 @@ uint64_t DLSSNRFilter::ReadyOutputVersion() const noexcept {
 }
 
 DLSSNRPerformanceSnapshot DLSSNRFilter::GetPerformanceSnapshot() const noexcept {
-	if (_sparse) return SparsePerformanceSnapshot();
-	DLSSNRPerformanceSnapshot result;
+	auto result = _sparse ? SparsePerformanceSnapshot() : DLSSNRPerformanceSnapshot{};
 	if (!_impl) return result;
+	result.foregroundGpuFullInference = _impl->foregroundTimer.fullInference;
+	if (_sparse) return result;
 	result.foregroundGpuSamples = _impl->foregroundTimer.samples;
+	result.foregroundGpuSampleId = _impl->foregroundTimer.LatestSample();
 	result.foregroundGpuMs = _impl->foregroundTimer.milliseconds;
 	result.fullGpuMs = _impl->lastEvaluateGpuMs;
 	result.fullGpuSamples = _impl->evaluateGpuSamples;
@@ -79,6 +81,19 @@ bool DLSSNRFilter::CanPrepareResolution() const noexcept {
 		!_resolutionChange->retiredFull));
 }
 
+static bool HasDLSSNRRecoveryMemory(ID3D11Device* device) noexcept {
+	winrt::com_ptr<IDXGIDevice> dxgi;
+	winrt::com_ptr<IDXGIAdapter> adapter;
+	if (FAILED(device->QueryInterface(__uuidof(IDXGIDevice), dxgi.put_void())) ||
+		FAILED(dxgi->GetAdapter(adapter.put()))) return false;
+	const auto budgetAdapter = adapter.try_as<IDXGIAdapter3>();
+	DXGI_QUERY_VIDEO_MEMORY_INFO memory{};
+	if (!budgetAdapter || FAILED(budgetAdapter->QueryVideoMemoryInfo(0, DXGI_MEMORY_SEGMENT_GROUP_LOCAL, &memory)) ||
+		memory.CurrentUsage >= memory.Budget) return false;
+	// Keep capacity for the new chain and for the game, which shares the adapter.
+	return memory.Budget - memory.CurrentUsage >= std::max<uint64_t>(512ull << 20, memory.Budget / 8);
+}
+
 bool DLSSNRFilter::PrepareResolution(DeviceResources& resources, ID3D11Texture2D* input,
 	ID3D11Texture2D* output, uint32_t fullPercent) noexcept {
 	if (!CanPrepareResolution() || !_ngxCore || !input || !output) return false;
@@ -102,10 +117,24 @@ bool DLSSNRFilter::PrepareResolution(DeviceResources& resources, ID3D11Texture2D
 	change.pending = true;
 	bool success = true;
 	if (change.fullChanged) {
-		if (cacheHit) change.full = std::move(change.hotFull);
-		else {
-			// Cold changes are reserved for overload recovery. The inactive slot
-			// is retired here, never during a successful hot switch.
+		if (cacheHit) {
+			if (change.hotFull && change.hotFull->_settings.inputResolutionPercent == fullPercent)
+				change.full = std::move(change.hotFull);
+			else {
+				change.full = std::move(change.recoveryFull);
+				// Preserve the intermediate tier when trying the higher standby.
+				// The recent slot now receives the current tier for immediate rollback.
+				change.recoveryFull = std::move(change.hotFull);
+			}
+		} else {
+			// Retain the highest previously used tier in available memory. The
+			// recent slot follows the last switch so a trial can always undo it.
+			if (HasDLSSNRRecoveryMemory(resources.GetD3DDevice())) {
+				if (change.hotFull && change.hotFull->_settings.inputResolutionPercent > _settings.inputResolutionPercent &&
+					(!change.recoveryFull || change.hotFull->_settings.inputResolutionPercent >
+						change.recoveryFull->_settings.inputResolutionPercent))
+					change.recoveryFull = std::move(change.hotFull);
+			} else change.recoveryFull.reset();
 			change.hotFull.reset();
 			change.full = std::make_unique<DLSSNRFilter>();
 			change.full->_foregroundQueue = _foregroundQueue;
@@ -166,7 +195,7 @@ bool DLSSNRFilter::CommitPreparedResolution() noexcept {
 		std::swap(_passSettings, candidate._passSettings);
 		_libraryInfo = candidate._libraryInfo;
 		change.retiredFull = std::move(change.full);
-		change.retiredFullCacheable = change.cacheEnabled;
+		change.retiredFullCacheable = true;
 	}
 	for (auto& setting : _passSettings) {
 		setting.inputResolutionPercent = change.settings.front().inputResolutionPercent;
@@ -196,7 +225,6 @@ bool DLSSNRFilter::PrewarmResolution(DeviceResources& resources, ID3D11Texture2D
 	if (!PrepareResolution(resources, input, output, fullPercent)) return false;
 	auto& change = *_resolutionChange;
 	if (!change.full) { CancelPreparedResolution(); return false; }
-	change.cacheEnabled = true;
 	change.warming = true;
 	return true;
 }
@@ -218,7 +246,6 @@ bool DLSSNRFilter::WarmPreparedResolution(const NativeEffectDrawContext& context
 		candidate.DrawInference(warm, false, false) && candidate.IsHealthy() && candidate.Drain();
 	if (!success) {
 		CancelPreparedResolution();
-		change.cacheEnabled = false;
 		Logger::Get().Warn("DLSSNR standby warm-up failed; active resolution retained");
 		return false;
 	}
@@ -239,9 +266,18 @@ bool DLSSNRFilter::GetHotResolution(uint32_t& fullPercent) const noexcept {
 	return true;
 }
 
+bool DLSSNRFilter::GetRecoveryResolution(uint32_t& fullPercent) const noexcept {
+	if (!_resolutionChange || !CanPrepareResolution()) return false;
+	const auto& recovery = _resolutionChange->recoveryFull;
+	if (!recovery || !recovery->IsHealthy() || !recovery->IsGpuIdle()) return false;
+	fullPercent = recovery->_settings.inputResolutionPercent;
+	return true;
+}
+
 bool DLSSNRFilter::HasHotResolution(uint32_t fullPercent) const noexcept {
 	uint32_t hotFull = 0;
-	return GetHotResolution(hotFull) && hotFull == fullPercent;
+	return (GetHotResolution(hotFull) && hotFull == fullPercent) ||
+		(GetRecoveryResolution(hotFull) && hotFull == fullPercent);
 }
 
 void DLSSNRFilter::InvalidateHotResolution() noexcept {
@@ -249,6 +285,7 @@ void DLSSNRFilter::InvalidateHotResolution() noexcept {
 	// Live edits are explicit operations. An inactive allocation cannot keep
 	// old inference parameters and later silently replace the edited chain.
 	_resolutionChange->hotFull.reset();
+	_resolutionChange->recoveryFull.reset();
 	_resolutionChange->retiredFullCacheable = false;
 	if (_resolutionChange->pending) CancelPreparedResolution();
 }
@@ -294,7 +331,7 @@ void DLSSNRFilter::ServiceRetiredResolutions() noexcept {
 	// normal Draw/ServiceAsync calls, so acquire CPU completion here before the
 	// existing GPU retirement/cache decision.
 	if (change.retiredFull) change.retiredFull->ServiceInferenceSubmission();
-	if (change.retiredFull && change.retiredFull->IsGpuIdle() && change.cacheEnabled &&
+	if (change.retiredFull && change.retiredFull->IsGpuIdle() &&
 		change.retiredFullCacheable && !change.hotFull && change.retiredFull->IsHealthy()) {
 		change.hotFull = std::move(change.retiredFull);
 		change.retiredFullCacheable = false;
@@ -317,6 +354,8 @@ bool DLSSNRFilter::InitializePerformance(ID3D11Texture2D* input, ID3D11Texture2D
 	auto& c = p.composition;
 	auto& full = *_impl;
 	p.state.Configure(_settings.processingMode, _settings.sparseUpdateInterval);
+	p.recoverNvidiaResidual = _settings.processingMode == DLSSNRProcessingMode::Alternating &&
+		_settings.motionRequest.method == OpticalFlowMethod::Nvidia;
 	p.ownerThread = GetCurrentThreadId();
 	if (FAILED(p.completionEvent.create()) || !RegisterWaitForSingleObject(
 		&p.registeredWait, p.completionEvent.get(), WakeDlssnrOwner,
@@ -342,6 +381,9 @@ bool DLSSNRFilter::InitializePerformance(ID3D11Texture2D* input, ID3D11Texture2D
 	latestDesc.Usage = D3D11_USAGE_DEFAULT; latestDesc.CPUAccessFlags = latestDesc.MiscFlags = 0;
 	latestDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
 	if (FAILED(c.device11->CreateTexture2D(&latestDesc, nullptr, p.latestInput.put()))) return false;
+	if (p.recoverNvidiaResidual && !_settings.experimentalHdr.enabled &&
+		(c.width != c.sourceWidth || c.height != c.sourceHeight) &&
+		FAILED(c.device11->CreateShaderResourceView(p.latestInput.get(), nullptr, p.latestInputSrv.put()))) return false;
 	const float zero[4]{};
 	c.context11->ClearUnorderedAccessViewFloat(p.zeroMotion.uav.get(), zero);
 	c.context11->ClearUnorderedAccessViewFloat(p.zeroConfidence.uav.get(), zero);
@@ -385,8 +427,10 @@ bool DLSSNRFilter::InitializePerformance(ID3D11Texture2D* input, ID3D11Texture2D
 	sampler.AddressU = sampler.AddressV = sampler.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
 	sampler.MaxLOD = D3D11_FLOAT32_MAX;
 	if (FAILED(c.device11->CreateSamplerState(&sampler, p.sampler.put()))) return false;
+	const char* composeEntry = p.recoverNvidiaResidual ? "ComposeNvidiaAlternating" : "ComposeCurrent";
+	const char* composeName = p.recoverNvidiaResidual ? "DLSSNRComposeNvidiaAlternating" : "DLSSNRComposeCurrent";
 	if (!CreateComputeShader(c, DLSSNR_PERFORMANCE_HLSL, "PublishEnhancement", "DLSSNRPublishEnhancement", p.publishShader) ||
-		!CreateComputeShader(c, DLSSNR_PERFORMANCE_HLSL, "ComposeCurrent", "DLSSNRComposeCurrent", p.composeShader) ||
+		!CreateComputeShader(c, DLSSNR_PERFORMANCE_HLSL, composeEntry, composeName, p.composeShader) ||
 		!CreateComputeShader(c, DLSSNR_PERFORMANCE_HLSL, "CheckReuse", "DLSSNRCheckReuse", p.checkShader) ||
 		!CreateComputeShader(c, DLSSNR_PERFORMANCE_HLSL, "ComposeMotion", "DLSSNRComposeMotion", p.motionShader) ||
 		!CreateComputeShader(c, DLSSNR_PERFORMANCE_HLSL, "MeasureCoverage", "DLSSNRMeasureCoverage", p.coverageShader)) return false;
@@ -473,6 +517,7 @@ bool DLSSNRFilter::DrawPerformance(const NativeEffectDrawContext& context) noexc
 	if (!PrepareInput(c, context.input)) return fail("DLSSNR current input preparation");
 	Performance::Constants values{c.width, c.height, c.sourceWidth, c.sourceHeight};
 	values.processingMode = uint32_t(_settings.processingMode);
+	values.recoverNvidiaResidual = p.recoverNvidiaResidual;
 
 	ServiceAsync();
 	if (full.disabled) return false;
@@ -497,18 +542,19 @@ bool DLSSNRFilter::DrawPerformance(const NativeEffectDrawContext& context) noexc
 	};
 	if (pipeline || p.state.NeedsFullUpdate(p.lastInferenceSequence, p.lastInferenceEpoch)) snapshotInput();
 	if (!pipeline && p.latestWaiting && !SubmitPerformanceInput(false)) return fail("DLSSNR alternating inference");
-	ID3D11ShaderResourceView* srvs[12]{};
+	Performance::ShaderResources srvs{};
 	// Async consumers only acquire fully published results. Alternating inference
 	// explicitly enqueued its D3D12 wait; this same D3D11 queue can read its
 	// ordered publication without an additional CPU fence wait. Pipeline only
 	// publishes completed inference and orders that publication on this queue.
 	size_t selected = DLSSNREnhancementPool::None;
 	auto selectHistory = [&]() {
-		std::fill(std::begin(srvs), std::end(srvs), nullptr);
+		srvs.fill(nullptr);
 		srvs[0] = c.sharedInputSrv11.get();
 		selected = p.pool.Latest(p.state, UINT64_MAX);
 		values.hasHistory = selected != DLSSNREnhancementPool::None;
 		values.age = 0;
+		values.useSourceGuide = 0;
 		values.reproject = _settings.residualTransfer == DLSSNRResidualTransfer::PerPixel;
 		if (!values.hasHistory) return;
 		const auto& slot = p.pool[selected];
@@ -518,6 +564,15 @@ bool DLSSNRFilter::DrawPerformance(const NativeEffectDrawContext& context) noexc
 		if (values.reproject && !p.MotionInputs(p.readySequence, srvs, values)) {
 			values.hasHistory = 0;
 			if (p.state.newCapture) ++p.missingMotionFrames;
+			return;
+		}
+		// Only the matching synchronous input snapshot can describe this
+		// observation. Compare original colors before the NR downsample.
+		if (p.latestInputSrv && values.reproject && values.age > 0 &&
+			p.latestSequence == slot.sequence && p.latestEpoch == slot.epoch) {
+			values.useSourceGuide = 1;
+			srvs[12] = c.inputSrv11.get();
+			srvs[13] = p.latestInputSrv.get();
 		}
 	};
 	selectHistory();
@@ -570,6 +625,7 @@ bool DLSSNRFilter::DrawPerformance(const NativeEffectDrawContext& context) noexc
 		for (auto& sample : p.coverageSamples) if (!sample.pending) {
 			const UINT zero[4]{}; dc->ClearUnorderedAccessViewUint(p.invalidUav.get(), zero);
 			ID3D11UnorderedAccessView* measureUavs[4]{nullptr, nullptr, p.invalidUav.get()};
+			if (values.recoverNvidiaResidual) srvs[11] = p.validity.srv.get();
 			p.Dispatch(p.coverageShader.get(), values, srvs, measureUavs, 64);
 			dc->CopyResource(sample.buffer.get(), p.invalid.get()); dc->End(sample.done.get());
 			sample.pending = true; break;
@@ -619,7 +675,7 @@ bool DLSSNRFilter::PublishPerformanceResult() noexcept {
 	}
 	auto& result = p.results[p.pendingSlot];
 	Impl& last = full.laterPasses.empty() ? full : *full.laterPasses.back();
-	ID3D11ShaderResourceView* srvs[12]{};
+	Performance::ShaderResources srvs{};
 	srvs[0] = full.sharedInputSrv11.get(); srvs[11] = last.sharedOutputSrv11.get();
 	ID3D11UnorderedAccessView* uavs[4]{result.enhancement.uav.get()};
 	Performance::Constants values{c.width, c.height, c.sourceWidth, c.sourceHeight};
@@ -668,7 +724,7 @@ bool DLSSNRFilter::SubmitPerformanceInput(bool background) noexcept {
 		if (FAILED(available.create()) || FAILED(p.poolFence->SetEventOnCompletion(
 			p.poolFenceValue, available.get()))) return false;
 		dc->Flush();
-		if (WaitForSingleObject(available.get(), INFINITE) != WAIT_OBJECT_0) return false;
+		if (FAILED(WaitForGpuFence(p.poolFence.get(), p.poolFenceValue, available.get(), 5000))) return false;
 		const auto retired = p.poolFence->GetCompletedValue();
 		if (retired == UINT64_MAX) return false;
 		slot = p.pool.Reserve(retired);
@@ -686,7 +742,7 @@ bool DLSSNRFilter::SubmitPerformanceInput(bool background) noexcept {
 	for (auto* channel : {&privateZero.depth, &privateZero.motion, &privateZero.confidence}) channel->metadata.sync = {};
 	FrameGuidanceView frozen = privateZero;
 	bool reset = p.lastInferenceEpoch != p.state.epoch;
-	ID3D11ShaderResourceView* srvs[12]{};
+	Performance::ShaderResources srvs{};
 	Performance::Constants values{c.sourceWidth, c.sourceHeight, c.sourceWidth, c.sourceHeight};
 	values.reproject = 1;
 	const bool motionValid = p.latestIsNewCapture && !reset && _settings.motionRequest.method != OpticalFlowMethod::None &&

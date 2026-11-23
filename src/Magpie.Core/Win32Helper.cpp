@@ -1155,53 +1155,45 @@ const std::filesystem::path& Win32Helper::GetExePath() noexcept {
 }
 
 void Win32Helper::WaitForDwmComposition() noexcept {
+	constexpr DWORD timeoutMs = 100;
 	// Win11 可以使用准确的 DCompositionWaitForCompositorClock
 	if (Win32Helper::GetOSVersion().IsWin11()) {
 		static const auto dCompositionWaitForCompositorClock =
 			Win32Helper::LoadSystemFunction<decltype(DCompositionWaitForCompositorClock)>(
 				L"dcomp.dll", "DCompositionWaitForCompositorClock");
 		if (dCompositionWaitForCompositorClock) {
-			dCompositionWaitForCompositorClock(0, nullptr, INFINITE);
+			// Composition alignment is best-effort when the compositor has no upcoming frame.
+			dCompositionWaitForCompositorClock(0, nullptr, timeoutMs);
 			return;
 		}
 	}
 
-	LARGE_INTEGER qpf;
-	QueryPerformanceFrequency(&qpf);
-	qpf.QuadPart /= 10000000;
+	LARGE_INTEGER frequency;
+	if (!QueryPerformanceFrequency(&frequency) || frequency.QuadPart <= 0) return;
 
 	DWM_TIMING_INFO info{};
 	info.cbSize = sizeof(info);
-	DwmGetCompositionTimingInfo(NULL, &info);
+	if (FAILED(DwmGetCompositionTimingInfo(nullptr, &info))) return;
 
 	LARGE_INTEGER time;
-	QueryPerformanceCounter(&time);
-
-	if (time.QuadPart >= (LONGLONG)info.qpcCompose) {
-		return;
-	}
+	if (!QueryPerformanceCounter(&time)) return;
+	const auto ticksRemaining = static_cast<LONGLONG>(info.qpcCompose) - time.QuadPart;
+	if (ticksRemaining <= 0 || ticksRemaining > frequency.QuadPart / (1000 / timeoutMs)) return;
 
 	// 提前 1ms 结束然后忙等待
-	time.QuadPart += 10000;
-	if (time.QuadPart < (LONGLONG)info.qpcCompose) {
-		LARGE_INTEGER liDueTime{
-			.QuadPart = -((LONGLONG)info.qpcCompose - time.QuadPart) / qpf.QuadPart
+	const auto sleepTicks = ticksRemaining - frequency.QuadPart / 1000;
+	if (sleepTicks > 0) {
+		LARGE_INTEGER dueTime{
+			.QuadPart = -std::max<LONGLONG>(1, static_cast<LONGLONG>(
+				double(sleepTicks) / double(frequency.QuadPart) * 10'000'000.0))
 		};
-		static HANDLE timer = CreateWaitableTimerEx(nullptr, nullptr,
-			CREATE_WAITABLE_TIMER_HIGH_RESOLUTION, TIMER_ALL_ACCESS);
-		SetWaitableTimerEx(timer, &liDueTime, 0, NULL, NULL, 0, 0);
-		WaitForSingleObject(timer, INFINITE);
-	} else {
-		Sleep(0);
+		static thread_local wil::unique_handle timer(CreateWaitableTimerExW(nullptr, nullptr,
+			CREATE_WAITABLE_TIMER_HIGH_RESOLUTION, TIMER_MODIFY_STATE | SYNCHRONIZE));
+		if (!timer || !SetWaitableTimerEx(timer.get(), &dueTime, 0, nullptr, nullptr, nullptr, 0) ||
+			WaitForSingleObject(timer.get(), timeoutMs) != WAIT_OBJECT_0) return;
 	}
 
-	while (true) {
-		QueryPerformanceCounter(&time);
-
-		if (time.QuadPart >= (LONGLONG)info.qpcCompose) {
-			return;
-		}
-
+	while (QueryPerformanceCounter(&time) && time.QuadPart < static_cast<LONGLONG>(info.qpcCompose)) {
 		Sleep(0);
 	}
 }

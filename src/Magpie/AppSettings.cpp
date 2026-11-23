@@ -298,9 +298,15 @@ bool AppSettings::Initialize() noexcept {
 			ResourceLoader::GetForCurrentView(CommonSharedConstants::APP_RESOURCE_MAP_ID);
 		hstring title = resourceLoader.GetString(L"AppSettings_ErrorDialog_ReadFailed");
 		hstring content = resourceLoader.GetString(L"AppSettings_ErrorDialog_ConfigLocation");
-		const auto guidance = resourceLoader.GetString(readError == ERROR_ACCESS_DENIED ?
-			L"AppSettings_ReadAccessDenied" : L"AppSettings_ReadFailedGuidance");
-		const auto details = std::wstring(guidance) + L"\n\n" +
+		const wchar_t* guidanceKey = L"AppSettings_ReadFailedGuidance";
+		if (readError == ERROR_ACCESS_DENIED) guidanceKey = L"AppSettings_ReadAccessDenied";
+		else if (readError == ERROR_FILE_TOO_LARGE) guidanceKey = L"AppSettings_ConfigTooLarge";
+		std::wstring guidance(resourceLoader.GetString(guidanceKey));
+		if (readError == ERROR_FILE_TOO_LARGE) {
+			guidance = fmt::format(fmt::runtime(std::wstring_view(guidance)),
+				ConfigPersistence::MaxFileBytes / (1024 * 1024));
+		}
+		const auto details = guidance + L"\n\n" +
 			fmt::format(fmt::runtime(std::wstring_view(content)), existingConfigPath.native());
 		ShowErrorMessage(title.c_str(), details.c_str(), existingConfigPath, readError);
 		return false;
@@ -331,8 +337,9 @@ bool AppSettings::Initialize() noexcept {
 				return rule;
 			}, it->constant);
 		};
-		auto plan = ConfigRecovery::Prepare(configText,
-			ConfigPersistence::Read(existingConfigPath.native() + L".bak"), recoveredName, rules);
+		auto plan = ConfigRecovery::PrepareWithBackup(configText, [&] {
+			return ConfigPersistence::Read(existingConfigPath.native() + L".bak");
+		}, recoveredName, rules);
 		const auto files = ConfigRecovery::FilesFor(_configPath, configText);
 		bool recovered = plan.kind != ConfigRecovery::Kind::None;
 		bool reused = false;

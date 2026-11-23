@@ -8,7 +8,14 @@
 #include <tlhelp32.h>
 #include <shellapi.h>
 #include <ShlObj.h>
+#include <Aclapi.h>
+#include <Softpub.h>
+#include <WinTrust.h>
+#include <WinCrypt.h>
+#pragma comment(lib, "Advapi32.lib")
+#pragma comment(lib, "Crypt32.lib")
 #pragma comment(lib, "Version.lib")
+#pragma comment(lib, "WinTrust.lib")
 
 namespace Magpie {
 namespace {
@@ -73,6 +80,97 @@ bool ReadDiskFile(const std::filesystem::path& path, std::string& bytes,
 	return true;
 }
 
+struct VerifiedToolFile {
+	std::filesystem::path path;
+	std::unique_ptr<void, decltype(&CloseHandle)> file{ nullptr, CloseHandle };
+};
+
+bool IsLocalExecutablePath(const std::filesystem::path& path) {
+	return path.is_absolute() && path.root_name().native().size() == 2 &&
+		path.root_name().native()[1] == L':';
+}
+
+bool IsMachineTrustedSigner(CRYPT_PROVIDER_SGNR* signer, const char* usage, LPCSTR policy) {
+	const auto certificate = signer ? WTHelperGetProvCertFromChain(signer, 0) : nullptr;
+	if (!certificate || !certificate->pCert || signer->dwError != ERROR_SUCCESS) return false;
+	CERT_CHAIN_PARA parameters{};
+	parameters.cbSize = sizeof(parameters);
+	char* usageOid = const_cast<char*>(usage);
+	parameters.RequestedUsage.Usage.cUsageIdentifier = 1;
+	parameters.RequestedUsage.Usage.rgpszUsageIdentifier = &usageOid;
+	PCCERT_CHAIN_CONTEXT chain = nullptr;
+	if (!CertGetCertificateChain(HCCE_LOCAL_MACHINE, certificate->pCert, &signer->sftVerifyAsOf,
+		certificate->pCert->hCertStore, &parameters, CERT_CHAIN_CACHE_ONLY_URL_RETRIEVAL, nullptr, &chain)) return false;
+	const std::unique_ptr<const CERT_CHAIN_CONTEXT, decltype(&CertFreeCertificateChain)> chainOwner(chain, CertFreeCertificateChain);
+	CERT_CHAIN_POLICY_PARA policyParameters{};
+	policyParameters.cbSize = sizeof(policyParameters);
+	CERT_CHAIN_POLICY_STATUS result{};
+	result.cbSize = sizeof(result);
+	return CertVerifyCertificateChainPolicy(policy, chain, &policyParameters, &result) && result.dwError == ERROR_SUCCESS;
+}
+
+bool IsMsiSignedToolFile(const std::filesystem::path& path, HANDLE file) {
+	WINTRUST_FILE_INFO info{ .cbStruct = sizeof(info), .pcwszFilePath = path.c_str(), .hFile = file };
+	WINTRUST_DATA trust{};
+	trust.cbStruct = sizeof(trust);
+	trust.dwUIChoice = WTD_UI_NONE;
+	trust.fdwRevocationChecks = WTD_REVOKE_NONE;
+	trust.dwUnionChoice = WTD_CHOICE_FILE;
+	trust.pFile = &info;
+	trust.dwStateAction = WTD_STATEACTION_VERIFY;
+	trust.dwProvFlags = WTD_CACHE_ONLY_URL_RETRIEVAL;
+	GUID action = WINTRUST_ACTION_GENERIC_VERIFY_V2;
+	const LONG status = WinVerifyTrust(nullptr, &action, &trust);
+	bool expectedPublisher = false;
+	if (status == ERROR_SUCCESS) {
+		const auto provider = WTHelperProvDataFromStateData(trust.hWVTStateData);
+		const auto signer = provider ? WTHelperGetProvSignerFromChain(provider, 0, FALSE, 0) : nullptr;
+		const auto certificate = signer ? WTHelperGetProvCertFromChain(signer, 0) : nullptr;
+		wchar_t publisher[128]{};
+		char organization[] = szOID_ORGANIZATION_NAME;
+		if (certificate && certificate->pCert &&
+			CertGetNameStringW(certificate->pCert, CERT_NAME_ATTR_TYPE, 0,
+				organization, publisher, ARRAYSIZE(publisher)) > 1 &&
+			_wcsicmp(publisher, L"MICRO-STAR INTERNATIONAL CO., LTD.") == 0) {
+			// Authenticode verifies the file bytes and timestamp binding. Build
+			// both chains with machine trust, at the verified signing times.
+			expectedPublisher = IsMachineTrustedSigner(signer, szOID_PKIX_KP_CODE_SIGNING, CERT_CHAIN_POLICY_AUTHENTICODE);
+			for (DWORD i = 0; expectedPublisher && i < signer->csCounterSigners; ++i) {
+				const auto timestamp = WTHelperGetProvSignerFromChain(provider, 0, TRUE, i);
+				expectedPublisher = IsMachineTrustedSigner(timestamp, szOID_PKIX_KP_TIMESTAMP_SIGNING,
+					CERT_CHAIN_POLICY_AUTHENTICODE_TS);
+			}
+		}
+	}
+	trust.dwStateAction = WTD_STATEACTION_CLOSE;
+	WinVerifyTrust(nullptr, &action, &trust);
+	return expectedPublisher;
+}
+
+std::filesystem::path LocalToolPath(HANDLE file) {
+	if (GetFileType(file) != FILE_TYPE_DISK) return {};
+	std::wstring resolved(32768, L'\0');
+	const DWORD length = GetFinalPathNameByHandleW(file, resolved.data(),
+		static_cast<DWORD>(resolved.size()), FILE_NAME_NORMALIZED | VOLUME_NAME_DOS);
+	if (length < 7 || length >= resolved.size() || !resolved.starts_with(L"\\\\?\\")) return {};
+	resolved.resize(length);
+	std::filesystem::path path = resolved.substr(4);
+	if (!IsLocalExecutablePath(path)) return {};
+	const UINT drive = GetDriveTypeW(path.root_path().c_str());
+	return drive == DRIVE_FIXED || drive == DRIVE_REMOVABLE ? path : std::filesystem::path{};
+}
+
+VerifiedToolFile VerifyToolFile(const std::filesystem::path& path, const wchar_t* expectedName) {
+	if (!IsLocalExecutablePath(path) || _wcsicmp(path.filename().c_str(), expectedName) != 0) return {};
+	const HANDLE raw = CreateFileW(path.c_str(), GENERIC_READ, FILE_SHARE_READ,
+		nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
+	if (raw == INVALID_HANDLE_VALUE) return {};
+	VerifiedToolFile result{ LocalToolPath(raw), {raw, CloseHandle} };
+	if (result.path.empty() || _wcsicmp(result.path.filename().c_str(), expectedName) != 0 ||
+		!IsMsiSignedToolFile(result.path, raw)) return {};
+	return result; // Deny replacement while the caller loads or launches the verified file.
+}
+
 bool IsRunning(const std::filesystem::path& executable) {
 	if (executable.empty()) return false;
 	wil::unique_handle snapshot(CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0));
@@ -92,6 +190,75 @@ bool IsRunning(const std::filesystem::path& executable) {
 	return false;
 }
 
+bool IsSystemOrAdministratorSid(PSID sid) {
+	if (!sid) return false;
+	if (IsWellKnownSid(sid, WinLocalSystemSid) || IsWellKnownSid(sid, WinBuiltinAdministratorsSid)) return true;
+	struct InstallerSid {
+		alignas(DWORD) BYTE bytes[SECURITY_MAX_SID_SIZE]{};
+		bool valid = false;
+	};
+	static const InstallerSid installer = [] {
+		InstallerSid result;
+		DWORD sidSize = sizeof(result.bytes);
+		wchar_t domain[64]{};
+		DWORD domainSize = ARRAYSIZE(domain);
+		SID_NAME_USE use{};
+		result.valid = LookupAccountNameW(nullptr, L"NT SERVICE\\TrustedInstaller",
+			result.bytes, &sidSize, domain, &domainSize, &use) != FALSE;
+		return result;
+	}();
+	return installer.valid && EqualSid(sid, const_cast<BYTE*>(installer.bytes));
+}
+
+bool IsAdministratorControlledPath(const std::filesystem::path& path, ACCESS_MASK unsafeRights) {
+	wil::unique_hfile file(CreateFileW(path.c_str(), READ_CONTROL | FILE_READ_ATTRIBUTES,
+		FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr, OPEN_EXISTING,
+		FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT, nullptr));
+	BY_HANDLE_FILE_INFORMATION info{};
+	if (!file || !GetFileInformationByHandle(file.get(), &info) ||
+		(info.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT)) return false;
+	PSID owner = nullptr;
+	PACL acl = nullptr;
+	PSECURITY_DESCRIPTOR rawDescriptor = nullptr;
+	const DWORD status = GetSecurityInfo(file.get(), SE_FILE_OBJECT,
+		OWNER_SECURITY_INFORMATION | DACL_SECURITY_INFORMATION, &owner, nullptr, &acl, nullptr, &rawDescriptor);
+	const std::unique_ptr<void, decltype(&LocalFree)> descriptor(rawDescriptor, LocalFree);
+	if (status != ERROR_SUCCESS || !acl || !IsSystemOrAdministratorSid(owner)) return false;
+	GENERIC_MAPPING rights{ FILE_GENERIC_READ, FILE_GENERIC_WRITE, FILE_GENERIC_EXECUTE, FILE_ALL_ACCESS };
+	for (DWORD i = 0; i < acl->AceCount; ++i) {
+		void* entry = nullptr;
+		if (!GetAce(acl, i, &entry)) return false;
+		const auto header = static_cast<const ACE_HEADER*>(entry);
+		if (header->AceFlags & INHERIT_ONLY_ACE) continue;
+		if (header->AceType == ACCESS_DENIED_ACE_TYPE) continue;
+		if (header->AceType != ACCESS_ALLOWED_ACE_TYPE) return false;
+		const auto allowed = static_cast<ACCESS_ALLOWED_ACE*>(entry);
+		ACCESS_MASK access = allowed->Mask;
+		MapGenericMask(&access, &rights);
+		if ((access & unsafeRights) && !IsSystemOrAdministratorSid(&allowed->SidStart)) return false;
+	}
+	return true;
+}
+
+bool IsProtectedToolLaunchDirectory(const std::filesystem::path& directory) {
+	constexpr ACCESS_MASK replace = DELETE | WRITE_DAC | WRITE_OWNER | FILE_DELETE_CHILD;
+	constexpr ACCESS_MASK write = replace | FILE_WRITE_DATA | FILE_APPEND_DATA | FILE_WRITE_EA | FILE_WRITE_ATTRIBUTES;
+	if (!IsAdministratorControlledPath(directory, write)) return false;
+	for (auto ancestor = directory.parent_path(); !ancestor.empty(); ancestor = ancestor.parent_path()) {
+		if (!IsAdministratorControlledPath(ancestor, replace)) return false;
+		if (ancestor == ancestor.root_path()) break;
+	}
+	// The vendor executables load private unsigned DLLs beside them at startup.
+	std::error_code enumerationError;
+	for (std::filesystem::directory_iterator files(directory, enumerationError), end;
+		!enumerationError && files != end; files.increment(enumerationError)) {
+		const auto extension = files->path().extension();
+		if ((_wcsicmp(extension.c_str(), L".dll") == 0 || _wcsicmp(extension.c_str(), L".exe") == 0) &&
+			!IsAdministratorControlledPath(files->path(), write)) return false;
+	}
+	return !enumerationError;
+}
+
 std::wstring ReadToolVersion(const std::filesystem::path& path) {
 	DWORD ignored = 0;
 	const DWORD size = GetFileVersionInfoSizeW(path.c_str(), &ignored);
@@ -109,6 +276,7 @@ std::wstring ReadToolVersion(const std::filesystem::path& path) {
 std::filesystem::path RegistryInstall(bool afterburner) {
 	// Search both registry views, including per-user installations.
 	const auto key = afterburner ? L"SOFTWARE\\Unwinder\\MSI Afterburner" : L"SOFTWARE\\Unwinder\\RTSS";
+	const auto executable = afterburner ? L"MSIAfterburner.exe" : L"RTSS.exe";
 	for (HKEY root : { HKEY_LOCAL_MACHINE, HKEY_CURRENT_USER }) {
 		for (DWORD view : { KEY_WOW64_32KEY, KEY_WOW64_64KEY }) {
 			wil::unique_hkey handle;
@@ -126,8 +294,9 @@ std::filesystem::path RegistryInstall(bool afterburner) {
 					expanded.resize(count - 1); resolved = std::move(expanded);
 				}
 				std::filesystem::path path(resolved);
-				if (_wcsicmp(path.extension().c_str(), L".exe") != 0) path /= afterburner ? L"MSIAfterburner.exe" : L"RTSS.exe";
-				if (Win32Helper::FileExists(path.c_str())) return path;
+				if (_wcsicmp(path.extension().c_str(), L".exe") != 0) path /= executable;
+				if (IsLocalExecutablePath(path) && _wcsicmp(path.filename().c_str(), executable) == 0 &&
+					Win32Helper::FileExists(path.c_str())) return path;
 			}
 		}
 	}
@@ -163,6 +332,11 @@ RtssToolInfo RtssProfileAccess::DetectTool(bool afterburner) {
 		}
 	}
 	if (!result.executable.empty()) {
+		const wil::unique_hfile file(CreateFileW(result.executable.c_str(), FILE_READ_ATTRIBUTES,
+			FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr));
+		if (file) result.executable = LocalToolPath(file.get());
+	}
+	if (!result.executable.empty()) {
 		result.version = ReadToolVersion(result.executable);
 		result.running = IsRunning(result.executable);
 	}
@@ -171,10 +345,15 @@ RtssToolInfo RtssProfileAccess::DetectTool(bool afterburner) {
 
 bool RtssProfileAccess::LaunchTool(const RtssToolInfo& tool, std::wstring& error) {
 	if (tool.executable.empty()) { error = L"ToolNotInstalled"; return false; }
-	if (IsRunning(tool.executable)) return true;
-	const auto folder = tool.executable.parent_path();
+	const auto name = _wcsicmp(tool.executable.filename().c_str(), L"MSIAfterburner.exe") == 0
+		? L"MSIAfterburner.exe" : L"RTSS.exe";
+	const auto verified = VerifyToolFile(tool.executable, name);
+	if (!verified.file) { error = L"UntrustedInstallation"; return false; }
+	if (IsRunning(verified.path)) return true;
+	const auto folder = verified.path.parent_path();
+	if (!IsProtectedToolLaunchDirectory(folder)) { error = L"UntrustedLaunchDirectory"; return false; }
 	SHELLEXECUTEINFOW info{ .cbSize = sizeof(info), .fMask = SEE_MASK_NOCLOSEPROCESS | SEE_MASK_NOASYNC,
-		.lpVerb = L"open", .lpFile = tool.executable.c_str(), .lpDirectory = folder.c_str(), .nShow = SW_SHOWMINNOACTIVE };
+		.lpVerb = L"open", .lpFile = verified.path.c_str(), .lpDirectory = folder.c_str(), .nShow = SW_SHOWMINNOACTIVE };
 	if (!ShellExecuteExW(&info)) { error = std::to_wstring(GetLastError()); return false; }
 	if (info.hProcess) CloseHandle(info.hProcess);
 	return true;
@@ -204,25 +383,34 @@ bool RtssProfileAccess::Initialize(const RtssToolInfo& tool, std::wstring& error
 	error = L"UnsupportedArchitecture";
 	return false;
 #else
-	_directory = tool.executable.parent_path();
+	const auto executable = VerifyToolFile(tool.executable, L"RTSS.exe");
+	if (!executable.file) { error = L"UntrustedInstallation"; return false; }
+	const auto directory = executable.path.parent_path();
 #if defined(_WIN64)
-	const auto dll = _directory / L"RTSSHooks64.dll";
+	const auto dllName = L"RTSSHooks64.dll";
 #else
-	const auto dll = _directory / L"RTSSHooks.dll";
+	const auto dllName = L"RTSSHooks.dll";
 #endif
+	const auto dll = directory / dllName;
 	if (GetFileAttributesW(dll.c_str()) == INVALID_FILE_ATTRIBUTES) {
 		const DWORD code = GetLastError();
 		error = code == ERROR_ACCESS_DENIED ? L"AccessDenied" :
 			(code == ERROR_FILE_NOT_FOUND || code == ERROR_PATH_NOT_FOUND) ? L"LibraryMissing" : L"LoadFailed: " + std::to_wstring(code);
 		_Unload(); return false;
 	}
-	_module = LoadLibraryExW(dll.c_str(), nullptr, LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR | LOAD_LIBRARY_SEARCH_SYSTEM32);
+	const auto verified = VerifyToolFile(dll, dllName);
+	if (!verified.file || _wcsicmp(verified.path.parent_path().c_str(), directory.c_str()) != 0) {
+		error = L"UntrustedInstallation";
+		return false;
+	}
+	_module = LoadLibraryExW(verified.path.c_str(), nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
 	if (!_module) {
 		const DWORD code = GetLastError();
 		error = code == ERROR_BAD_EXE_FORMAT ? L"UnsupportedArchitecture" : code == ERROR_ACCESS_DENIED ?
 			L"AccessDenied" : L"LoadFailed: " + std::to_wstring(code);
 		_Unload(); return false;
 	}
+	_directory = directory;
 	_load = reinterpret_cast<ProfileFn>(GetProcAddress(_module, "LoadProfile"));
 	_save = reinterpret_cast<ProfileFn>(GetProcAddress(_module, "SaveProfile"));
 	_delete = reinterpret_cast<ProfileFn>(GetProcAddress(_module, "DeleteProfile"));

@@ -176,7 +176,7 @@ bool DLSSNRFilter::DrainSparse() noexcept {
 	wil::unique_event_nothrow retired;
 	if (FAILED(retired.create()) || FAILED(p.dc->Signal(p.fence.get(),value)) || FAILED(p.fence->SetEventOnCompletion(value,retired.get()))) return false;
 	p.dc->Flush();
-	return WaitForSingleObject(retired.get(),30000)==WAIT_OBJECT_0 && p.fence->GetCompletedValue()>=value && submissionHealthy;
+	return SUCCEEDED(WaitForGpuFence(p.fence.get(),value,retired.get(),30000)) && submissionHealthy;
 }
 
 bool DLSSNRFilter::SparseHasPendingWork() const noexcept {
@@ -315,7 +315,7 @@ bool DLSSNRFilter::DrawSparse(const NativeEffectDrawContext& context) noexcept {
 		ServiceSparse(); if (!IsHealthy()) return false;
 		wil::unique_event_nothrow initialReady;
 		if (FAILED(initialReady.create()) || FAILED(p.fence->SetEventOnCompletion(p.fenceValue,initialReady.get()))) return false;
-		dc->Flush(); if (WaitForSingleObject(initialReady.get(),30000)!=WAIT_OBJECT_0) return false;
+		dc->Flush(); if (FAILED(WaitForGpuFence(p.fence.get(),p.fenceValue,initialReady.get(),30000))) return false;
 	}
 	if (newCapture && (!p.budget.lastSource || p.sequence-p.budget.lastAdmission>=p.interval)) request(false);
 	if (p.parameterRefresh) request(true);

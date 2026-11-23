@@ -1,9 +1,11 @@
 #include "pch.h"
 #include "FSR3Upscaler.h"
 #include "DeviceResources.h"
+#include "FidelityFxUpscaleRuntime.h"
 #include "Logger.h"
 
 #ifdef MP_ENABLE_FSR3_ZEROMV
+#include "FSR3UpscaleFence.h"
 #include <d3d12.h>
 #include <ffx_api.h>
 #include <dx12/ffx_api_dx12.h>
@@ -34,6 +36,8 @@ struct FSR3Upscaler::Impl {
 	winrt::com_ptr<ID3D12DescriptorHeap> descriptorHeap12;
 	winrt::com_ptr<ID3D11Fence> fence11;
 	winrt::com_ptr<ID3D12Fence> fence12;
+	wil::unique_event_nothrow fenceEvent;
+	bool submitted = false;
 	HMODULE loaderModule = nullptr;
 	HMODULE providerModule = nullptr;
 	decltype(&ffxCreateContext) createContext = nullptr;
@@ -59,26 +63,35 @@ struct FSR3Upscaler::Impl {
 };
 
 static bool WaitForFence(FSR3Upscaler::Impl& impl, uint64_t value) noexcept {
-	if (!value || impl.fence12->GetCompletedValue() >= value) return true;
-	wil::unique_event_nothrow event;
-	HRESULT hr = event.create();
-	if (FAILED(hr)) return false;
-	hr = impl.fence12->SetEventOnCompletion(value, event.get());
-	if (FAILED(hr)) return false;
-	WaitForSingleObject(event.get(), INFINITE);
-	return true;
+	const HRESULT hr = WaitForFsrUpscaleFence(impl.fence12.get(), impl.device12.get(), impl.fenceEvent.get(), value);
+	if (FAILED(hr)) Logger::Get().ComError("FidelityFX upscaler GPU fence wait failed", hr);
+	return SUCCEEDED(hr);
 }
 
 static bool WaitForQueue(FSR3Upscaler::Impl& impl) noexcept {
 	const uint64_t value = ++impl.fenceValue;
 	HRESULT hr = impl.queue12->Signal(impl.fence12.get(), value);
-	if (FAILED(hr)) return false;
+	if (FAILED(hr)) {
+		Logger::Get().ComError("FidelityFX upscaler GPU queue signal failed", hr);
+		return false;
+	}
 	return WaitForFence(impl, value);
 }
 
+void FSR3Upscaler::ImplDeleter::operator()(Impl* impl) const noexcept {
+	if (!impl) return;
+	if ((!impl->submitted || WaitForQueue(*impl)) &&
+		(!impl->context || impl->destroyContext(&impl->context, nullptr) == FFX_API_RETURN_OK)) {
+		delete impl;
+		return;
+	}
+	// Keep the complete owner and its DLLs alive if GPU/SDK teardown could not
+	// be confirmed. Do not reuse the command allocator or render another session.
+	fsrUpscaleRestartRequired.store(true);
+	Logger::Get().Error("FidelityFX upscaler resources retained after failed teardown. Restart Magpie before using FSR3/4 SR.");
+}
+
 FSR3Upscaler::Impl::~Impl() {
-	if (queue12 && fence12) WaitForQueue(*this);
-	if (context && destroyContext) destroyContext(&context, nullptr);
 	if (loaderModule) FreeLibrary(loaderModule);
 	if (providerModule) FreeLibrary(providerModule);
 }
@@ -271,7 +284,11 @@ bool FSR3Upscaler::Initialize(
 	const bool enableOpticalFlow = motionRequest.method != OpticalFlowMethod::None;
 	_useFsr4 = useFsr4;
 	_impl.reset();
-	auto impl = std::make_unique<Impl>();
+	if (fsrUpscaleRestartRequired.load()) {
+		Logger::Get().Error("Restart Magpie before using FSR3/4 SR after a GPU teardown failure");
+		return false;
+	}
+	std::unique_ptr<Impl, ImplDeleter> impl(new Impl);
 	impl->device11 = resources.GetD3DDevice();
 	impl->context11 = resources.GetD3DDC();
 	impl->enableOpticalFlow = enableOpticalFlow;
@@ -373,8 +390,6 @@ bool FSR3Upscaler::Initialize(
 	impl->commandList12->ResourceBarrier(auxCount, auxBarriers);
 	hr = impl->commandList12->Close();
 	if (FAILED(hr)) return false;
-	ID3D12CommandList* lists[]{ impl->commandList12.get() };
-	impl->queue12->ExecuteCommandLists(1, lists);
 
 	hr = impl->device11->CreateFence(0, D3D11_FENCE_FLAG_SHARED, IID_PPV_ARGS(impl->fence11.put()));
 	if (FAILED(hr)) return false;
@@ -383,10 +398,18 @@ bool FSR3Upscaler::Initialize(
 	if (FAILED(hr)) return false;
 	wil::unique_handle fenceHandle(rawFence);
 	hr = impl->device12->OpenSharedHandle(fenceHandle.get(), IID_PPV_ARGS(impl->fence12.put()));
-	if (FAILED(hr) || !WaitForQueue(*impl)) return false;
+	if (SUCCEEDED(hr)) hr = impl->fenceEvent.create();
+	if (FAILED(hr)) {
+		Logger::Get().ComError("Initialize FidelityFX upscaler GPU fence", hr);
+		return false;
+	}
+	ID3D12CommandList* lists[]{ impl->commandList12.get() };
+	impl->queue12->ExecuteCommandLists(1, lists);
+	impl->submitted = true;
+	if (!WaitForQueue(*impl)) return false;
 
 	if (useFsr4) {
-		impl->providerModule = LoadLibraryW(L"amd_fidelityfx_upscaler_dx12.dll");
+		impl->providerModule = LoadPackagedFidelityFxUpscaleModule(L"amd_fidelityfx_upscaler_dx12.dll");
 		if (!impl->providerModule) {
 			Logger::Get().Win32Error("Load FSR 4.1.1 provider DLL failed");
 			return false;
@@ -397,7 +420,7 @@ bool FSR3Upscaler::Initialize(
 		}
 	}
 
-	impl->loaderModule = LoadLibraryW(L"amd_fidelityfx_loader_dx12.dll");
+	impl->loaderModule = LoadPackagedFidelityFxUpscaleModule(L"amd_fidelityfx_loader_dx12.dll");
 	if (!impl->loaderModule) {
 		Logger::Get().Win32Error("Load amd_fidelityfx_loader_dx12.dll failed");
 		return false;
@@ -588,6 +611,7 @@ bool FSR3Upscaler::Draw(const NativeEffectDrawContext& drawContext) noexcept {
 
 namespace Magpie {
 struct FSR3Upscaler::Impl {};
+void FSR3Upscaler::ImplDeleter::operator()(Impl* impl) const noexcept { delete impl; }
 FSR3Upscaler::FSR3Upscaler() = default;
 FSR3Upscaler::~FSR3Upscaler() = default;
 bool FSR3Upscaler::Initialize(DeviceResources&, ID3D11Texture2D*, ID3D11Texture2D*, MotionVectorRequest, bool) noexcept {

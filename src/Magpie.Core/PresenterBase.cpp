@@ -4,6 +4,7 @@
 #include "Logger.h"
 #include "ScalingWindow.h"
 #include "NvidiaForegroundCompatibility.h"
+#include "GpuFenceWait.h"
 #include "Win32Helper.h"
 #include "VRRPerformance.h"
 
@@ -216,23 +217,21 @@ uint32_t PresenterBase::_CalcBufferCount() noexcept {
 	return ScalingWindow::Get().Options().Is3DGameMode() ? 4 : 8;
 }
 
-void PresenterBase::_WaitForGpu() noexcept {
+HRESULT PresenterBase::_WaitForGpu() noexcept {
 	ID3D11DeviceContext4* d3dDC = _deviceResources->GetD3DDC();
 
 	// 等待渲染完成
 	HRESULT hr = d3dDC->Signal(_fence.get(), ++_fenceValue);
-	if (FAILED(hr)) {
-		return;
-	}
-
-	hr = _fence->SetEventOnCompletion(_fenceValue, _fenceEvent.get());
-	if (FAILED(hr)) {
-		return;
-	}
+	if (SUCCEEDED(hr)) hr = _fence->SetEventOnCompletion(_fenceValue, _fenceEvent.get());
+	if (FAILED(hr)) return hr;
 
 	d3dDC->Flush();
-
-	WaitForSingleObject(_fenceEvent.get(), 1000);
+	const HRESULT completion = WaitForGpuFence(_fence.get(), _fenceValue, _fenceEvent.get(), 1000);
+	if (completion == DXGI_ERROR_DEVICE_REMOVED) {
+		const HRESULT reason = _deviceResources->GetD3DDevice()->GetDeviceRemovedReason();
+		if (FAILED(reason)) return reason;
+	}
+	return completion;
 }
 
 }

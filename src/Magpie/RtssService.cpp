@@ -261,6 +261,7 @@ bool RtssService::_Prepare(RtssStatus& status) {
 		status.state = Incompatible(error) ? RtssState::Incompatible : RtssState::Failed;
 		status.failureStage = error == L"InterfaceFault" ? L"Rtss_Failure_Interface" : error == L"LibraryMissing" ?
 			L"Rtss_Failure_LibraryMissing" : error == L"AccessDenied" ? L"Rtss_Failure_Permission" :
+			error == L"UntrustedInstallation" ? L"Rtss_Failure_UntrustedInstallation" :
 			error == L"UnsupportedArchitecture" ? L"Rtss_Failure_Architecture" : L"Rtss_Failure_Access";
 		LogProfileFailure("check", error, _access.Failure()); return false;
 	}
@@ -603,7 +604,9 @@ bool RtssService::_PrepareSession(const std::shared_ptr<Session>& session, RtssS
 		status.state = RtssState::StartingTool; _PublishSession(session, status);
 		std::wstring error;
 		if (!RtssProfileAccess::LaunchTool(status.rtss, error)) {
-			status.state = RtssState::ToolStartFailed; status.failureStage = L"Rtss_Failure_Launch";
+			status.state = RtssState::ToolStartFailed;
+			status.failureStage = error == L"UntrustedLaunchDirectory" ? L"Rtss_Failure_ProtectedLaunch" :
+				error == L"UntrustedInstallation" ? L"Rtss_Failure_UntrustedInstallation" : L"Rtss_Failure_Launch";
 			LogFailure("automatic launch", error); return fail();
 		}
 		// Bounded readiness check on the worker. Stop/new-session cancellation is
@@ -667,7 +670,13 @@ void RtssService::Launch(bool afterburner) {
 		std::wstring error;
 		const auto tool = RtssProfileAccess::DetectTool(afterburner);
 		const bool success = RtssProfileAccess::LaunchTool(tool, error);
-		if (!success) { LogFailure("launch", error); status.state = RtssState::ToolStartFailed; _Publish(status); }
+		if (!success) {
+			LogFailure("launch", error);
+			status.state = RtssState::ToolStartFailed;
+			status.failureStage = error == L"UntrustedLaunchDirectory" ? L"Rtss_Failure_ProtectedLaunch" :
+				error == L"UntrustedInstallation" ? L"Rtss_Failure_UntrustedInstallation" : L"Rtss_Failure_Launch";
+			_Publish(status);
+		}
 		if (_notify) _dispatcher.TryEnqueue([this, success, afterburner] {
 			if (!success || !_notify) { _launchPending = false; return; }
 			// One bounded readiness window after an explicit user launch. Checking

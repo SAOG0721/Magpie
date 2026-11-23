@@ -19,6 +19,9 @@ public:
 		}
 		return true;
 	}
+	bool IsInitialized() const noexcept { return bool(_slots.front().disjoint); }
+	uint64_t LatestSample() const noexcept { return _lastObserved; }
+
 	void Poll(ID3D11DeviceContext* dc) noexcept {
 		for (auto& slot : _slots) {
 			if (!slot.pending) continue;
@@ -33,6 +36,7 @@ public:
 			if (!data.Disjoint && data.Frequency && end >= start) {
 				if (slot.serial > _lastObserved) {
 					milliseconds = double(end-start)*1000.0/double(data.Frequency);
+					fullInference = slot.fullInference;
 					if (slot.hasSection && sectionEnd >= sectionStart)
 						sectionMilliseconds = double(sectionEnd-sectionStart)*1000.0/double(data.Frequency);
 					_lastObserved = slot.serial;
@@ -45,9 +49,11 @@ public:
 		_active = nullptr;
 		for (auto& slot : _slots) if (!slot.pending && slot.disjoint) {
 			_active = &slot; slot.serial = ++_submitted; slot.hasSection = false;
+			slot.fullInference = false;
 			dc->Begin(slot.disjoint.get()); dc->End(slot.start.get()); break;
 		}
 	}
+	void MarkFullInference() noexcept { if (_active) _active->fullInference = true; }
 	void End(ID3D11DeviceContext* dc) noexcept {
 		if (!_active) return;
 		dc->End(_active->end.get()); dc->End(_active->disjoint.get());
@@ -60,10 +66,11 @@ public:
 	double milliseconds = 0;
 	double sectionMilliseconds = 0;
 	uint64_t samples = 0;
+	bool fullInference = true;
 private:
 	struct Slot {
 		winrt::com_ptr<ID3D11Query> disjoint, start, end, sectionStart, sectionEnd;
-		bool pending = false, hasSection = false;
+		bool pending = false, hasSection = false, fullInference = false;
 		uint64_t serial = 0;
 	};
 	std::array<Slot, 4> _slots;

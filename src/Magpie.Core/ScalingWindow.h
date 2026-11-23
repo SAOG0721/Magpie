@@ -281,6 +281,7 @@ private:
 	ScalingWindowRetirement _retirement;
 	unsigned _windowCallbackDepth = 0;
 	bool _finalizingRetirement = false;
+	bool _ngxFaultedAtRetirementStart = false;
 	std::chrono::steady_clock::time_point _nextSourceStateCheck{};
 
 	winrt::ResourceLoader _resourceLoader{ nullptr };

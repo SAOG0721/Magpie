@@ -23,6 +23,7 @@ struct TestClock {
 using DWORD = uint32_t; using UINT = uint32_t; using HRESULT = int32_t;
 using HANDLE = void*; using HWND = void*;
 constexpr DWORD WAIT_OBJECT_0 = 0, WAIT_TIMEOUT = 258, WAIT_FAILED = 0xffffffff;
+constexpr DWORD ERROR_TIMEOUT = 1460;
 constexpr DWORD QS_ALLINPUT = 1, MWMO_INPUTAVAILABLE = 1;
 constexpr HRESULT S_OK = 0, S_FALSE = 1, E_FAIL = -1, E_UNEXPECTED = -2;
 constexpr HRESULT DXGI_STATUS_OCCLUDED = 0x087a0001;
@@ -49,6 +50,7 @@ static bool contextBound = false, dcompAttached = true, windowResizing = false;
 static bool dcompDrawing = false;
 static HRESULT resizeResult = S_OK, bufferResult = S_OK, rtvResult = S_OK;
 static HRESULT fakePresentResult = S_OK, removedResult = S_OK, queryCreateResult = S_OK;
+static HRESULT gpuWaitResult = S_OK;
 static HRESULT queryResult = S_OK, detachResult = S_OK, fakeCommitResult = S_OK, fakeRestoreResult = S_OK;
 static std::vector<DWORD> waitTimeouts;
 static DWORD WaitForSingleObject(HANDLE, DWORD timeout) {
@@ -193,7 +195,7 @@ struct PresenterBase {
     struct Policy { UINT ResizeFlags() const { return 0x42; } } _vrr;
     void _RefreshVRREnvironment(bool) {}
     void _VRRPathAvailable(bool value) { vrrPath = value; }
-    void _WaitForGpu() { ++gpuWaits; }
+    HRESULT _WaitForGpu() { ++gpuWaits; return gpuWaitResult; }
     bool HasIndependentOverlay() const { return false; }
     HRESULT _PresentWithVRR(IDXGISwapChain4*, bool retry) {
         Require(retry, "normal VRR retry policy must remain enabled");
@@ -240,6 +242,7 @@ struct Renderer {
 	bool HasPendingContent() const { return false; }
     bool _HasSoftwareFrameGenerator() const { return softwareFG; }
     bool _HasProxyFrameGenerator() const { return proxyFG; }
+    bool _UsesVrrCaptureRefresh() const { return false; }
     bool _TryIdleRedraw() const { return false; }
     bool _FrontendOverlayRender() const { return false; }
     bool _SubmitFrontendFrame() const { return true; }
@@ -269,6 +272,7 @@ static void Reset() {
     contextBound = windowResizing = dcompDrawing = false; dcompAttached = true;
     resizeResult = bufferResult = rtvResult = fakePresentResult = removedResult = queryCreateResult = S_OK;
     queryResult = detachResult = fakeCommitResult = fakeRestoreResult = S_OK;
+    gpuWaitResult = S_OK;
     waitTimeouts.clear(); Logger::warnings = 0; ScalingWindow::Get().rect = {};
 }
 struct Session {
@@ -301,6 +305,26 @@ struct Session {
     }
 };
 int main() {
+    Reset(); {
+        Session s;
+        s.p._isResized = true;
+        gpuWaitResult = HRESULT_FROM_WIN32(ERROR_TIMEOUT);
+        Require(!s.Frame() && !s.p.HasFatalError() && s.p._isResized && commits == 0 && dwmWaits == 0,
+            "a resize fence timeout must defer submission and keep its resize alignment pending");
+        gpuWaitResult = S_OK;
+        Require(s.Frame() && !s.p._isResized && commits == 1 && dwmWaits == 1,
+            "a later completed frame must resume the normal resize alignment");
+    }
+    Reset(); {
+        Session s;
+        s.p._isResized = true;
+        gpuWaitResult = DXGI_ERROR_DEVICE_REMOVED;
+        removedResult = DXGI_ERROR_DEVICE_RESET;
+        Require(!s.Frame() && s.p.HasFatalError() && commits == 0 && dwmWaits == 0,
+            "device loss during the fence wait must stop before the present");
+        Require(s.p.GetFailure()->code == static_cast<uint32_t>(DXGI_ERROR_DEVICE_RESET),
+            "graphics device loss must preserve the actual removal reason");
+    }
     Reset(); {
         Session s; contextBound = true;
         Require(s.EndResize(), "normal resize exit must request the replacement frame");

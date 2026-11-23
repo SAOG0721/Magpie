@@ -1093,6 +1093,8 @@
   <data name="Rtss_LaunchAfterburner" xml:space="preserve"><value>Launch MSI Afterburner</value></data>
   <data name="Rtss_LaunchAfterburnerMissing" xml:space="preserve"><value>MSI Afterburner is not installed</value></data>
   <data name="Rtss_LaunchAfterburnerRunning" xml:space="preserve"><value>MSI Afterburner is running</value></data>
+  <data name="Rtss_Failure_ProtectedLaunch" xml:space="preserve"><value>Start RTSS or MSI Afterburner manually from its installation directory, then recheck.</value></data>
+  <data name="Rtss_Failure_UntrustedInstallation" xml:space="preserve"><value>The RTSS or MSI Afterburner installation could not be verified.</value></data>
   <data name="Rtss_Failure_Access" xml:space="preserve"><value>The RTSS profile interface is unavailable.</value></data>
   <data name="Rtss_Failure_Target" xml:space="preserve"><value>Could not identify the target application.</value></data>
   <data name="Rtss_Failure_Read" xml:space="preserve"><value>Could not read the profile.</value></data>

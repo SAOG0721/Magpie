@@ -144,6 +144,8 @@
     <ClInclude Include="FramePresentationTiming.h" />
     <ClInclude Include="FrameUpdateReason.h" />
     <ClInclude Include="FramePacingWait.h" />
+    <ClInclude Include="GpuFenceWait.h" />
+    <ClInclude Include="XeSSUpscaleFence.h" />
     <ClInclude Include="include\FramePacingOptions.h" />
     <ClInclude Include="include\SourceWindowGeometry.h" />
     <ClInclude Include="include\WindowIdentity.h" />
@@ -402,6 +404,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="DLSSNRPerformanceShader.h"><Filter>Render</Filter></ClInclude>
+    <ClInclude Include="DLSSNRLocalHistoryShader.h"><Filter>Render</Filter></ClInclude>
     <ClInclude Include="DLSSNRPerformance.inl"><Filter>Render</Filter></ClInclude>
     <ClInclude Include="include\DLSSNRPerformanceParameters.h"><Filter>Include</Filter></ClInclude>
     <ClInclude Include="include\DLSSNRPerformanceState.h"><Filter>Include</Filter></ClInclude>

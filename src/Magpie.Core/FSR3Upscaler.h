@@ -36,8 +36,9 @@ public:
 	}
 
 private:
+	struct ImplDeleter { void operator()(Impl* impl) const noexcept; };
 	MotionVectorRequest _motionRequest{};
-	[[maybe_unused]] std::unique_ptr<Impl> _impl;
+	[[maybe_unused]] std::unique_ptr<Impl, ImplDeleter> _impl;
 	[[maybe_unused]] bool _useFsr4 = false;
 	FsrHdrProtocol _hdrProtocol{};
 };

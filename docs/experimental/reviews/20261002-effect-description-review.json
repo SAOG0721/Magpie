@@ -5647,12 +5647,12 @@
           "src/Magpie.Core/HdrEffectBoundary.cpp": "75f166cd9c3c9cddf931b499f445f76c353d51000d1df36894f819a01809a8eb",
           "src/Magpie.Core/NativeEffectBackendFactory.cpp": "e813a160c51fbd731b492a10fcadb2915db40187a0af4c2dd3e869908adca1e7",
           "src/Magpie.Core/GroupBHdrRoutes.cpp": "970281df968a0f92276e60c09afd76e0171bb87d57db8fe2bdecc58d595656b3",
-          "src/Magpie.Core/Renderer.cpp": "be9ba85dd223c7806299c1be0bf00c1900bfb7b2da6d200ef1c6430a1f9c8556",
+          "src/Magpie.Core/Renderer.cpp": "e31a95a543818d8041b961907a17562b3e52238b6f4f8c63588a37ca52d41598",
           "src/Magpie.Core/include/FramePacingOptions.h": "a2706ceaa17b802bfe5e31f489c8af288b5dd9af5765ec9e5b608e9e01764808",
           "src/Magpie.Core/DLSSFrameGenerator.cpp": "1654bd12fd401df3de566e558f142c860c94a89e2b489a8d25ded0dcba865c1c",
           "src/Magpie.Core/EffectProtocolCatalogC.h": "a2b63ba974d319fd9212377dd1978d2ca9dc19e1f17f666d457b85fb68de171c"
         },
-        "evidenceBaseline": "cbe2c2cb + UWP fullscreen, HDR overlay, DLSSNR guidance and effect-description integration; copy contracts rechecked",
+        "evidenceBaseline": "0.6.13-beta1 source re-review (2026-11-23) of changed native paths against public 0.6.12 (716cc62f)",
         "oklabIntegrationAudit": "2026-10-28: reviewed new-effect-only routing/editor integration; existing effect behavior and copy retained.",
         "beta1IntegrationAudit": "2026-10-28: combined DLSSNR and OKLab parameter surfaces, retained both configuration paths and integrated presenter redraw recovery; fixed FXC temporal return-flow compilation. Effect copy retained.",
         "beta2FollowupSourceAudit": "2026-10-30: reviewed shared Renderer update reasons, capture/quality pacing separation and publication hooks; ordinary effect Draw contracts remain, and default native maintenance hooks do no work. This refresh records source evidence only, not full hardware frame-generation acceptance; existing notVerified items remain.",
@@ -6332,18 +6332,18 @@
           "src/Magpie.Core/HdrEffectBoundary.cpp": "75f166cd9c3c9cddf931b499f445f76c353d51000d1df36894f819a01809a8eb",
           "src/Magpie.Core/NativeEffectBackendFactory.cpp": "e813a160c51fbd731b492a10fcadb2915db40187a0af4c2dd3e869908adca1e7",
           "src/Magpie.Core/GroupBHdrRoutes.cpp": "970281df968a0f92276e60c09afd76e0171bb87d57db8fe2bdecc58d595656b3",
-          "src/Magpie.Core/DLSSNRMultiPass.h": "d621e6a02fead72c01d79e1513b539f3541c461e24d52e2c33212bbacdef8359",
-          "src/Magpie.Core/DLSSNRFilter.cpp": "b661b7241cac113691a05b848a54cc066e50c0579b72daa02b168f280cfcf8e9",
+          "src/Magpie.Core/DLSSNRMultiPass.h": "a4b880d9fcb85f1ba40ed714902647ad6eb1f9fb738f44b51bd9512ba73cf222",
+          "src/Magpie.Core/DLSSNRFilter.cpp": "feecb3bf862d4400da67b7e97d0748b8e8e92ca729f05dfcfaa820b31e7d57ac",
           "src/Magpie.Core/include/DLSSNRParameters.h": "a97f9d2c06706e187bac6de356e9e208c16612e190bd2aba361d9b9bc6cc7e9a",
-          "src/Magpie.Core/DLSSNRPerformance.inl": "0734291698472096e1a734489ed881d7166541aa5c3944f9769e1e4d86a942b1",
+          "src/Magpie.Core/DLSSNRPerformance.inl": "8cf77208a1408f7f6c978c617742ef3f6f520ac43abf4027d8ec7df9ab5ddfe2",
           "src/Magpie.Core/DLSSNRPerformanceShader.h": "ccbc2f8da7b0ab7191f785ffcf2afe3ec81fe89c241705d4caeda320c48d4b66",
           "src/Magpie.Core/include/DLSSNRPerformanceState.h": "ded2d1ec41067dad5da80776b99c07540cb6ac6b8981a8c30869ca1fd38ec738",
           "src/Magpie.Core/include/DLSSNRPerformanceParameters.h": "fea826c8f8d7b91b55891a17ba607674455a2be742bb5b2b67cb5d8ae0604bbd",
           "src/Magpie.Core/DLSSNRTemporal.cpp": "8f14a9563e46f774da820e982935da9a851230c5e2444afd2460b25ba821fbec",
           "src/Magpie.Core/DLSSNRTemporalShader.h": "016ad296763a6e3d4510d7163eac1e40c2aece1a31c1f550f0568d295d91cb37",
-          "src/Magpie.Core/Renderer.cpp": "be9ba85dd223c7806299c1be0bf00c1900bfb7b2da6d200ef1c6430a1f9c8556",
+          "src/Magpie.Core/Renderer.cpp": "e31a95a543818d8041b961907a17562b3e52238b6f4f8c63588a37ca52d41598",
           "src/Magpie.Core/NativeEffectBackend.h": "056cb08f5527e99f6b4030c5243a5087d8a505c021ba4c002b69d89cf12a36ed",
-          "src/Magpie.Core/DLSSNRFilter.h": "4ea07536f64d17d95e468931bc980f860b0c193b787bdbd40ff39ac0769ea00c",
+          "src/Magpie.Core/DLSSNRFilter.h": "c7a8128440cf44e13ed1c46f0bba135b1a41ff3958dedf3bd873b42ce64cb2b5",
           "src/Magpie.Core/DLSSNRDetailShader.h": "a0ff54206002d2a36352c69062ee7d6061e87e1019aa63487f9704ec180210fe",
           "src/Magpie.Core/DLSSNRColorShader.h": "a50f054443d4efc9cd7a93c3bd09daa4a87d29876dc2fe3d1964e644ac1b9f49",
           "src/Magpie.Core/include/DLSSNRDetailParameters.h": "8c4d5b74c3dcc37917ea8f308df5f62195db1c4dce82aaf704febda36442602b",
@@ -6352,17 +6352,17 @@
           "src/Magpie/ScalingModesService.cpp": "9d65e105b4609531473a9dd6e30dfba48ed7b5441ecded7e4fd9ef01a0c5bdb1",
           "src/Magpie/ScalingModesPage.xaml": "4308f6c717613ee2cb5f984589e335faaa4c66894583627c6d4c50efcddb18a1",
           "src/Magpie.Core/OverlayDrawer.cpp": "5a0730efe2b329a94d483ff3c3ea0bc9a73e41f7a71a47ba600cf8522f96cbcd",
-          "src/Magpie.Core/FrameGuidanceService.cpp": "87b9109f0c88b7b6b71bd8f09ef94a72ba63bc5d4b60d9134edac7b4b6227bcb",
+          "src/Magpie.Core/FrameGuidanceService.cpp": "a7d293c384899ba5158b6eb2fc6fc46cb747c080185df3f841934fdfbe8d3a47",
           "src/Magpie.Core/FrameGuidanceService.h": "5b647610e0f73c99c37c5f6bdb634a0b97f9f7c3d1a6756fcc6c1971256c9019",
           "src/Magpie.Core/MotionVectorRequest.h": "cbe6febfc4a1c67b571ac65d0aa73f523df4eb2bdac09c43500a163aaf7dddee",
-          "src/Magpie.Core/AmdOpticalFlowProvider.cpp": "f7fa50ac51d5724c5153c5c356458d321d4ea820094f3bbc7761561a8d24c681",
+          "src/Magpie.Core/AmdOpticalFlowProvider.cpp": "51d3cb3b6ed17cebeb3e65be93027d713c71d0f0337fc62b8199d869d7c6d3e6",
           "src/Magpie.Core/include/DLSSNRAdaptiveResolution.h": "2f95b693c6861ae29392311aae9136dfa761451c4a6c0154f0f146023990df46",
           "src/Magpie.Core/include/DLSSNREnhancementPool.h": "8b3541e0042590097732998f92fa95a6ea463764ac8df8c2d3e048b4be5b1be0",
-          "src/Magpie.Core/DLSSNRGpuTimer.h": "03e055f46ac0556c99c55fb56d9fe6cb8e6d3c34fc226d1a47200c7e6df11359",
+          "src/Magpie.Core/DLSSNRGpuTimer.h": "9788a8746b8030a7f4c57c15095f8d33c7468e3fcd49e8ab3e63540da6b78407",
           "src/Magpie/EffectParametersViewModel.h": "21ccf0bebff8e163f44ac26913ea34e5c98c013b68697505ad78831e6609a6a4",
           "src/Magpie.Core/include/EffectParameterLocalization.h": "ade1d3575836a177e5f3ae58e39a02af00574b951a88ddcdd032c8570cd74cd0",
           "src/Magpie.Core/DLSSNRSparse.h": "6615353b28a5b8240b839c4f58d67914e1733359703072ab058fc3448c6c2cd9",
-          "src/Magpie.Core/DLSSNRSparse.inl": "0d31c5b9204ee1f4436d64ba86d08a3145ff2b9b6940e016587af5c997356d83",
+          "src/Magpie.Core/DLSSNRSparse.inl": "1376dc761bdc98efec8fc24d438c8eb5951c70f6d147e16d24bb66fc05c3d4ad",
           "src/Magpie.Core/DLSSNRSparseShader.h": "17d991c30d6cb6e207b5616c573967b84c4dc843ab1428b9ab60cdb44f8da4e8",
           "src/Magpie.Core/include/DLSSNRSparseState.h": "44ade1a8a1b6eb2332b1883c0bdb4f7df3245d0c084477cf9f75386acbdadf23",
           "src/Magpie.Core/include/DLSSNRTemporalState.h": "302edbb48d5a76ce4711331066e41ce8673027e2148d3ce404722c8ee8e4683e",
@@ -6371,11 +6371,11 @@
           "src/Magpie.Core/include/EffectFrameState.h": "e2221eac6b7667f0bd56fa35a8c5dc1f17639758ab84f67a140d3bdc035a59e3",
           "src/Magpie.Core/PassThroughFrames.cpp": "100b3dc8fc0fd7bd3116422b681d14cce621d93132d208bb6ce3af9903c1f045",
           "src/Magpie.Core/include/DLSSNRSubmissionWorker.h": "af2ab2c32741d6217c604a886dfcfe7d2239d5f7fa4f3167f06ef148ddc81b06",
-          "src/Magpie.Core/Renderer.h": "cfb07f5176f085953e1375a0d47f8e908f28db027633f684a3afa8b1718c7ace",
-          "src/Magpie/AppSettings.cpp": "87b042e6ef329cfa83cb7a0504b20ec5641e87b83d8b8ab078cc63b2e1a6cfd1",
+          "src/Magpie.Core/Renderer.h": "e0b5c124bc2db93e7196255baa0894b3ea72de8415a6021556c50d5d5ed52715",
+          "src/Magpie/AppSettings.cpp": "658826fc3f421d7f29006c8c490b7ffe9a776b208ed1cc6570ea532cf5de55a0",
           "src/Magpie/ScalingModeItem.cpp": "f0bb9b32c511a4e54f5c80b854a98a1df1fc945efa5f1bdec88419d8abd94fd5"
         },
-        "evidenceBaseline": "2026-11-01 four-mode implementation: contiguous current values and explicit persisted-schema migration; source/CPU validation and final device acceptance are recorded separately.",
+        "evidenceBaseline": "0.6.13-beta1 source re-review (2026-11-23) of changed native paths against public 0.6.12 (716cc62f)",
         "settingsRevision": "2026-10-30 beta2: adaptive/manual complete-chain resolution, fixed capture-space optical flow, retired order key migration, bounded raw enhancement pool, fixed one-capture residual age, separate capture and quality-update rates, typed parameter writes",
         "beta1IntegrationAudit": "2026-10-28: combined DLSSNR and OKLab parameter surfaces, retained both configuration paths and integrated presenter redraw recovery; fixed FXC temporal return-flow compilation. Effect copy retained.",
         "beta1FeedbackAudit": "2026-10-28: corrected UI layout and resource-cache ownership, persisted profiler preferences, normalized optical-flow dependencies, simplified NR color controls and fixed confidence-driven history attenuation.",
@@ -6465,10 +6465,10 @@
         "copyScope": "User-focused bilingual purpose, content and starting steps; shared guidance moved to categories, parameter help and usage docs. Source review only; no build, deployment, UI or GPU acceptance.",
         "runtimeEvidenceSha256": {
           "src/Magpie.Core/HdrEffectBoundary.cpp": "75f166cd9c3c9cddf931b499f445f76c353d51000d1df36894f819a01809a8eb",
-          "src/Magpie.Core/Renderer.cpp": "be9ba85dd223c7806299c1be0bf00c1900bfb7b2da6d200ef1c6430a1f9c8556",
+          "src/Magpie.Core/Renderer.cpp": "e31a95a543818d8041b961907a17562b3e52238b6f4f8c63588a37ca52d41598",
           "src/Magpie.Core/include/FramePacingOptions.h": "a2706ceaa17b802bfe5e31f489c8af288b5dd9af5765ec9e5b608e9e01764808"
         },
-        "evidenceBaseline": "cbe2c2cb + UWP fullscreen, HDR overlay, DLSSNR guidance and effect-description integration; copy contracts rechecked",
+        "evidenceBaseline": "0.6.13-beta1 source re-review (2026-11-23) of changed native paths against public 0.6.12 (716cc62f)",
         "oklabIntegrationAudit": "2026-10-28: reviewed new-effect-only routing/editor integration; existing effect behavior and copy retained.",
         "beta1IntegrationAudit": "2026-10-28: combined DLSSNR and OKLab parameter surfaces, retained both configuration paths and integrated presenter redraw recovery; fixed FXC temporal return-flow compilation. Effect copy retained.",
         "beta2FollowupSourceAudit": "2026-10-30: reviewed shared Renderer update reasons, capture/quality pacing separation and publication hooks; ordinary effect Draw contracts remain, and default native maintenance hooks do no work. This refresh records source evidence only, not full hardware frame-generation acceptance; existing notVerified items remain.",
@@ -6701,9 +6701,9 @@
           "src/Magpie.Core/HdrEffectBoundary.cpp": "75f166cd9c3c9cddf931b499f445f76c353d51000d1df36894f819a01809a8eb",
           "src/Magpie.Core/NativeEffectBackendFactory.cpp": "e813a160c51fbd731b492a10fcadb2915db40187a0af4c2dd3e869908adca1e7",
           "src/Magpie.Core/GroupBHdrRoutes.cpp": "970281df968a0f92276e60c09afd76e0171bb87d57db8fe2bdecc58d595656b3",
-          "src/Magpie.Core/FSR2Upscaler.cpp": "6ae1fe1eee6458da98dc6b1f332269dbc07801a13f3cb126053da10d32f44e01"
+          "src/Magpie.Core/FSR2Upscaler.cpp": "56a99e18aec3972ad7ae55de32c964c58384b1ac45b56351c0461729db8cc486"
         },
-        "evidenceBaseline": "cbe2c2cb + UWP fullscreen, HDR overlay, DLSSNR guidance and effect-description integration; copy contracts rechecked"
+        "evidenceBaseline": "0.6.13-beta1 source re-review (2026-11-23) of changed native paths against public 0.6.12 (716cc62f)"
       },
       "zh-Hans": {
         "name": "FSR2 SR",
@@ -6803,9 +6803,9 @@
           "src/Magpie.Core/HdrEffectBoundary.cpp": "75f166cd9c3c9cddf931b499f445f76c353d51000d1df36894f819a01809a8eb",
           "src/Magpie.Core/NativeEffectBackendFactory.cpp": "e813a160c51fbd731b492a10fcadb2915db40187a0af4c2dd3e869908adca1e7",
           "src/Magpie.Core/GroupBHdrRoutes.cpp": "970281df968a0f92276e60c09afd76e0171bb87d57db8fe2bdecc58d595656b3",
-          "src/Magpie.Core/FSR3Upscaler.cpp": "94f6e2aaa7919a21bd82596c217c58c3e023fe93808183b7205f7561fc7edd63"
+          "src/Magpie.Core/FSR3Upscaler.cpp": "ef32272ba804c37f77b2d54f27456c6765d2c0fcb2e81f82b93147ac3c89c948"
         },
-        "evidenceBaseline": "cbe2c2cb + UWP fullscreen, HDR overlay, DLSSNR guidance and effect-description integration; copy contracts rechecked"
+        "evidenceBaseline": "0.6.13-beta1 source re-review (2026-11-23) of changed native paths against public 0.6.12 (716cc62f)"
       },
       "zh-Hans": {
         "name": "FSR3 SR",
@@ -6905,9 +6905,9 @@
           "src/Magpie.Core/HdrEffectBoundary.cpp": "75f166cd9c3c9cddf931b499f445f76c353d51000d1df36894f819a01809a8eb",
           "src/Magpie.Core/NativeEffectBackendFactory.cpp": "e813a160c51fbd731b492a10fcadb2915db40187a0af4c2dd3e869908adca1e7",
           "src/Magpie.Core/GroupBHdrRoutes.cpp": "970281df968a0f92276e60c09afd76e0171bb87d57db8fe2bdecc58d595656b3",
-          "src/Magpie.Core/FSR3Upscaler.cpp": "94f6e2aaa7919a21bd82596c217c58c3e023fe93808183b7205f7561fc7edd63"
+          "src/Magpie.Core/FSR3Upscaler.cpp": "ef32272ba804c37f77b2d54f27456c6765d2c0fcb2e81f82b93147ac3c89c948"
         },
-        "evidenceBaseline": "cbe2c2cb + UWP fullscreen, HDR overlay, DLSSNR guidance and effect-description integration; copy contracts rechecked"
+        "evidenceBaseline": "0.6.13-beta1 source re-review (2026-11-23) of changed native paths against public 0.6.12 (716cc62f)"
       },
       "zh-Hans": {
         "name": "FSR4 SR",
@@ -11352,7 +11352,7 @@
         "runtimeEvidenceSha256": {
           "src/Magpie.Core/HdrEffectBoundary.cpp": "75f166cd9c3c9cddf931b499f445f76c353d51000d1df36894f819a01809a8eb",
           "src/Magpie.Core/EffectProtocolCatalogC.h": "a2b63ba974d319fd9212377dd1978d2ca9dc19e1f17f666d457b85fb68de171c",
-          "src/Magpie.Core/Renderer.cpp": "be9ba85dd223c7806299c1be0bf00c1900bfb7b2da6d200ef1c6430a1f9c8556",
+          "src/Magpie.Core/Renderer.cpp": "e31a95a543818d8041b961907a17562b3e52238b6f4f8c63588a37ca52d41598",
           "src/Effects/xBR/xBR_LV2_Common.hlsli": "af2cde9c6c91d04383bb39f0984f251a4d943aa027531abf376aa491d078b174"
         },
         "oklabIntegrationAudit": "2026-10-28: reviewed new-effect-only routing/editor integration; existing effect behavior and copy retained.",
@@ -11463,7 +11463,7 @@
         "runtimeEvidenceSha256": {
           "src/Magpie.Core/HdrEffectBoundary.cpp": "75f166cd9c3c9cddf931b499f445f76c353d51000d1df36894f819a01809a8eb",
           "src/Magpie.Core/EffectProtocolCatalogC.h": "a2b63ba974d319fd9212377dd1978d2ca9dc19e1f17f666d457b85fb68de171c",
-          "src/Magpie.Core/Renderer.cpp": "be9ba85dd223c7806299c1be0bf00c1900bfb7b2da6d200ef1c6430a1f9c8556",
+          "src/Magpie.Core/Renderer.cpp": "e31a95a543818d8041b961907a17562b3e52238b6f4f8c63588a37ca52d41598",
           "src/Effects/xBR/xBR_LV2_Common.hlsli": "af2cde9c6c91d04383bb39f0984f251a4d943aa027531abf376aa491d078b174"
         },
         "oklabIntegrationAudit": "2026-10-28: reviewed new-effect-only routing/editor integration; existing effect behavior and copy retained.",
@@ -11574,7 +11574,7 @@
         "runtimeEvidenceSha256": {
           "src/Magpie.Core/HdrEffectBoundary.cpp": "75f166cd9c3c9cddf931b499f445f76c353d51000d1df36894f819a01809a8eb",
           "src/Magpie.Core/EffectProtocolCatalogC.h": "a2b63ba974d319fd9212377dd1978d2ca9dc19e1f17f666d457b85fb68de171c",
-          "src/Magpie.Core/Renderer.cpp": "be9ba85dd223c7806299c1be0bf00c1900bfb7b2da6d200ef1c6430a1f9c8556",
+          "src/Magpie.Core/Renderer.cpp": "e31a95a543818d8041b961907a17562b3e52238b6f4f8c63588a37ca52d41598",
           "src/Effects/xBR/xBR_LV2_Common.hlsli": "af2cde9c6c91d04383bb39f0984f251a4d943aa027531abf376aa491d078b174"
         },
         "oklabIntegrationAudit": "2026-10-28: reviewed new-effect-only routing/editor integration; existing effect behavior and copy retained.",
@@ -11652,7 +11652,7 @@
         "runtimeEvidenceSha256": {
           "src/Magpie.Core/HdrEffectBoundary.cpp": "75f166cd9c3c9cddf931b499f445f76c353d51000d1df36894f819a01809a8eb",
           "src/Magpie.Core/EffectProtocolCatalogC.h": "a2b63ba974d319fd9212377dd1978d2ca9dc19e1f17f666d457b85fb68de171c",
-          "src/Magpie.Core/Renderer.cpp": "be9ba85dd223c7806299c1be0bf00c1900bfb7b2da6d200ef1c6430a1f9c8556"
+          "src/Magpie.Core/Renderer.cpp": "e31a95a543818d8041b961907a17562b3e52238b6f4f8c63588a37ca52d41598"
         },
         "oklabIntegrationAudit": "2026-10-28: reviewed new-effect-only routing/editor integration; existing effect behavior and copy retained.",
         "beta1IntegrationAudit": "2026-10-28: combined DLSSNR and OKLab parameter surfaces, retained both configuration paths and integrated presenter redraw recovery; fixed FXC temporal return-flow compilation. Effect copy retained.",
@@ -11719,7 +11719,7 @@
         "runtimeEvidenceSha256": {
           "src/Magpie.Core/HdrEffectBoundary.cpp": "75f166cd9c3c9cddf931b499f445f76c353d51000d1df36894f819a01809a8eb",
           "src/Magpie.Core/EffectProtocolCatalogC.h": "a2b63ba974d319fd9212377dd1978d2ca9dc19e1f17f666d457b85fb68de171c",
-          "src/Magpie.Core/Renderer.cpp": "be9ba85dd223c7806299c1be0bf00c1900bfb7b2da6d200ef1c6430a1f9c8556"
+          "src/Magpie.Core/Renderer.cpp": "e31a95a543818d8041b961907a17562b3e52238b6f4f8c63588a37ca52d41598"
         },
         "oklabIntegrationAudit": "2026-10-28: reviewed new-effect-only routing/editor integration; existing effect behavior and copy retained.",
         "beta1IntegrationAudit": "2026-10-28: combined DLSSNR and OKLab parameter surfaces, retained both configuration paths and integrated presenter redraw recovery; fixed FXC temporal return-flow compilation. Effect copy retained.",
@@ -12165,11 +12165,11 @@
           "src/Magpie.Core/HdrEffectBoundary.cpp": "75f166cd9c3c9cddf931b499f445f76c353d51000d1df36894f819a01809a8eb",
           "src/Magpie.Core/NativeEffectBackendFactory.cpp": "e813a160c51fbd731b492a10fcadb2915db40187a0af4c2dd3e869908adca1e7",
           "src/Magpie.Core/GroupBHdrRoutes.cpp": "970281df968a0f92276e60c09afd76e0171bb87d57db8fe2bdecc58d595656b3",
-          "src/Magpie.Core/XeSSUpscaler.cpp": "3b3d0535cad1b2f6f644ad08bf1045202a341b0a6804e3452c9fc15ccaf6ed6d",
+          "src/Magpie.Core/XeSSUpscaler.cpp": "6dc32648f9c4d3bb5d24421b59b28a4dc9c9cf3eb4f7e58c58b9baed3acf371d",
           "src/Magpie.Core/EffectProtocolCatalogC.h": "a2b63ba974d319fd9212377dd1978d2ca9dc19e1f17f666d457b85fb68de171c",
-          "src/Magpie.Core/Renderer.cpp": "be9ba85dd223c7806299c1be0bf00c1900bfb7b2da6d200ef1c6430a1f9c8556"
+          "src/Magpie.Core/Renderer.cpp": "e31a95a543818d8041b961907a17562b3e52238b6f4f8c63588a37ca52d41598"
         },
-        "evidenceBaseline": "cbe2c2cb + UWP fullscreen, HDR overlay, DLSSNR guidance and effect-description integration; copy contracts rechecked",
+        "evidenceBaseline": "0.6.13-beta1 source re-review (2026-11-23) of changed native paths against public 0.6.12 (716cc62f)",
         "oklabIntegrationAudit": "2026-10-28: reviewed new-effect-only routing/editor integration; existing effect behavior and copy retained.",
         "beta1IntegrationAudit": "2026-10-28: combined DLSSNR and OKLab parameter surfaces, retained both configuration paths and integrated presenter redraw recovery; fixed FXC temporal return-flow compilation. Effect copy retained.",
         "beta2FollowupSourceAudit": "2026-10-30: reviewed shared Renderer update reasons, capture/quality pacing separation and publication hooks; ordinary effect Draw contracts remain, and default native maintenance hooks do no work. This refresh records source evidence only, not full hardware frame-generation acceptance; existing notVerified items remain.",
@@ -12285,12 +12285,12 @@
         "copyScope": "User-focused bilingual purpose, content and starting steps; shared guidance moved to categories, parameter help and usage docs. Source review only; no build, deployment, UI or GPU acceptance.",
         "runtimeEvidenceSha256": {
           "src/Magpie.Core/HdrEffectBoundary.cpp": "75f166cd9c3c9cddf931b499f445f76c353d51000d1df36894f819a01809a8eb",
-          "src/Magpie.Core/Renderer.cpp": "be9ba85dd223c7806299c1be0bf00c1900bfb7b2da6d200ef1c6430a1f9c8556",
+          "src/Magpie.Core/Renderer.cpp": "e31a95a543818d8041b961907a17562b3e52238b6f4f8c63588a37ca52d41598",
           "src/Magpie.Core/include/FramePacingOptions.h": "a2706ceaa17b802bfe5e31f489c8af288b5dd9af5765ec9e5b608e9e01764808",
-          "src/Magpie.Core/XeSSFGPresenter.cpp": "164f977eec870018a8ef7a72562eb9f05b1b5cb0a8750255ec63fc9e951e02cb",
+          "src/Magpie.Core/XeSSFGPresenter.cpp": "0c5e76bd65b51d18668ab93591f95d38667b30ec404a09c497c797e93912540c",
           "src/Magpie.Core/XeSSFGCompatibility.h": "1a3d783c4049fc612e858cff7bd35ee2573617c079a43bd9f48cefe3257a22ee"
         },
-        "evidenceBaseline": "cbe2c2cb + UWP fullscreen, HDR overlay, DLSSNR guidance and effect-description integration; copy contracts rechecked",
+        "evidenceBaseline": "0.6.13-beta1 source re-review (2026-11-23) of changed native paths against public 0.6.12 (716cc62f)",
         "oklabIntegrationAudit": "2026-10-28: reviewed new-effect-only routing/editor integration; existing effect behavior and copy retained.",
         "beta1IntegrationAudit": "2026-10-28: combined DLSSNR and OKLab parameter surfaces, retained both configuration paths and integrated presenter redraw recovery; fixed FXC temporal return-flow compilation. Effect copy retained.",
         "beta2FollowupSourceAudit": "2026-10-30: reviewed shared Renderer update reasons, capture/quality pacing separation and publication hooks; ordinary effect Draw contracts remain, and default native maintenance hooks do no work. This refresh records source evidence only, not full hardware frame-generation acceptance; existing notVerified items remain.",
@@ -12377,11 +12377,11 @@
           "src/Magpie.Core/HdrEffectBoundary.cpp": "75f166cd9c3c9cddf931b499f445f76c353d51000d1df36894f819a01809a8eb",
           "src/Magpie.Core/NativeEffectBackendFactory.cpp": "e813a160c51fbd731b492a10fcadb2915db40187a0af4c2dd3e869908adca1e7",
           "src/Magpie.Core/GroupBHdrRoutes.cpp": "970281df968a0f92276e60c09afd76e0171bb87d57db8fe2bdecc58d595656b3",
-          "src/Magpie.Core/RTXVideoDenoiser.cpp": "16a1677dae90e2c736b8e7ddc8f8ebb6169f7b1851db88553e68355f2969f583",
+          "src/Magpie.Core/RTXVideoDenoiser.cpp": "9c60664366a287533ed502bc2d9729150aab3ed279f86fe028b529d0acefb2b9",
           "src/Magpie.Core/EffectProtocolCatalogC.h": "a2b63ba974d319fd9212377dd1978d2ca9dc19e1f17f666d457b85fb68de171c",
-          "src/Magpie.Core/Renderer.cpp": "be9ba85dd223c7806299c1be0bf00c1900bfb7b2da6d200ef1c6430a1f9c8556"
+          "src/Magpie.Core/Renderer.cpp": "e31a95a543818d8041b961907a17562b3e52238b6f4f8c63588a37ca52d41598"
         },
-        "evidenceBaseline": "cbe2c2cb + UWP fullscreen, HDR overlay, DLSSNR guidance and effect-description integration; copy contracts rechecked",
+        "evidenceBaseline": "0.6.13-beta1 source re-review (2026-11-23) of changed native paths against public 0.6.12 (716cc62f)",
         "oklabIntegrationAudit": "2026-10-28: reviewed new-effect-only routing/editor integration; existing effect behavior and copy retained.",
         "beta1IntegrationAudit": "2026-10-28: combined DLSSNR and OKLab parameter surfaces, retained both configuration paths and integrated presenter redraw recovery; fixed FXC temporal return-flow compilation. Effect copy retained.",
         "beta2FollowupSourceAudit": "2026-10-30: reviewed shared Renderer update reasons, capture/quality pacing separation and publication hooks; ordinary effect Draw contracts remain, and default native maintenance hooks do no work. This refresh records source evidence only, not full hardware frame-generation acceptance; existing notVerified items remain.",
@@ -16102,7 +16102,7 @@
           "src/Magpie.Core/include/OKLabLut.h": "3604558ebcf9bc2c63bcea092b0d0b9a83c376842aad8f55c552514d796b977c",
           "src/Magpie/OKLabConfig.h": "f440195094530eb25400a3a2627249b4dbc5bad6654cc77210f89aaee3eb7ba9",
           "src/Magpie.Core/EffectDrawer.cpp": "d0e0a678443f58f098fc8dbd2b7e5162450ebbcab024ed2cebf9b251bed4b3b9",
-          "src/Magpie.Core/Renderer.cpp": "be9ba85dd223c7806299c1be0bf00c1900bfb7b2da6d200ef1c6430a1f9c8556",
+          "src/Magpie.Core/Renderer.cpp": "e31a95a543818d8041b961907a17562b3e52238b6f4f8c63588a37ca52d41598",
           "src/Magpie.Core/Renderer.OKLab.cpp": "3f7ab6a2c99ff3db8c425c7841ddcb16c9c27d331882887c1edcd5f68823033d",
           "src/Magpie/EffectParametersViewModel.OKLab.cpp": "248115fd1d2900b3d9741f189928ae247b1862fd85b9e2f50317136162578f82",
           "src/Magpie.Core/OKLabOverlayEditor.h": "1431dd840cf700e2eeeec35e71d470b33837918c871081907af1d9edb708f895",

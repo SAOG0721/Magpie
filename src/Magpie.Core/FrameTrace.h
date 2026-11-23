@@ -3,7 +3,8 @@
 
 namespace Magpie::FrameTrace {
 
-// CPU wall times only. Nested events overlap; none is a GPU execution timer.
+// Spans are CPU wall times and may overlap. GPU query results are explicitly
+// named instant samples at the CPU submission point, never CPU timeline spans.
 enum class Event : uint16_t {
     BackendWait, BackendMessages, CaptureUpdate, CaptureResult, WgcAcquire,
     WgcFrame, WgcRejected, WgcClose, WgcStart, DuplicateCheck, DuplicateReadback,
@@ -22,8 +23,24 @@ enum class Event : uint16_t {
     FrontendSceneCopy, FrontendOverlaySnapshot, FrontendOverlayDraw, FrontendCursorDraw, CaptureStart,
     CursorRepositionRequest, CursorRepositionWait, CursorRepositionComplete, CursorRepositionCancel,
     CursorShapeRequest, CursorShapeComplete, CursorShapeCancel, ReflexSleep,
-    NativeNrStageBegin, NativeNrStageEnd, Count
+    NativeNrStageBegin, NativeNrStageEnd, CaptureLink, OutputTarget,
+    GpuEffectsSample, GpuPassSample, GpuSampleSkipped, GpuSampleInvalid, EffectWork,
+    FgPresented, FgDropped, FgRetry, Count
 };
+
+// CaptureLink joins an accepted frame to its pre-acceptance candidate (a) and
+// capture sequence (b). Candidates may repeat and are not accepted frame IDs.
+// OutputTarget identifies an asynchronously consumed target: frame_id is that
+// target, a is the effect index and b is the latest accepted input frame.
+// GpuEffectsSample: a = timestamp span in ns, b = partial effect coverage.
+// GpuPassSample: a = registered pass index, b = timestamp span in ns.
+// Both use the original query submission tick and input frame ID. They locate
+// the measured sample; they do not synchronize GPU and CPU execution clocks.
+// GpuSampleInvalid: a = 1 (disjoint) or 2 (query failure), b = raw HRESULT.
+// FgQueued/FgDequeued and FgPresented/FgDropped/FgRetry: a = shared slot,
+// b = ring generation. Dequeue and terminal result share a completion tick
+// captured before releasing the slot. Retry retains the job and slot.
+// Presented is the frontend job result, not proof of a displayed screen frame.
 
 // ReflexSleep is the CPU interval of the real NVAPI Sleep call; a is its raw
 // result. frame_id is still a pre-acceptance capture candidate at this point.
@@ -31,12 +48,17 @@ enum class Event : uint16_t {
 // NativeNrStageBegin is an immediate checkpoint, so an API that has not returned
 // remains visible. NativeNrStageEnd spans that stage. a is NativeNrStage, b is
 // the raw HRESULT when the wrapped API has one; frame_id is the draw context ID.
+// Inference* stages instead use b for the one-based pass on both begin and end.
+// An unbound diagnostic resource-release callback uses frame/pass zero.
 // These fine stages are off unless MAGPIE_NATIVE_NR_STAGES=1 at trace Start.
 enum class NativeNrStage : int64_t {
     FilterTimingBegin, FilterDraw, PerformanceLog, FilterTimingEnd, FilterRetirementSignal,
     TemporalDraw, TemporalInputView, TemporalOutputView, TemporalMotionWait, TemporalMotionView,
     TemporalConstants, TemporalConstantBind, TemporalReduceBind, TemporalReduceDispatch,
-    TemporalReduceUnbind, TemporalMainBind, TemporalMainDispatch, TemporalUnbind
+    TemporalReduceUnbind, TemporalMainBind, TemporalMainDispatch, TemporalUnbind,
+    InferenceRecord, InferenceParameters, InferenceParametersLocked,
+    InferenceEvaluate, InferenceEvaluateLocked, InferenceResourceRelease,
+    InferenceResourceReleaseQueue
 };
 
 // BackendWait.a identifies the existing wait owner; nested capture waits split
@@ -105,10 +127,10 @@ private:
 
 class NativeNrScope {
 public:
-    NativeNrScope(NativeNrStage stage, uint64_t frameId) noexcept
+    NativeNrScope(NativeNrStage stage, uint64_t frameId, int64_t data = 0) noexcept
         : _stage(static_cast<int64_t>(stage)), _frame(frameId),
-          _start(NativeNrStagesEnabled() ? Tick() : 0) {
-        if (_start) Record(Event::NativeNrStageBegin, _start, _start, _frame, _stage);
+          _start(NativeNrStagesEnabled() ? Tick() : 0), _result(data) {
+        if (_start) Record(Event::NativeNrStageBegin, _start, _start, _frame, _stage, _result);
     }
     ~NativeNrScope() noexcept {
         if (_start) Record(Event::NativeNrStageEnd, _start, Tick(), _frame, _stage, _result);

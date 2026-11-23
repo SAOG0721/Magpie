@@ -76,6 +76,8 @@ bool CompSwapchainPresenter::_Initialize(HWND hwndAttach) noexcept {
 		Logger::Get().ComError("CreatePresentationManager 失败", hr);
 		return false;
 	}
+	hr = _presentationManager->GetLostEvent(_presentationLost.put());
+	if (FAILED(hr)) return _Fail("Get composition swap-chain lost event", hr);
 
 	wil::unique_handle hCompSurface;
 	hr = DCompositionCreateSurfaceHandle(
@@ -134,6 +136,8 @@ bool CompSwapchainPresenter::BeginFrame(
 	winrt::com_ptr<ID3D11RenderTargetView>& frameRtv,
 	POINT& drawOffset
 ) noexcept {
+	_frameCapacityBusy = false;
+	if (HasFatalError()) return false;
 	// 寻找可用的缓冲区
 	uint32_t curIdx = std::numeric_limits<uint32_t>::max();
 
@@ -194,15 +198,23 @@ bool CompSwapchainPresenter::BeginFrame(
 	}
 
 	if (curIdx == std::numeric_limits<uint32_t>::max()) {
-		// 等待某个缓冲区空闲
-		DWORD waitResult = WaitForMultipleObjects(
-			bufferCount, (HANDLE*)_presentationBufferAvailableEvents.data(), FALSE, INFINITE);
-		if (waitResult < WAIT_OBJECT_0 || waitResult > WAIT_OBJECT_0 + bufferCount - 1) {
-			Logger::Get().Error("WaitForMultipleObjects 失败");
+		// Loss takes precedence if a retiring buffer is also signalled.
+		std::array<HANDLE, MAXIMUM_WAIT_OBJECTS> events;
+		assert(bufferCount < events.size());
+		events[0] = _presentationLost.get();
+		for (uint32_t i = 0; i < bufferCount; ++i) events[i + 1] = _presentationBufferAvailableEvents[i].get();
+		const DWORD waitResult = WaitForMultipleObjects(bufferCount + 1, events.data(), FALSE, 250);
+		if (waitResult == WAIT_OBJECT_0) return _Fail("Composition presentation manager lost", E_FAIL);
+		if (waitResult == WAIT_TIMEOUT) {
+			const HRESULT reason = _deviceResources->GetD3DDevice()->GetDeviceRemovedReason();
+			if (FAILED(reason)) return _Fail("Wait for composition swap-chain buffer", reason);
+			_frameCapacityBusy = true;
 			return false;
 		}
-
-		curIdx = waitResult - WAIT_OBJECT_0;
+		const DWORD index = waitResult - (WAIT_OBJECT_0 + 1);
+		if (index >= bufferCount) return _Fail("Wait for composition swap-chain buffer",
+			waitResult == WAIT_FAILED ? HRESULT_FROM_WIN32(GetLastError()) : E_UNEXPECTED);
+		curIdx = index;
 	}
 
 	HRESULT hr = _presentationSurface->SetBuffer(_presentationBuffers[curIdx].get());
@@ -229,11 +241,17 @@ bool CompSwapchainPresenter::BeginFrame(
 }
 
 bool CompSwapchainPresenter::EndFrame(bool waitForGpu) noexcept {
+	if (HasFatalError()) return false;
 	if (waitForGpu || _isResized) {
 		// 下面两个调用用于减少调整窗口尺寸时的边缘闪烁，参见 AdaptivePresenter::EndFrame
 
 		// 等待渲染完成
-		_WaitForGpu();
+		const HRESULT hr = _WaitForGpu();
+		if (FAILED(hr)) {
+			if (hr != HRESULT_FROM_WIN32(ERROR_TIMEOUT)) return _Fail("Wait for composition rendering", hr);
+			Logger::Get().ComWarn("Deferred composition presentation: render fence timed out", hr);
+			return false;
+		}
 
 		// 等待 DWM 开始合成新一帧
 		Win32Helper::WaitForDwmComposition();
@@ -242,18 +260,24 @@ bool CompSwapchainPresenter::EndFrame(bool waitForGpu) noexcept {
 	_lastSubmissionTime = std::chrono::steady_clock::now();
 	const HRESULT presentResult = _presentationManager->Present();
 	_lastPresentedFrameCount = presentResult == S_OK ? 1u : 0u;
+	if (FAILED(presentResult)) return _Fail("Composition Present", presentResult);
 
 	if (_isResized) {
 		_isResized = false;
 	} else {
 		// 确保前一帧渲染完成再渲染下一帧，既降低了 GPU 负载，也能降低延迟
-		_WaitForGpu();
+		const HRESULT hr = _WaitForGpu();
+		if (FAILED(hr)) {
+			if (hr == HRESULT_FROM_WIN32(ERROR_TIMEOUT)) Logger::Get().ComWarn("Composition Present: render fence timed out", hr);
+			else _Fail("Wait after composition Present", hr);
+		}
 	}
 
 	return SUCCEEDED(presentResult);
 }
 
 bool CompSwapchainPresenter::OnResize() noexcept {
+	if (HasFatalError()) return false;
 	_isResized = true;
 
 	// 缓冲区在 BeginFrame 中按需创建
@@ -264,6 +288,14 @@ bool CompSwapchainPresenter::OnResize() noexcept {
 	std::fill(_bufferRtvs.begin(), _bufferRtvs.end(), nullptr);
 
 	return true;
+}
+
+bool CompSwapchainPresenter::_Fail(const char* operation, HRESULT hr) noexcept {
+	const HRESULT reason = _deviceResources->GetD3DDevice()->GetDeviceRemovedReason();
+	if (FAILED(reason)) hr = reason;
+	_failure.Record(operation, static_cast<uint32_t>(hr));
+	Logger::Get().ComError(operation, hr);
+	return false;
 }
 
 }

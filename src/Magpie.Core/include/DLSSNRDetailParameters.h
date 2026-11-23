@@ -31,12 +31,14 @@ bool NormalizeDLSSNRDetailParameters(Map& values) {
 	bool changed = values.erase(L"residualColorMode") != 0;
 	changed |= values.erase(L"opticalFlowScaleOrder") != 0;
 	// This internal key travels with save/export/copy data, never effect metadata.
-	// Decode the old numbering before retiring async modes (v1 2 -> 0, 3 -> 1).
+	// Decode the old numbering before retiring async modes (2 -> 0, 3 -> 1).
+	// The local version 3 build also used contiguous values and stored K.
 	// Unversioned mode 1 used a fixed two-capture cadence; its hidden interval
 	// must not become active. Version 2 persists only the two supported modes.
 	const auto version = values.find(L"__dlssnrModeVersion");
-	const bool currentModes = version != values.end() && version->second == DLSSNR_MODE_VERSION;
-	const bool contiguousModes = currentModes || (version != values.end() && version->second == 1.f);
+	const float savedVersion = version == values.end() ? 0.f : version->second;
+	const bool currentModes = savedVersion == DLSSNR_MODE_VERSION;
+	const bool contiguousModes = currentModes || savedVersion == 1.f || savedVersion == 3.f;
 	const auto mode = values.find(L"processingMode");
 	const float oldMode = mode == values.end() ? 0.f : mode->second;
 	const float contiguousMode = contiguousModes

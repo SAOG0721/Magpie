@@ -1,6 +1,7 @@
 #Requires -Version 7.0
 param([Parameter(Mandatory)][string]$IntermediateDirectory,
-      [string]$OutputDirectory=(Join-Path $env:TEMP ('Magpie-profiler-gpu-'+[guid]::NewGuid())))
+      [string]$OutputDirectory=(Join-Path $env:TEMP ('Magpie-profiler-gpu-'+[guid]::NewGuid())),
+      [switch]$EnableFrameTrace)
 $ErrorActionPreference='Stop'
 $repo=Split-Path $PSScriptRoot -Parent
 New-Item -ItemType Directory -Path $OutputDirectory -Force | Out-Null
@@ -32,8 +33,26 @@ foreach($match in [regex]::Matches($commands,'(?i)/(?:external:)?I(?:"(?<quoted>
 $includes=@($includes | Select-Object -Unique)
 Push-Location $OutputDirectory
 try {
- & cl.exe /nologo /std:c++20 /EHsc /utf-8 /MT /O2 /W4 /WX /DNOMINMAX /DUNICODE /D_UNICODE /DFMT_HEADER_ONLY @includes "$repo/tests/EffectsProfilerGpuTests.cpp" "$repo/src/Magpie.Core/EffectsProfiler.cpp" "$repo/src/Shared/SmallVector.cpp" /Fe:EffectsProfilerGpuTests.exe d3d11.lib dxgi.lib runtimeobject.lib oleaut32.lib
+ $traceArguments = if ($EnableFrameTrace) { @('/DMP_ENABLE_FRAME_TRACE', "$repo/src/Magpie.Core/FrameTrace.cpp") } else { @() }
+ & cl.exe /nologo /std:c++20 /EHsc /utf-8 /MT /O2 /W4 /WX /DNOMINMAX /DUNICODE /D_UNICODE /DFMT_HEADER_ONLY @includes @traceArguments "$repo/tests/EffectsProfilerGpuTests.cpp" "$repo/src/Magpie.Core/EffectsProfiler.cpp" "$repo/src/Shared/SmallVector.cpp" /Fe:EffectsProfilerGpuTests.exe d3d11.lib dxgi.lib runtimeobject.lib oleaut32.lib
  if($LASTEXITCODE){throw 'GPU profiler test compile failed'}
  & '.\EffectsProfilerGpuTests.exe'
  if($LASTEXITCODE){throw 'GPU profiler tests failed'}
+ if ($EnableFrameTrace) {
+  $trace = Get-ChildItem -LiteralPath (Join-Path $OutputDirectory 'logs/frame-traces') -Filter '*.csv' |
+      Sort-Object LastWriteTimeUtc -Descending | Select-Object -First 1
+  if (!$trace) { throw 'GPU trace export missing' }
+  $events = @(Get-Content -LiteralPath $trace.FullName | Where-Object { $_ -like 'recent,*' } |
+      ConvertFrom-Csv -Header stream,thread,event,start_us,duration_us,frame_id,a,b)
+  $samples = @($events | Where-Object event -eq 'GpuEffectsSample')
+  $passes = @($events | Where-Object event -eq 'GpuPassSample')
+  if ($samples.Count -ne 40 -or $passes.Count -ne 80) { throw 'Missing real GPU query trace samples' }
+  foreach ($sample in @($samples) + @($passes)) {
+   if ([uint64]$sample.frame_id -lt 100 -or [uint64]$sample.frame_id -gt 119 -or [double]$sample.duration_us -ne 0) {
+    throw 'GPU query was attributed to polling frame or plotted as CPU duration'
+   }
+  }
+  if (@($samples | Where-Object b -ne '0').Count) { throw 'Full effect coverage flag was lost' }
+  Write-Output 'GPU trace: 40 total + 80 pass samples retain original submission frame and instant CPU location.'
+ }
 } finally {Pop-Location}

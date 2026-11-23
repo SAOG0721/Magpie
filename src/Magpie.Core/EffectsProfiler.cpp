@@ -1,6 +1,7 @@
 #include "pch.h"
 #include "EffectsProfiler.h"
 #include "Logger.h"
+#include "FrameTrace.h"
 
 namespace Magpie {
 
@@ -113,12 +114,18 @@ void EffectsProfiler::OnBeginEffects(ID3D11DeviceContext* d3dDC) noexcept {
 	QueryTimings(d3dDC);
 	if (!_passCount) return;
 	if (_pendingCount == _slots.size()) {
+		FrameTrace::Mark(FrameTrace::Event::GpuSampleSkipped,
+			static_cast<int64_t>(_skippedSamples + 1), _pendingCount);
 		if (++_skippedSamples == 1) Logger::Get().Info(
 			"Effects profiler query slots busy; skipping samples while effects continue");
 		return;
 	}
 	QuerySlot& slot = _slots[_writeSlot];
 	slot.frameTime = _frameTime;
+	// Query completion may be polled while a different capture is current.
+	// Retain the input identity and CPU submission point with the query itself.
+	slot.traceFrame = FrameTrace::Frame();
+	slot.traceTick = FrameTrace::Tick();
 	d3dDC->Begin(slot.disjoint.get());
 	d3dDC->End(slot.start.get());
 	_recording = true;
@@ -143,6 +150,8 @@ void EffectsProfiler::OnEndEffects(ID3D11DeviceContext* d3dDC) noexcept {
 	d3dDC->End(slot.disjoint.get());
 	_recording = false;
 	if (_curPass != _passCount) {
+		FrameTrace::Record(FrameTrace::Event::GpuSampleInvalid, slot.traceTick, slot.traceTick,
+			slot.traceFrame, 2, E_UNEXPECTED);
 		_Disable("Effects profiler: fewer passes than expected", E_UNEXPECTED);
 		return;
 	}
@@ -154,6 +163,16 @@ void EffectsProfiler::OnEndEffects(ID3D11DeviceContext* d3dDC) noexcept {
 }
 
 void EffectsProfiler::_Disable(const char* operation, HRESULT hr) noexcept {
+	for (uint32_t n = 0; n < _pendingCount; ++n) {
+		const QuerySlot& slot = _slots[(_readSlot + n) % uint32_t(_slots.size())];
+		FrameTrace::Record(FrameTrace::Event::GpuSampleInvalid, slot.traceTick, slot.traceTick,
+			slot.traceFrame, 2, hr);
+	}
+	if (_recording) {
+		const QuerySlot& slot = _slots[_writeSlot];
+		FrameTrace::Record(FrameTrace::Event::GpuSampleInvalid, slot.traceTick, slot.traceTick,
+			slot.traceFrame, 2, hr);
+	}
 	Logger::Get().ComError(operation, hr);
 	Logger::Get().Warn("Effects GPU timing disabled for this profiling session; effects continue");
 	_ClearQueries();
@@ -207,11 +226,22 @@ void EffectsProfiler::QueryTimings(ID3D11DeviceContext* d3dDC) noexcept {
 				previous = timestamp;
 			}
 			_history.Effects(slot.frameTime, total);
+			// GPU elapsed values are payloads on CPU submission markers. Their
+			// clocks have no calibrated mapping onto the CPU execution timeline.
+			FrameTrace::Record(FrameTrace::Event::GpuEffectsSample, slot.traceTick, slot.traceTick,
+				slot.traceFrame, static_cast<int64_t>(total * 1'000'000.0), _partial);
+			for (uint32_t i = 0; i < _passCount; ++i) {
+				FrameTrace::Record(FrameTrace::Event::GpuPassSample, slot.traceTick, slot.traceTick,
+					slot.traceFrame, i, static_cast<int64_t>(double(timings[i]) * 1'000'000.0));
+			}
 			_PublishHistory(ProfilerHistory::Clock::now());
 			// All GPU queries and aggregation are outside the frontend lock.
 			auto lock = _timingsLock.lock_exclusive();
 			_snapshot.passTimings = std::move(timings);
 			_snapshot.sampleTime = slot.frameTime;
+		} else {
+			FrameTrace::Record(FrameTrace::Event::GpuSampleInvalid, slot.traceTick, slot.traceTick,
+				slot.traceFrame, 1);
 		}
 		// Completed disjoint samples are invalid but their slots can be reused.
 		--_pendingCount;

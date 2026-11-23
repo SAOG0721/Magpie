@@ -21,6 +21,7 @@
 using Microsoft::WRL::ComPtr;
 constexpr UINT N = 8;
 using Pixel = std::array<float, 4>;
+using ShaderResources = std::array<ID3D11ShaderResourceView*, 14>;
 void Check(HRESULT hr, std::source_location source=std::source_location::current()) { if (FAILED(hr)) { std::cerr << std::hex << hr << " at " << source.function_name() << ":" << std::dec << source.line() << '\n'; std::abort(); } }
 struct Texture {
 	ComPtr<ID3D11Texture2D> texture;
@@ -30,7 +31,7 @@ struct Texture {
 struct Constants {
 	uint32_t width=N, height=N, sourceWidth=N, sourceHeight=N;
 	uint32_t age=0, reproject=0, hasHistory=1, processingMode=1;
-	uint32_t confidenceBits=0, reserved[3]{};
+	uint32_t confidenceBits=0, recoverNvidiaResidual=0, useSourceGuide=0, reserved=0;
 };
 static_assert(sizeof(Constants)==48);
 struct Harness {
@@ -60,7 +61,7 @@ struct Harness {
 		D3D11_SAMPLER_DESC sd{}; sd.Filter=D3D11_FILTER_MIN_MAG_MIP_LINEAR;
 		sd.AddressU=sd.AddressV=sd.AddressW=D3D11_TEXTURE_ADDRESS_CLAMP; sd.MaxLOD=D3D11_FLOAT32_MAX;
 		Check(device->CreateSamplerState(&sd,&sampler));
-		for (const char* entry : {"PublishEnhancement","CheckReuse","ComposeCurrent","ComposeMotion","MeasureCoverage"}) {
+		for (const char* entry : {"PublishEnhancement","CheckReuse","ComposeCurrent","ComposeNvidiaAlternating","ComposeMotion","MeasureCoverage"}) {
 			ComPtr<ID3DBlob> code,error;
 			const auto source=Magpie::DLSSNR_PERFORMANCE_HLSL;
 			const auto hr=D3DCompile(source.data(),source.size(),"production",nullptr,nullptr,entry,
@@ -84,7 +85,7 @@ struct Harness {
 		std::vector<Pixel> data(N*N,Pixel{value,value,value,1});
 		return Make(DXGI_FORMAT_R32G32B32A32_FLOAT,data.data(),sizeof(Pixel));
 	}
-	void Run(const char* entry, Constants values, const std::array<ID3D11ShaderResourceView*,12>& inputs,
+	void Run(const char* entry, Constants values, const ShaderResources& inputs,
 		Texture& output, Texture& validity, Texture* motion = nullptr) {
 		dc->UpdateSubresource(constants.Get(),0,nullptr,&values,0,0);
 		auto* cb=constants.Get(); auto* sample=sampler.Get();
@@ -94,10 +95,11 @@ struct Harness {
 		dc->CSSetConstantBuffers(0,1,&cb); dc->CSSetSamplers(0,1,&sample);
 		dc->CSSetShaderResources(0,UINT(inputs.size()),inputs.data());
 		dc->CSSetUnorderedAccessViews(0,4,uavs,nullptr); dc->Dispatch(1,1,1);
-		ID3D11ShaderResourceView* empty[12]{}; ID3D11UnorderedAccessView* emptyUav[4]{};
-		dc->CSSetShaderResources(0,12,empty); dc->CSSetUnorderedAccessViews(0,4,emptyUav,nullptr);
+		const ShaderResources empty{};
+		ID3D11UnorderedAccessView* emptyUav[4]{};
+		dc->CSSetShaderResources(0,UINT(empty.size()),empty.data()); dc->CSSetUnorderedAccessViews(0,4,emptyUav,nullptr);
 	}
-	bool NeedsRecovery(Constants values, const std::array<ID3D11ShaderResourceView*,12>& inputs,
+	bool NeedsRecovery(Constants values, const ShaderResources& inputs,
 		Texture& output, Texture& validity) {
 		const UINT zero[4]{}; dc->ClearUnorderedAccessViewUint(invalidUav.Get(),zero);
 		Run("CheckReuse",values,inputs,output,validity);
@@ -107,7 +109,7 @@ struct Harness {
 		const bool needed=*static_cast<const uint32_t*>(mapped.pData)!=0;
 		dc->Unmap(invalidReadback.Get(),0); return needed;
 	}
-	std::array<uint32_t,4> Coverage(Constants values, const std::array<ID3D11ShaderResourceView*,12>& inputs,
+	std::array<uint32_t,4> Coverage(Constants values, const ShaderResources& inputs,
 		Texture& output, Texture& validity) {
 		const UINT zero[4]{}; dc->ClearUnorderedAccessViewUint(invalidUav.Get(),zero);
 		Run("MeasureCoverage",values,inputs,output,validity);
@@ -134,7 +136,7 @@ int main() {
 	auto original=h.Color(.2f),full=h.Color(.6f),enhancement=h.Color(0),output=h.Color(0);
 	auto wrongReference=h.Color(.9f);
 	auto validity=h.Make(DXGI_FORMAT_R32_FLOAT,nullptr,sizeof(float));
-	std::array<ID3D11ShaderResourceView*,12> inputs{};
+	ShaderResources inputs{};
 	inputs[0]=original.srv.Get();inputs[11]=full.srv.Get();
 	Constants p;
 	h.Run("PublishEnhancement",p,inputs,enhancement,validity);
@@ -204,7 +206,7 @@ int main() {
 		auto result=h.Make(DXGI_FORMAT_R32G32B32A32_FLOAT,fullPixels.data(),sizeof(Pixel));
 		auto field=h.Make(DXGI_FORMAT_R32_FLOAT,confidences.data(),sizeof(float));
 		auto residual=h.Color(0);
-		std::array<ID3D11ShaderResourceView*,12> moving{};
+		ShaderResources moving{};
 		moving[0]=moving[2]=reference.srv.Get();moving[11]=result.srv.Get();
 		for (unsigned i=0;i<4;++i) { moving[3+i]=motion.srv.Get();moving[7+i]=field.srv.Get(); }
 		Constants settings;settings.reproject=1;settings.confidenceBits=15;
@@ -276,6 +278,129 @@ int main() {
 		inputs[3]=zeroMotion.srv.Get();
 		const auto counts=h.Coverage(p,inputs,output,validity);
 		assert((counts==std::array<uint32_t,4>{1,1,0,0}));
+	}
+	// A distant flow alias can fail everywhere while the nearby color patch and
+	// its corresponding residual remain available in the full observation.
+	{
+		std::vector<Pixel> reference(N*N), moving(N*N), residual(N*N);
+		std::vector<std::array<float,2>> alias(N*N,{-40,22});
+		for (UINT y=0;y<N;++y) for (UINT x=0;x<N;++x) {
+			const float value=.15f+.04f*x+.025f*y;
+			reference[y*N+x]={value,value*.8f,value*.6f,1};
+			residual[y*N+x]={.1f+.02f*x,0,0,0};
+		}
+		for (UINT y=0;y<N;++y) for (UINT x=0;x<N;++x)
+			moving[y*N+x]=reference[y*N+(std::min)(x+2,N-1)];
+		auto oldColor=h.Make(DXGI_FORMAT_R32G32B32A32_FLOAT,reference.data(),sizeof(Pixel));
+		auto oldResidual=h.Make(DXGI_FORMAT_R32G32B32A32_FLOAT,residual.data(),sizeof(Pixel));
+		auto initial=h.Make(DXGI_FORMAT_R32G32B32A32_FLOAT,moving.data(),sizeof(Pixel));
+		auto incorrectFlow=h.Make(DXGI_FORMAT_R32G32_FLOAT,alias.data(),sizeof(alias[0]));
+		ShaderResources fields{};
+		fields[0]=initial.srv.Get();fields[1]=oldResidual.srv.Get();fields[2]=oldColor.srv.Get();
+		fields[3]=incorrectFlow.srv.Get();
+		Constants settings;settings.reproject=1;settings.age=1;
+		h.Run("ComposeCurrent",settings,fields,output,validity);
+		assert(std::abs(h.Read(output,4,4)[0]-moving[4*N+4][0])<1e-5f && h.Read(validity,4,4)[0]==0);
+		h.Run("ComposeNvidiaAlternating",settings,fields,output,validity);
+		assert(std::abs(h.Read(output,4,4)[0]-(moving[4*N+4][0]+residual[4*N+6][0]))<1e-5f);
+		assert(h.Read(validity,4,4)[0]==1);
+		// A changed pixel in an otherwise matching tile keeps its current color.
+		moving[4*N+4]={.9f,.9f,.9f,1};
+		auto occluded=h.Make(DXGI_FORMAT_R32G32B32A32_FLOAT,moving.data(),sizeof(Pixel));
+		fields[0]=occluded.srv.Get();
+		h.Run("ComposeNvidiaAlternating",settings,fields,output,validity);
+		assert(std::abs(h.Read(output,4,4)[0]-.9f)<1e-5f && h.Read(validity,4,4)[0]==0);
+		assert(h.Read(validity,3,4)[0]==1);
+	}
+	// At half NR resolution, 2.5 source pixels are 1.25 working pixels. A
+	// false distant vector must not erase the matching subpixel residual.
+	{
+		std::vector<Pixel> reference(N*N), moving(N*N), residual(N*N);
+		const std::vector<std::array<float,2>> alias(N*N,{-40,22});
+		const auto color = [](float x, float y) -> Pixel {
+			return {.16f+.04f*x+.015f*y, .15f+.035f*y, .32f+.02f*x-.03f*y, 1};
+		};
+		for (UINT y = 0; y < N; ++y) for (UINT x = 0; x < N; ++x) {
+			reference[y*N+x] = color(float(x), float(y));
+			moving[y*N+x] = color((std::min)(x+1.25f, float(N-1)), (std::min)(y+.5f, float(N-1)));
+			residual[y*N+x] = {.1f+.02f*x, 0, 0, 0};
+		}
+		auto priorColor = h.Make(DXGI_FORMAT_R32G32B32A32_FLOAT, reference.data(), sizeof(Pixel));
+		auto priorResidual = h.Make(DXGI_FORMAT_R32G32B32A32_FLOAT, residual.data(), sizeof(Pixel));
+		auto current = h.Make(DXGI_FORMAT_R32G32B32A32_FLOAT, moving.data(), sizeof(Pixel));
+		auto wrongFlow = h.Make(DXGI_FORMAT_R32G32_FLOAT, alias.data(), sizeof(alias[0]));
+		ShaderResources fields{};
+		fields[0] = current.srv.Get(); fields[1] = priorResidual.srv.Get();
+		fields[2] = priorColor.srv.Get(); fields[3] = wrongFlow.srv.Get();
+		Constants settings;
+		settings.sourceWidth = settings.sourceHeight = 2*N;
+		settings.reproject = settings.age = 1;
+		h.Run("ComposeNvidiaAlternating",settings,fields,output,validity);
+		const float expected = moving[4*N+4][0] + .1f + .02f*5.25f;
+		assert(std::abs(h.Read(output,4,4)[0]-expected)<1e-4f);
+		assert(h.Read(validity,4,4)[0]==1);
+	}
+	// A stationary flat surface has no tile landmark. Recover its residual
+	// only while the surrounding original colors also remain stationary.
+	{
+		std::vector<Pixel> current(N*N, Pixel{.25f,.25f,.25f,1});
+		const std::vector<std::array<float,2>> wrong(N*N,{-40,22});
+		auto prior = h.Color(.25f);
+		auto priorResidual = h.Color(.12f);
+		auto unchanged = h.Make(DXGI_FORMAT_R32G32B32A32_FLOAT,current.data(),sizeof(Pixel));
+		auto wrongFlow = h.Make(DXGI_FORMAT_R32G32_FLOAT,wrong.data(),sizeof(wrong[0]));
+		ShaderResources fields{};
+		fields[0]=unchanged.srv.Get(); fields[1]=priorResidual.srv.Get();
+		fields[2]=prior.srv.Get(); fields[3]=wrongFlow.srv.Get();
+		Constants settings;
+		settings.reproject=1; settings.age=3;
+		fields[4]=fields[5]=wrongFlow.srv.Get();
+		h.Run("ComposeNvidiaAlternating",settings,fields,output,validity);
+		assert(std::abs(h.Read(output,4,4)[0]-.37f)<1e-5f && h.Read(validity,4,4)[0]==1);
+		current[4*N+5]={.9f,.9f,.9f,1};
+		auto edge = h.Make(DXGI_FORMAT_R32G32B32A32_FLOAT,current.data(),sizeof(Pixel));
+		fields[0]=edge.srv.Get();
+		h.Run("ComposeNvidiaAlternating",settings,fields,output,validity);
+		assert(std::abs(h.Read(output,4,4)[0]-.25f)<1e-5f && h.Read(validity,4,4)[0]==0);
+	}
+	// Losing a patch match in the downsampled guide must not erase a
+	// correctly aligned residual when the source textures agree.
+	{
+		std::vector<Pixel> reference(N*N), moving(N*N);
+		const auto color = [](float x, float y) -> Pixel {
+			return {.18f+.07f*x, .22f+.06f*y, .25f+.03f*x+.02f*y, 1};
+		};
+		for (UINT y=0; y<N; ++y) for (UINT x=0; x<N; ++x) {
+			reference[y*N+x]=color(float(x),float(y));
+			moving[y*N+x]=color(float(x>2 ? x-2 : 0),float(y));
+		}
+		auto sourceHistory=h.Make(DXGI_FORMAT_R32G32B32A32_FLOAT,reference.data(),sizeof(Pixel));
+		auto sourceCurrent=h.Make(DXGI_FORMAT_R32G32B32A32_FLOAT,moving.data(),sizeof(Pixel));
+		auto workingHistory=h.Color(.6f), workingCurrent=h.Color(.3f), priorResidual=h.Color(.18f);
+		const std::vector<std::array<float,2>> wrong(N*N,{-40,22});
+		auto wrongFlow=h.Make(DXGI_FORMAT_R32G32_FLOAT,wrong.data(),sizeof(wrong[0]));
+		ShaderResources fields{};
+		fields[0]=workingCurrent.srv.Get(); fields[1]=priorResidual.srv.Get();
+		fields[2]=workingHistory.srv.Get(); fields[3]=wrongFlow.srv.Get();
+		fields[12]=sourceCurrent.srv.Get(); fields[13]=sourceHistory.srv.Get();
+		Constants settings;
+		settings.width=settings.height=6;
+		settings.reproject=settings.age=1;
+		h.Run("ComposeNvidiaAlternating",settings,fields,output,validity);
+		assert(std::abs(h.Read(output,4,4)[0]-.3f)<1e-5f && h.Read(validity,4,4)[0]==0);
+		settings.useSourceGuide=1;
+		h.Run("ComposeNvidiaAlternating",settings,fields,output,validity);
+		assert(std::abs(h.Read(output,4,4)[0]-.48f)<1e-5f && h.Read(validity,4,4)[0]==1);
+
+		// Native guide samples can disagree across a fractional shift even
+		// when the original downsampled patch supports the hardware vector.
+		const std::vector<std::array<float,2>> subpixel(N*N,{-.5f,0});
+		auto subpixelFlow=h.Make(DXGI_FORMAT_R32G32_FLOAT,subpixel.data(),sizeof(subpixel[0]));
+		auto nativeContrast=h.Color(.95f);
+		fields[2]=workingCurrent.srv.Get(); fields[3]=subpixelFlow.srv.Get();
+		fields[12]=nativeContrast.srv.Get();
+		h.Run("ComposeNvidiaAlternating",settings,fields,output,validity);
+		assert(std::abs(h.Read(output,4,4)[0]-.48f)<1e-5f && h.Read(validity,4,4)[0]==1);
 	}
 	std::cout << "Production kernels: Alternating/Pipeline protected continuous reuse, age3 transfer, four-step NGX guidance and hard rejection passed.\n";
 }

@@ -34,6 +34,7 @@ assert service.index('if (effect.isRecoveryInvalid || !EffectsService::Get().Get
 
 # Use the real chain classifier and validation template with small effect stubs.
 classifier = block(options, 'inline FrameGenerationEffectKind ClassifyFrameGenerationEffect(\n\tstd::string_view')
+effect_kind = block(options, 'enum class FrameGenerationEffectKind') + ';'
 validation_type = block(options, 'struct FrameGenerationChainValidation {') + ';'
 # Preserve the actual template parameter name from the source.
 template_line = options[:options.index('FrameGenerationChainValidation ValidateFrameGenerationChain(')].splitlines()[-1]
@@ -49,7 +50,7 @@ harness = r'''
 enum class ScalingError { NoError, CaptureMethodUnavailable, ScalingModeEmpty,
     ConflictingFrameGenerationEffects, Windowed3DGameMode, WindowedDesktopDuplication };
 enum class CaptureMethod { GraphicsCapture, DesktopDuplication, GDI, DwmSharedSurface, COUNT };
-enum class FrameGenerationEffectKind : uint8_t { None, DLSS, XeSSX2, XeSSMultiFrame, NvidiaVfx };
+EFFECT_KIND
 CLASSIFIER
 VALIDATION_TYPE
 VALIDATION
@@ -117,7 +118,7 @@ int main() {
         "and query exceptions rejected before simulated moves/windows/GPU; valid paths passed.\n";
 }
 '''
-for token, value in {'CLASSIFIER': classifier, 'VALIDATION_TYPE': validation_type, 'VALIDATION': validation,
+for token, value in {'EFFECT_KIND': effect_kind, 'CLASSIFIER': classifier, 'VALIDATION_TYPE': validation_type, 'VALIDATION': validation,
                      'CAPTURE': capture, 'CONFLICT': conflict, 'MODE': mode}.items():
     harness = harness.replace(token, value)
 out = Path(sys.argv[1]).resolve()

@@ -1,20 +1,26 @@
 name: Publish wiki
 
 on:
-  push:
-    branches: [ main ]
-    paths: [ '.github/workflows/wiki.yml', 'docs/**', 'scripts/wiki.py' ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   publish:
+    if: github.ref_type == 'branch' && github.ref_name == github.event.repository.default_branch
     runs-on: windows-latest
 
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
       - uses: actions/setup-python@v6
         with:
           python-version: '3.13'
 
-      - name: Upload documentations to wiki
-        run: python scripts/wiki.py ${{ secrets.CONTENTS_ACCESS_TOKEN }}
+      - name: Publish tracked Wiki pages
+        env:
+          WIKI_CONTENTS_TOKEN: ${{ secrets.CONTENTS_ACCESS_TOKEN }}
+        run: python scripts/wiki.py

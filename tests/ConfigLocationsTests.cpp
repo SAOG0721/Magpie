@@ -37,6 +37,29 @@ int wmain(int argc, wchar_t** argv) {
 	const auto preserved = Magpie::ConfigRecovery::FilesFor(enhanced, loaded);
 	assert(Magpie::ConfigRecovery::Preserve(legacy, loaded, preserved));
 	assert(Magpie::ConfigPersistence::Read(preserved.original) == upstreamBytes);
+	const auto oversized = root / L"oversized.json";
+	{
+		std::ofstream file(oversized, std::ios::binary);
+		file.seekp(Magpie::ConfigPersistence::MaxFileBytes);
+		file.put(' ');
+		assert(file.good());
+	}
+	assert(!Magpie::ConfigPersistence::ReadFileBytes(oversized, loaded, &readError));
+	assert(readError == ERROR_FILE_TOO_LARGE && loaded.empty());
+	assert(Magpie::ConfigPersistence::Read(oversized).empty());
+	assert(std::filesystem::file_size(oversized) == Magpie::ConfigPersistence::MaxFileBytes + 1);
+	int backupReads = 0;
+	const auto readBackup = [&] { ++backupReads; return upstreamBytes; };
+	assert(Magpie::ConfigRecovery::PrepareWithBackup("{}", readBackup, "Recovered").kind !=
+		Magpie::ConfigRecovery::Kind::Backup);
+	assert(backupReads == 0);
+	assert(Magpie::ConfigRecovery::PrepareWithBackup("{broken", readBackup, "Recovered").kind ==
+		Magpie::ConfigRecovery::Kind::Backup);
+	assert(backupReads == 1);
+	const std::string oversizedOutput(Magpie::ConfigPersistence::MaxFileBytes + 1, ' ');
+	assert(!Magpie::ConfigPersistence::WriteAtomic(enhanced, oversizedOutput, 2, state));
+	assert(GetLastError() == ERROR_FILE_TOO_LARGE);
+	assert(Magpie::ConfigPersistence::Read(enhanced) == R"({"enhanced":true})");
 	assert(Select(exe, user).source == enhanced);
 	Put(enhanced, "{broken");
 	assert(Select(exe, user).source == enhanced); // Existing v4e damage never selects v4.

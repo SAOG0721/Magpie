@@ -1,10 +1,68 @@
 #include "pch.h"
+#include "DLSSNRDetailParameters.h"
 #include "EffectCompiler.h"
 #include "EffectDesc.h"
 #include "Logger.h"
+#include "NvidiaVfxParameterPolicy.h"
 #include "OKLabParameterTable.h"
+#include "ScalingOptions.h"
+#include "StrHelper.h"
 #include <fstream>
 #include <iostream>
+
+namespace {
+using namespace Magpie;
+
+bool CompileParameterCase(const std::string& effect, uint32_t flags,
+    const phmap::flat_hash_map<std::string, float>& values, bool expectSuccess = true) {
+    EffectDesc desc{ .name = effect };
+    const uint32_t status = EffectCompiler::Compile(desc, flags | EffectCompilerFlags::NoCache, &values);
+    const bool passed = expectSuccess
+        ? status == 0 && !desc.passes.empty() &&
+            std::ranges::all_of(desc.passes, [](const auto& pass) { return bool(pass.cso); })
+        : status != 0;
+    if (!passed) std::cerr << "Unexpected shader compile result: " << effect << ", flags=" << flags << '\n';
+    return passed;
+}
+
+bool CheckInlineParameters() {
+    phmap::flat_hash_map<std::wstring, float> oldDlssNr{ { L"processingMode", 1.f } };
+    NormalizeDLSSNRDetailParameters(oldDlssNr);
+    if (!oldDlssNr.contains(L"__dlssnrModeVersion")) return false;
+    phmap::flat_hash_map<std::string, float> dlssNr;
+    for (const auto& [name, value] : oldDlssNr) dlssNr.emplace(StrHelper::UTF16ToUTF8(name), value);
+
+    EffectOption vsr{ .name = std::string(NVIDIA_VFX_VSR_ID) };
+    vsr.parameters.emplace("strength", 2.f);
+    ChangeNvidiaVfxVsrCategory(vsr, 3);
+    ChangeNvidiaVfxVsrCategory(vsr, 0);
+    if (!vsr.parameters.contains(NvidiaVfxStateKey<char>(0, "scaleX"))) return false;
+
+    constexpr uint32_t inlineFlag = EffectCompilerFlags::InlineParams;
+    const std::string dlssNrEffect = "DLSSNR\\DLSSNR_AI_Filter";
+    for (const uint32_t flags : { 0u, inlineFlag }) {
+        if (!CompileParameterCase(dlssNrEffect, flags, dlssNr) ||
+            !CompileParameterCase(vsr.name, flags, vsr.parameters)) return false;
+    }
+    if (!CompileParameterCase(dlssNrEffect, inlineFlag | EffectCompilerFlags::HdrCompatibility |
+        EffectCompilerFlags::NoFP16, dlssNr)) return false;
+
+    EffectDesc first{ .name = dlssNrEffect };
+    EffectDesc cached{ .name = dlssNrEffect };
+    if (EffectCompiler::Compile(first, inlineFlag, &dlssNr) || first.passes.empty()) return false;
+    dlssNr.erase("__dlssnrModeVersion");
+    if (EffectCompiler::Compile(cached, inlineFlag, &dlssNr) || cached.passes.empty() ||
+        cached.passes.front().cso.get() != first.passes.front().cso.get()) {
+        std::cerr << "DLSSNR saved state changed the shader cache key\n";
+        return false;
+    }
+
+    vsr.parameters.emplace("__nvidiaVfx0.unknownSuffix", 1.f);
+    if (!CompileParameterCase(vsr.name, inlineFlag, vsr.parameters, false)) return false;
+    std::cout << "Production EffectCompiler: DLSSNR migration and VSR category state accepted with inline parameters\n";
+    return true;
+}
+}
 
 int main() {
     using namespace Magpie;
@@ -25,5 +83,6 @@ int main() {
         }
         std::cout<<"Production EffectCompiler: "<<formats[format]<<", "<<desc.params.size()<<" parameters, 3 passes\n";
     }
+    if (!CheckInlineParameters()) return 5;
     Logger::Get().Flush();
 }

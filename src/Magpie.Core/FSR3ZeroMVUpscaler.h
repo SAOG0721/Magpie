@@ -24,7 +24,8 @@ public:
 	bool Draw(const NativeEffectDrawContext& context) noexcept override;
 
 private:
-	std::unique_ptr<Impl> _impl;
+	struct ImplDeleter { void operator()(Impl* impl) const noexcept; };
+	std::unique_ptr<Impl, ImplDeleter> _impl;
 	bool _enableOpticalFlow = false;
 	bool _enableJitter = false;
 	bool _useFsr4 = false;

@@ -81,6 +81,7 @@ void FrameSourceBase::_BeginCaptureRender() noexcept {
 }
 
 FrameSourceState FrameSourceBase::Update() noexcept {
+	_captureQueued = false;
 	const FrameSourceState state = _Update();
 	_lastUpdateReason = state == FrameSourceState::Error ? CaptureFrameReason::Error
 		: _captureInterrupted ? CaptureFrameReason::Interrupted : CaptureFrameReason::NoFrame;

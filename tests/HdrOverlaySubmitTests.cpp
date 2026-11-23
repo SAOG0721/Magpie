@@ -4,14 +4,12 @@
 #include <iostream>
 #include <memory>
 using namespace Magpie;
-namespace VRRPerformance { enum class Event { StableCopy }; void Record(Event) {} }
 struct Window {
 	const Window& Options() const { return *this; }
 	bool IsHdrCompatibilityEnabled() const { return true; }
 	static Window& Get() { static Window window; return window; }
 };
 using ScalingWindow = Window;
-struct Context { void CopyResource(int*,int*) {} };
 struct Cursor { bool NeedRedraw() const {return false;} bool IsBackgroundDependent() const {return false;}
 	bool HasOriginalRefreshPending() const {return false;} };
 struct Overlay { bool NeedRedraw(int) const {return false;} };
@@ -21,7 +19,7 @@ struct Renderer {
 	std::unique_ptr<int> _frontendPresentedBaseTexture=std::make_unique<int>(), _frontendBaseTexture=std::make_unique<int>();
 	HdrFrameMetadata _frontendFrameMetadata, _frontendPresentedFrameMetadata;
 	float _overlayMonitorSdrWhiteNits=203, visibleScale=203.f/80;
-	bool _frontendPresentedBaseValid=false, _isPassThroughActive=false;
+	bool _frontendPresentedBaseValid=false, _frontendBaseIsPresented=false, _isPassThroughActive=false;
 	Cursor _cursorDrawer; Overlay _overlayDrawer; Timer _stepTimer; Reference _passThroughFrames;
 	unsigned overlayDraws=0;
 	uint64_t _overlayActionRevision=0, _presentedOverlayActionRevision=0;
@@ -35,7 +33,6 @@ struct Renderer {
 		return true;
 	}
 	void Submit(bool submitted, bool stableBaseOnly=false, bool uiInIndependentLayer=true) {
-		Context context; auto* d3dDC=&context;
 #include "OverlaySubmitProduction.inc"
 	}
 };
@@ -43,17 +40,25 @@ int main() {
 	Renderer renderer;
 	renderer._frontendPresentedFrameMetadata.overlayReferenceWhiteNits=203;
 	renderer._frontendFrameMetadata.overlayReferenceWhiteNits=280;
+	*renderer._frontendBaseTexture=17;
 	renderer.Submit(false); // Failed submission leaves the last visible UI/scene intact.
 	assert(renderer.overlayDraws==0 && renderer.visibleScale==203.f/80);
+	assert(!renderer._frontendBaseIsPresented && *renderer._frontendPresentedBaseTexture==0);
 	renderer.Submit(true);
 	assert(renderer.overlayDraws==1 && renderer.visibleScale==3.5f);
+	assert(renderer._frontendBaseIsPresented && *renderer._frontendPresentedBaseTexture==17);
 	renderer._frontendFrameMetadata.overlayReferenceWhiteNits=160;
+	*renderer._frontendBaseTexture=41;
+	renderer._frontendBaseIsPresented=false;
 	renderer.Submit(true,true); // Stable replay must not consume a newer pending white point.
 	assert(renderer.overlayDraws==1 && renderer.visibleScale==3.5f);
+	assert(!renderer._frontendBaseIsPresented && *renderer._frontendPresentedBaseTexture==17);
 	renderer.Submit(true);
 	assert(renderer.overlayDraws==2 && renderer.visibleScale==2);
+	assert(*renderer._frontendPresentedBaseTexture==41);
 	renderer.Submit(true); // Same white point needs no independent UI update.
 	assert(renderer.overlayDraws==2);
+	assert(*renderer._frontendPresentedBaseTexture==41);
 	renderer._frontendFrameMetadata.overlayReferenceWhiteNits=203; // Applied reset.
 	renderer.Submit(true);
 	assert(renderer.overlayDraws==3 && renderer.visibleScale==203.f/80);

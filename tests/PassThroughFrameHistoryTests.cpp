@@ -52,6 +52,8 @@ public:
 	struct Reference { CpuReferenceHandle texture; HdrFrameMetadata metadata{}; };
 	bool SelectBackendFrame(uint64_t targetFrameId, uint64_t previousOutputFrameId) noexcept;
 	void Publish(uint32_t slot, bool generatedFrame) noexcept;
+	void OnPresented() noexcept;
+	#include "PassThroughFrontendUnderTest.h"
 	HdrFrameMetadata _ReferenceMetadata(const HdrFrameMetadata& source, bool canonical) const noexcept;
 	void _UpdateBackend(uint64_t captureFrameId, bool newCapture, const HdrFrameMetadata* sourceMetadata) noexcept;
 
@@ -59,6 +61,7 @@ public:
 		assert(_captureHistory.Reset(capacity));
 		const auto texture = [] { return CpuReferenceHandle{std::make_shared<CpuReferenceTexture>()}; };
 		_current = texture(); _previous = texture();
+		_base = texture(); _presented = texture();
 		_inputView = texture(); _outputView = _current;
 		_shader = texture(); _sampler = texture();
 		for (auto& slot : _backendSlots) slot.texture = texture();
@@ -107,6 +110,11 @@ public:
 
 	CpuReferenceResources _resources;
 	CpuReferenceResources* _backendResources = &_resources;
+	CpuReferenceResources* _frontendResources = &_resources;
+	CpuReferenceHandle _base, _presented;
+	bool _baseValid = false, _presentedValid = false, _baseIsPresented = false;
+	uint64_t _baseFrameId = 0, _presentedFrameId = 0;
+	HdrFrameMetadata _baseMetadata{}, _presentedMetadata{};
 	std::array<Slot, MAX_SLOTS> _backendSlots;
 	std::array<uint64_t, MAX_SLOTS> _frameIds{};
 	std::array<HdrFrameMetadata, MAX_SLOTS> _metadata{};
@@ -129,6 +137,25 @@ public:
 
 int main() {
 	using namespace Magpie;
+	{
+		PassThroughFrames frontend;
+		frontend._baseValid = true;
+		frontend._baseFrameId = frontend._baseMetadata.frameId = frontend._base.get()->pixels = 12;
+		frontend.OnPresented();
+		frontend.OnPresented();
+		assert(frontend.FrontendTexture() == frontend.FrontendTexture(true));
+		assert(frontend._presentedFrameId == 12 && frontend.FrontendTexture(true)->pixels == 12);
+		frontend._baseIsPresented = false;
+		frontend._baseFrameId = frontend._baseMetadata.frameId = frontend._base.get()->pixels = 17;
+		assert(frontend.FrontendTexture()->pixels == 17 && frontend.FrontendTexture(true)->pixels == 12);
+		frontend.OnPresented();
+		assert(frontend._presentedFrameId == 17 && frontend.FrontendTexture(true)->pixels == 17);
+		assert(frontend._presentedMetadata.stage == HdrFrameStage::PresentedOutput);
+		assert(frontend._resources.context.copiedPixels.empty());
+		frontend._baseValid = false;
+		frontend.OnPresented();
+		assert(!frontend.FrontendTexture() && !frontend.FrontendTexture(true));
+	}
 	PassThroughFrameHistory bounds;
 	assert(bounds.Capture(1) == bounds.Missing);
 	assert(!bounds.Select(1,0).targetAvailable);

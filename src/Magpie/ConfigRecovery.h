@@ -50,12 +50,14 @@ inline rapidjson::Value InvalidEffect(const rapidjson::Value& original,
 	return effect;
 }
 
-inline Plan Prepare(std::string_view source, std::string_view backup,
+template<typename ReadBackup>
+inline Plan PrepareWithBackup(std::string_view source, ReadBackup&& readBackup,
 	std::string_view recoveredGroupName, const ParameterRules& rules = {}) {
 	Plan plan;
 	ConfigPersistence::IncompleteChain incomplete = ConfigPersistence::IncompleteChain::None;
 	std::string input(source);
 	if (!ConfigPersistence::IsValid(input)) {
+		const auto backup = readBackup();
 		if (ConfigPersistence::IsValid(backup)) {
 			input = backup;
 			plan.kind = Kind::Backup;
@@ -313,6 +315,11 @@ inline Plan Prepare(std::string_view source, std::string_view backup,
 		}
 	}
 	return plan;
+}
+
+inline Plan Prepare(std::string_view source, std::string_view backup,
+	std::string_view recoveredGroupName, const ParameterRules& rules = {}) {
+	return PrepareWithBackup(source, [backup] { return backup; }, recoveredGroupName, rules);
 }
 
 struct Files { std::filesystem::path original, result; };

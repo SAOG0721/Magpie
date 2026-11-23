@@ -95,6 +95,8 @@ void ProfileViewModel::Rebind(uint32_t index) noexcept {
 	_data = &ProfileService::Get().GetProfile(index);
 	RaisePropertyChanged(L"Name");
 	RaisePropertyChanged(L"CanDrag");
+	RaisePropertyChanged(L"CanMoveUp");
+	RaisePropertyChanged(L"CanMoveDown");
 }
 
 bool ProfileViewModel::IsNotDefaultProfile() const noexcept {
@@ -326,6 +328,22 @@ void ProfileViewModel::RenameButton_Click() {
 
 bool ProfileViewModel::CanDrag() const noexcept {
 	return !_isDefaultProfile && _data && ProfileService::Get().GetProfileCount() > 1;
+}
+
+bool ProfileViewModel::CanMoveUp() const noexcept {
+	return CanDrag() && _index > 0;
+}
+
+bool ProfileViewModel::CanMoveDown() const noexcept {
+	return CanDrag() && _index + 1 < ProfileService::Get().GetProfileCount();
+}
+
+void ProfileViewModel::MoveUp() {
+	if (CanMoveUp()) ProfileService::Get().MoveProfile(_index, _index - 1);
+}
+
+void ProfileViewModel::MoveDown() {
+	if (CanMoveDown()) ProfileService::Get().MoveProfile(_index, _index + 1);
 }
 
 void ProfileViewModel::Delete() {

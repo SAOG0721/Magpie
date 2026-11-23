@@ -20,6 +20,10 @@ namespace Magpie {
 		Int32 RenameTextBoxSelectionStart { get; };
 		void RenameButton_Click();
 		Boolean CanDrag { get; };
+		Boolean CanMoveUp { get; };
+		Boolean CanMoveDown { get; };
+		void MoveUp();
+		void MoveDown();
 
 		void Delete();
 		

@@ -20,6 +20,7 @@
 #include "App.g.cpp"
 #endif
 #include "AdaptersService.h"
+#include "AutoStartHelper.h"
 #include "CommonSharedConstants.h"
 #include "ControlSizeTrigger.h"
 #include "EffectsService.h"
@@ -165,6 +166,7 @@ bool App::Initialize(const wchar_t* arguments) {
 		return false;
 	}
 	settings.UpdateAdminAutoStart();
+	AutoStartHelper::MigrateLegacyAutoStartTask();
 
 	// 延迟注册 DependencyProperty，见 FixThreadPoolCrash
 	SettingsCard::RegisterDependencyProperties();

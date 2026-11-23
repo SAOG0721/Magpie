@@ -201,6 +201,7 @@ struct Renderer {
     Metadata _frontendFrameMetadata, _frontendPresentedFrameMetadata;
     uint64_t _frontendCaptureFrameId = 0, _frontendMotionFrameId = 0;
     bool _frontendBaseValid = false, _frontendBaseNeedsPresent = false, _frontendPresentedBaseValid = false;
+    bool _frontendBaseIsPresented = false;
     bool _frameSyncEnabled = true, _frameSyncUsesSharedSlot = true, _isPassThroughActive = false;
     bool _frontendMotionValid = false, _frontendMotionReset = false;
     bool _isFSR3FrameGenerationActive = false;

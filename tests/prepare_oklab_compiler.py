@@ -17,6 +17,10 @@ repo=Path(__file__).resolve().parents[1]
 out=repo/'obj/tests/oklab-compiler';out.mkdir(parents=True,exist_ok=True)
 shutil.copytree(repo/'src/Effects/OKLab',out/'effects/OKLab',dirs_exist_ok=True)
 shutil.copy2(repo/'src/Effects/OKLabImageAdjustment.hlsl',out/'effects/OKLabImageAdjustment.hlsl')
+for shader in ('DLSSNR/DLSSNR_AI_Filter.hlsl', 'RTXVideo/RTXVideo_VSR.hlsl'):
+    output = out / 'effects' / shader
+    output.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(repo / 'src/Effects' / shader, output)
 shell=ctypes.windll.shell32
 shell.CommandLineToArgvW.argtypes=[ctypes.c_wchar_p,ctypes.POINTER(ctypes.c_int)]
 shell.CommandLineToArgvW.restype=ctypes.POINTER(ctypes.c_wchar_p)

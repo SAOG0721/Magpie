@@ -1,6 +1,7 @@
 #include "pch.h"
 #include "FSR2ZeroMVUpscaler.h"
 #include "DeviceResources.h"
+#include "FidelityFxUpscaleRuntime.h"
 #include "DirectXHelper.h"
 #include "Logger.h"
 #include "HalfResOpticalFlow.h"
@@ -63,8 +64,8 @@ bool FSR2ZeroMVUpscaler::Initialize(
 	output->GetDesc(&outDesc);
 	if (inDesc.Width > outDesc.Width || inDesc.Height > outDesc.Height) return false;
 
-	_coreModule = LoadLibraryW(L"ffx_fsr2_api_x64.dll");
-	_backendModule = LoadLibraryW(L"ffx_fsr2_api_dx11_x64.dll");
+	_coreModule = LoadPackagedFidelityFxUpscaleModule(L"ffx_fsr2_api_x64.dll");
+	if (_coreModule) _backendModule = LoadPackagedFidelityFxUpscaleModule(L"ffx_fsr2_api_dx11_x64.dll");
 	if (!_coreModule || !_backendModule) {
 		Logger::Get().Win32Error("Load FSR2 D3D11 runtime failed");
 		_Reset();

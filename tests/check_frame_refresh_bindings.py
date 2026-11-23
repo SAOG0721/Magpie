@@ -110,10 +110,10 @@ for file in (repo / "src/Magpie").glob("Resources.language-*.resw"):
     for name in ("Home_FrameRefresh_Summary", "Home_FrameRefresh_Edit.Content", "FrameRefresh_RestartNotice", "FrameRefresh_LegacyNotice"):
         assert resources[name], (lang, name)
 renderer = read("src/Magpie.Core/Renderer.cpp")
-assert "const bool paced = !stableBaseOnly &&" in renderer
-assert "else if (!stableBaseOnly) {\n\t\t_frontEdgeClock.Reset();" in renderer
-assert "if (submitted && contentFrame && ActiveFrameSyncBackend() == FrameSyncBackend::FrontEdge" in renderer
-assert "_frontendPresentedBaseValid && overlayPending &&" in renderer
+assert re.search(r"const bool paced = frontEdgePacing &&\s+\(\(!stableBaseOnly && IsContentUpdate\(updateReason\)\)\s*\|\|\s*\(stableBaseOnly && idleRedraw && vrrCaptureRefresh\)\);", renderer)
+assert re.search(r"else if \(!stableBaseOnly && !frontEdgePacing\) \{\s+_frontEdgeClock\.Reset\(\);", renderer)
+assert re.search(r"if \(submitted && \(contentFrame \|\| \(stableBaseOnly && idleRedraw && _UsesVrrCaptureRefresh\(\)\)\) &&\s+ActiveFrameSyncBackend\(\) == FrameSyncBackend::FrontEdge", renderer)
+assert re.search(r"!stableBaseOnly && _frontendPresentedBaseValid && overlayPending &&\s+_FrontendRender\(false, sharedTextureSlot, nullptr, true\);", renderer)
 window = read("src/Magpie.Core/ScalingWindow.cpp")
 service = read("src/Magpie/ScalingService.cpp")
 assert "ApplyFrameRefreshSettings(_options, frameRefresh, _options.isSimpleFrameRefresh)" in window

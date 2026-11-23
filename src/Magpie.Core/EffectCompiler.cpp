@@ -7,6 +7,7 @@
 #include "EffectDesc.h"
 #include "EffectHelper.h"
 #include "Logger.h"
+#include "NvidiaVfxParameterPolicy.h"
 #include "StrHelper.h"
 #include "Win32Helper.h"
 #include <bit>	// std::has_single_bit
@@ -1594,6 +1595,7 @@ static uint32_t CompilePasses(
 		// 检查 inlineParams 是否存在非法参数
 		for (const auto& pair : *inlineParams) {
 			if (!paramNames.contains(pair.first)) {
+				Logger::Get().Error(fmt::format("Unknown inline parameter '{}' in effect '{}'", pair.first, desc.name));
 				return 1;
 			}
 		}
@@ -1679,8 +1681,21 @@ uint32_t EffectCompiler::Compile(
 	bool noCompile = flags & EffectCompilerFlags::NoCompile;
 	bool noCache = noCompile || (flags & EffectCompilerFlags::NoCache);
 
+	phmap::flat_hash_map<std::string, float> shaderParams;
 	if (flags & EffectCompilerFlags::InlineParams) {
 		desc.flags |= EffectFlags::InlineParams;
+		const bool dlssnr = desc.name == "DLSSNR\\DLSSNR_AI_Filter";
+		const bool nvidiaVsr = desc.name == NVIDIA_VFX_VSR_ID;
+		if (inlineParams && !noCompile && (dlssnr || nvidiaVsr)) {
+			// Config retains migration/category state alongside shader overrides.
+			// Use the shader overrides for both the cache key and compilation.
+			for (const auto& [name, value] : *inlineParams) {
+				if (dlssnr ? name == "__dlssnrModeVersion" : IsNvidiaVfxVsrStateKey(name)) continue;
+				shaderParams.emplace(name, value);
+			}
+			inlineParams = &shaderParams;
+		}
+		if (!inlineParams) inlineParams = &shaderParams;
 	}
 
 	std::wstring effectName = StrHelper::UTF8ToUTF16(desc.name);
@@ -1709,8 +1724,17 @@ uint32_t EffectCompiler::Compile(
 		cacheKey.append(source);
 
 		if (flags & EffectCompilerFlags::InlineParams) {
-			for (const auto& pair : *inlineParams) {
-				cacheKey.append(fmt::format("{}={}\n", pair.first, std::lroundf(pair.second * 10000)));
+			const auto appendParameter = [&](std::string_view name, float value) {
+				cacheKey.append(fmt::format("{}={}\n", name, std::lroundf(value * 10000)));
+			};
+			if (inlineParams == &shaderParams) {
+				// A different hash-table order must not change the filtered key.
+				SmallVector<std::pair<std::string_view, float>> ordered;
+				for (const auto& [name, value] : shaderParams) ordered.emplace_back(name, value);
+				std::ranges::sort(ordered, {}, [](const auto& parameter) { return parameter.first; });
+				for (const auto& [name, value] : ordered) appendParameter(name, value);
+			} else {
+				for (const auto& [name, value] : *inlineParams) appendParameter(name, value);
 			}
 		}
 

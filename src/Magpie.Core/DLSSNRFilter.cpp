@@ -1,6 +1,7 @@
 #include "pch.h"
 #include "NgxRuntimeGuard.h"
 #include "DLSSNRFilter.h"
+#include "GpuFenceWait.h"
 #include "DLSSNRColorShader.h"
 #include "DLSSNRDetailShader.h"
 #include "DLSSNRDetailParameters.h"
@@ -26,6 +27,8 @@
 #include "OpticalFlowSettings.h"
 #include "StrHelper.h"
 #include <winver.h>
+#include <condition_variable>
+#include <list>
 #pragma comment(lib, "version.lib")
 
 namespace Magpie {
@@ -94,6 +97,9 @@ DLSSNRSettings ParseDLSSNRSettings(const EffectOption& option, bool hdrEnabled) 
 namespace Magpie {
 
 namespace {
+
+class NrResourceReleaseOwner;
+class NrResourceReleaseBatch;
 
 void LogDlssnrStatus(std::string message, bool error = false) noexcept {
 	if (error) {
@@ -696,6 +702,9 @@ struct DLSSNRFilter::Impl {
 	NVSDK_NGX_Handle* feature = nullptr;
 	// Shared runtime/hook owner survives until the last feature is released.
 	std::shared_ptr<Impl> snippetSession;
+	// The shared signed-NR runtime owns the sole release worker. Features keep
+	// that runtime alive until their CPU calls and GPU queues have retired.
+	std::unique_ptr<NrResourceReleaseOwner> resourceReleaseOwner;
 	// Owned by the shared signed-NR session, independent of per-feature
 	// D3D11/D3D12 interop fences. Only Evaluate submissions signal this fence.
 	winrt::com_ptr<ID3D12Fence> snippetEvaluateFence;
@@ -743,6 +752,8 @@ struct DLSSNRFilter::Impl {
 	float experimentalHdrScale = 1.0f;
 	bool useResolutionScaling = false;
 	bool coreRegistered = false;
+	bool diagnosticSynchronousRelease = false;
+	uint32_t releasePassIndex = 1;
 	bool snippetInitialized = false;
 	bool snippetCallerHookInstalled = false;
 	bool useSignedSnippet = false;
@@ -755,13 +766,13 @@ struct DLSSNRFilter::Impl {
 
 struct DLSSNRFilter::ResolutionChange {
 	std::unique_ptr<DLSSNRFilter> full, retiredFull;
-	std::unique_ptr<DLSSNRFilter> hotFull;
+	std::unique_ptr<DLSSNRFilter> hotFull, recoveryFull;
 	std::vector<DLSSNRSettings> settings;
 	std::chrono::steady_clock::time_point startedAt{};
 	double preparationMs = 0;
 	bool pending = false;
 	bool fullChanged = false;
-	bool cacheEnabled = false, warming = false, cacheHit = false;
+	bool warming = false, cacheHit = false;
 	bool retiredFullCacheable = false;
 };
 
@@ -830,6 +841,7 @@ struct DLSSNRFilter::Performance {
 	uint64_t poolFenceValue = 0, consumedVersion = 0;
 	size_t pendingSlot = DLSSNREnhancementPool::None;
 	winrt::com_ptr<ID3D11Texture2D> latestInput, latestPreparedInput;
+	winrt::com_ptr<ID3D11ShaderResourceView> latestInputSrv;
 	FrameGuidanceView latestZero{};
 	winrt::com_ptr<ID3D11Texture2D> latestDepth;
 	winrt::com_ptr<ID3D11Fence> latestDepthFence;
@@ -872,6 +884,7 @@ struct DLSSNRFilter::Performance {
 	FrameGuidanceRegion guidanceRegion{};
 	bool pending = false;
 	bool compositeDirty = true;
+	bool recoverNvidiaResidual = false;
 	wil::unique_event_nothrow completionEvent;
 	HANDLE registeredWait = nullptr;
 	DWORD ownerThread = 0;
@@ -882,11 +895,14 @@ struct DLSSNRFilter::Performance {
 		uint32_t width, height, sourceWidth, sourceHeight;
 		uint32_t age = 0, reproject = 0, hasHistory = 0;
 		uint32_t processingMode = uint32_t(DLSSNRProcessingMode::EveryFrame);
-		uint32_t confidenceBits = 0, padding[3]{};
+		uint32_t confidenceBits = 0;
+		uint32_t recoverNvidiaResidual = 0, useSourceGuide = 0, padding = 0;
 	};
 	static_assert(sizeof(Constants) == 48);
 
-	bool MotionInputs(uint64_t origin, ID3D11ShaderResourceView** srvs, Constants& values) noexcept {
+	using ShaderResources = std::array<ID3D11ShaderResourceView*, 14>;
+
+	bool MotionInputs(uint64_t origin, ShaderResources& srvs, Constants& values) noexcept {
 		if (origin > state.sequence || state.sequence-origin > motion.size()) return false;
 		values.age = uint32_t(state.sequence-origin);
 		values.confidenceBits = 0;
@@ -900,17 +916,17 @@ struct DLSSNRFilter::Performance {
 		return true;
 	}
 	void Dispatch(ID3D11ComputeShader* shader, const Constants& values,
-		ID3D11ShaderResourceView* const* srvs, ID3D11UnorderedAccessView* const* uavs, uint32_t pixelsPerGroup = 8) noexcept {
+		const ShaderResources& srvs, ID3D11UnorderedAccessView* const* uavs, uint32_t pixelsPerGroup = 8) noexcept {
 		auto* dc = composition.context11;
 		dc->UpdateSubresource(constants.get(), 0, nullptr, &values, 0, 0);
 		auto* cb = constants.get(); auto* sample = sampler.get();
 		dc->CSSetShader(shader, nullptr, 0); dc->CSSetConstantBuffers(0, 1, &cb);
-		dc->CSSetSamplers(0, 1, &sample); dc->CSSetShaderResources(0, 12, srvs);
+		dc->CSSetSamplers(0, 1, &sample); dc->CSSetShaderResources(0, UINT(srvs.size()), srvs.data());
 		dc->CSSetUnorderedAccessViews(0, 4, uavs, nullptr);
 		dc->Dispatch((values.width+pixelsPerGroup-1)/pixelsPerGroup, (values.height+pixelsPerGroup-1)/pixelsPerGroup, 1);
-		ID3D11ShaderResourceView* emptySrvs[12]{};
+		const ShaderResources emptySrvs{};
 		ID3D11UnorderedAccessView* emptyUavs[4]{};
-		dc->CSSetShaderResources(0, 12, emptySrvs); dc->CSSetUnorderedAccessViews(0, 4, emptyUavs, nullptr);
+		dc->CSSetShaderResources(0, UINT(emptySrvs.size()), emptySrvs.data()); dc->CSSetUnorderedAccessViews(0, 4, emptyUavs, nullptr);
 		dc->CSSetShader(nullptr, nullptr, 0);
 	}
 };
@@ -924,15 +940,366 @@ std::atomic<HMODULE> g_snippetCallerModule = nullptr;
 std::atomic<DLSSNRFilter::Impl::GetModuleFileNameWFn>
 	g_snippetOriginalGetModuleFileNameW = nullptr;
 
+struct NrReleaseInfo {
+	const void* owner = nullptr;
+	uint64_t frame = 0;
+	uint32_t pass = 0;
+	const char* phase = "unbound";
+	uint64_t call = 0;
+	bool diagnostic = false;
+};
+
+constexpr uint64_t NR_UPLOAD_RETENTION_LIMIT_BYTES = 128ull * 1024 * 1024;
+
+// Consumes exactly the SDK's transferred reference, without AddRef. Only a
+// submitted batch reaches the worker; its GPU-only session ticket must retire
+// before FinalRelease can take the driver locks also used by frontend D3D11.
+class NrResourceReleaseOwner {
+public:
+	struct Statistics {
+		uint64_t accepted = 0, completed = 0, fallback = 0, maxPending = 0;
+		uint64_t retained = 0, retainedTotal = 0, releasedFromRetention = 0;
+		uint64_t retainedBytes = 0, maxRetainedBytes = 0;
+		double releaseCpuUs = 0, maxReleaseCpuUs = 0;
+		bool workerStarted = false;
+	};
+	NrResourceReleaseOwner() = default;
+	NrResourceReleaseOwner(const NrResourceReleaseOwner&) = delete;
+	NrResourceReleaseOwner& operator=(const NrResourceReleaseOwner&) = delete;
+	~NrResourceReleaseOwner() { Stop(); }
+
+	bool Start() noexcept {
+		std::lock_guard lock(_mutex);
+		if (_stopping) return false;
+		if (_statistics.workerStarted) return _accepting;
+		try { _thread = std::thread([this] { Run(); }); }
+		catch (...) { return false; }
+		_statistics.workerStarted = _accepting = true;
+		return true;
+	}
+
+	// A lifecycle boundary retires every reference accepted before this call.
+	// Another live feature may keep using the shared runtime after this ticket.
+	Statistics Drain() noexcept {
+		std::unique_lock lock(_mutex);
+		const auto target = _statistics.accepted;
+		_releaseThrough = std::max(_releaseThrough, target);
+		_changed.notify_all();
+		_changed.wait(lock, [this, target] { return _statistics.completed >= target; });
+		return _statistics;
+	}
+
+	void Stop() noexcept {
+		{
+			std::lock_guard lock(_mutex);
+			_accepting = false;
+			_stopping = true;
+			_releaseThrough = UINT64_MAX;
+		}
+		_changed.notify_one();
+		if (_thread.joinable()) _thread.join();
+	}
+
+	static double ReleaseNow(IUnknown* resource, const NrReleaseInfo& info, bool deferred,
+		uint64_t retirementValue = 0, uint64_t completedValue = 0,
+		double retirementWaitUs = 0, HRESULT retirementHr = S_OK) noexcept {
+		const auto started = std::chrono::steady_clock::now();
+		ULONG remaining = 0;
+		{
+			FrameTrace::NativeNrScope trace(FrameTrace::NativeNrStage::InferenceResourceRelease, info.frame, info.pass);
+			if (resource) remaining = resource->Release();
+		}
+		const double cpuUs = std::chrono::duration<double, std::micro>(std::chrono::steady_clock::now() - started).count();
+		if (info.diagnostic) try {
+			Logger::Get().Info(fmt::format(
+				"DLSSNR resource release: call={} owner={:#x} frame={} pass={} phase={} thread={} resource={:#x} remainingRefs={} cpuUs={:.3f} deferred={} retirementValue={} completedValue={} retirementWaitUs={:.3f} retirementHr={:#x}",
+				info.call, reinterpret_cast<uintptr_t>(info.owner), info.frame, info.pass, info.phase,
+				GetCurrentThreadId(), reinterpret_cast<uintptr_t>(resource), remaining, cpuUs, deferred,
+				retirementValue, completedValue, retirementWaitUs, static_cast<uint32_t>(retirementHr)));
+		} catch (...) { /* A diagnostic failure cannot skip or repeat Release. */ }
+		return cpuUs;
+	}
+
+private:
+	friend class NrResourceReleaseBatch;
+	struct Pending {
+		IUnknown* resource;
+		NrReleaseInfo info;
+		winrt::com_ptr<ID3D12Fence> retirementFence;
+		uint64_t retirementValue = 0;
+		uint64_t acceptedValue = 0, completedValue = 0;
+		uint64_t retentionBytes = 0;
+		double retirementWaitUs = 0;
+		HRESULT retirementHr = S_OK;
+	};
+	static void InspectResource(Pending& pending) noexcept {
+		winrt::com_ptr<ID3D12Resource> resource;
+		const auto qi = pending.resource->QueryInterface(IID_PPV_ARGS(resource.put()));
+		D3D12_RESOURCE_DESC desc{};
+		D3D12_HEAP_PROPERTIES heap{};
+		D3D12_HEAP_FLAGS heapFlags{};
+		HRESULT heapHr = E_NOINTERFACE;
+		if (SUCCEEDED(qi) && resource) {
+			desc = resource->GetDesc();
+			heapHr = resource->GetHeapProperties(&heap, &heapFlags);
+		}
+		if (SUCCEEDED(qi) && SUCCEEDED(heapHr) && heap.Type == D3D12_HEAP_TYPE_UPLOAD &&
+			desc.Dimension == D3D12_RESOURCE_DIMENSION_BUFFER && desc.Width && desc.Height == 1 &&
+			desc.DepthOrArraySize == 1 && desc.MipLevels == 1 && desc.SampleDesc.Count == 1 && desc.SampleDesc.Quality == 0 &&
+			desc.Format == DXGI_FORMAT_UNKNOWN && desc.Layout == D3D12_TEXTURE_LAYOUT_ROW_MAJOR &&
+			(!desc.Alignment || !(desc.Alignment & (desc.Alignment - 1)))) {
+			// Charge the default placement alignment even when a device permits
+			// a smaller buffer alignment. Reject overflow before rounding up.
+			const uint64_t alignment = std::max<uint64_t>(desc.Alignment, D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT);
+			if (desc.Width <= UINT64_MAX - (alignment - 1))
+				pending.retentionBytes = (desc.Width + alignment - 1) & ~(alignment - 1);
+		}
+		// Return the temporary QI reference before holding or consuming the
+		// SDK's original reference. Non-resource IUnknown values stay valid.
+		resource = nullptr;
+		if (pending.info.diagnostic) try {
+			const auto& info = pending.info;
+			Logger::Get().Info(fmt::format(
+				"DLSSNR resource identity: call={} owner={:#x} frame={} pass={} phase={} resource={:#x} qiHr={:#x} width={} height={} dimension={} format={} heapType={} resourceFlags={:#x} heapFlags={:#x} heapHr={:#x} retentionBytes={}",
+				info.call, reinterpret_cast<uintptr_t>(info.owner), info.frame, info.pass, info.phase,
+				reinterpret_cast<uintptr_t>(pending.resource), static_cast<uint32_t>(qi), desc.Width, desc.Height,
+				static_cast<uint32_t>(desc.Dimension), static_cast<uint32_t>(desc.Format),
+				static_cast<uint32_t>(heap.Type), static_cast<uint32_t>(desc.Flags),
+				static_cast<uint32_t>(heapFlags), static_cast<uint32_t>(heapHr), pending.retentionBytes));
+		} catch (...) { /* Resource identity logging never owns the original reference. */ }
+	}
+	bool Accepting() noexcept {
+		std::lock_guard lock(_mutex);
+		return _accepting;
+	}
+	void CountFallback(size_t count) noexcept {
+		std::lock_guard lock(_mutex);
+		_statistics.fallback += count;
+	}
+	bool Submit(std::list<Pending>& references, ID3D12Fence* fence, uint64_t value) noexcept {
+		if (references.empty()) return true;
+		std::lock_guard lock(_mutex);
+		if (!_accepting || !fence || !value) return false;
+		for (auto& pending : references) {
+			pending.retirementFence.copy_from(fence);
+			pending.retirementValue = value;
+			pending.acceptedValue = ++_statistics.accepted;
+		}
+		_statistics.maxPending = std::max(_statistics.maxPending, _statistics.accepted - _statistics.completed);
+		// Splice cannot allocate or lose a reference after queue submission.
+		_pending.splice(_pending.end(), references);
+		_changed.notify_one();
+		return true;
+	}
+	void Run() noexcept {
+		std::unique_lock lock(_mutex);
+		auto heldReady = [this] { return !_held.empty() && _held.front().acceptedValue <= _releaseThrough; };
+		for (;;) {
+			_changed.wait(lock, [&] { return _stopping || !_pending.empty() || heldReady(); });
+			if (_pending.empty() && !heldReady()) return;
+			// completed is a count: retire the Drain prefix before newer
+			// submissions can substitute their releases for its retained refs.
+			const bool fromHold = heldReady();
+			auto& source = fromHold ? _held : _pending;
+			auto node = source.begin();
+			auto& pending = *node;
+			lock.unlock();
+			if (!fromHold) {
+				const auto waitStarted = std::chrono::steady_clock::now();
+				auto completed = pending.retirementFence->GetCompletedValue();
+				HRESULT hr = S_OK;
+				if (completed < pending.retirementValue) {
+					// A null event waits on this worker only. A failed event allocation
+					// must not turn into an early Release; poll the actual fence instead.
+					hr = pending.retirementFence->SetEventOnCompletion(pending.retirementValue, nullptr);
+					completed = pending.retirementFence->GetCompletedValue();
+					while (completed < pending.retirementValue) {
+						std::this_thread::sleep_for(std::chrono::milliseconds(1));
+						completed = pending.retirementFence->GetCompletedValue();
+					}
+				}
+				// Device removal reports UINT64_MAX and permits failed-device cleanup.
+				pending.retirementWaitUs = std::chrono::duration<double, std::micro>(
+					std::chrono::steady_clock::now() - waitStarted).count();
+				pending.completedValue = completed;
+				pending.retirementHr = hr;
+				InspectResource(pending);
+				lock.lock();
+				if (pending.retentionBytes && pending.acceptedValue > _releaseThrough &&
+					pending.retentionBytes <= NR_UPLOAD_RETENTION_LIMIT_BYTES - _statistics.retainedBytes) {
+					_held.splice(_held.end(), _pending, node);
+					++_statistics.retained;
+					++_statistics.retainedTotal;
+					_statistics.retainedBytes += pending.retentionBytes;
+					_statistics.maxRetainedBytes = std::max(_statistics.maxRetainedBytes, _statistics.retainedBytes);
+					const auto retained = _statistics.retained, released = _statistics.completed;
+					const auto retainedBytes = _statistics.retainedBytes;
+					lock.unlock();
+					try {
+						const auto& info = pending.info;
+						Logger::Get().Info(fmt::format(
+							"DLSSNR resource retained: call={} owner={:#x} frame={} pass={} phase={} thread={} resource={:#x} retirementValue={} completedValue={} retirementWaitUs={:.3f} retained={} released={} resourceBytes={} retainedBytes={} limitBytes={}",
+							info.call, reinterpret_cast<uintptr_t>(info.owner), info.frame, info.pass, info.phase,
+							GetCurrentThreadId(), reinterpret_cast<uintptr_t>(pending.resource), pending.retirementValue,
+							pending.completedValue, pending.retirementWaitUs, retained, released,
+							pending.retentionBytes, retainedBytes, NR_UPLOAD_RETENTION_LIMIT_BYTES));
+					} catch (...) { /* Holding a reference does not depend on logging. */ }
+					lock.lock();
+					continue;
+				}
+				lock.unlock();
+			}
+			const double cpuUs = ReleaseNow(pending.resource, pending.info, true,
+				pending.retirementValue, pending.completedValue, pending.retirementWaitUs, pending.retirementHr);
+			lock.lock();
+			if (fromHold) {
+				--_statistics.retained;
+				++_statistics.releasedFromRetention;
+				_statistics.retainedBytes -= pending.retentionBytes;
+			}
+			source.erase(node);
+			++_statistics.completed;
+			_statistics.releaseCpuUs += cpuUs;
+			_statistics.maxReleaseCpuUs = std::max(_statistics.maxReleaseCpuUs, cpuUs);
+			_changed.notify_all();
+		}
+	}
+	std::mutex _mutex;
+	std::condition_variable _changed;
+	std::list<Pending> _pending, _held;
+	std::thread _thread;
+	Statistics _statistics;
+	bool _accepting = false, _stopping = false;
+	uint64_t _releaseThrough = 0;
+};
+
+// Evaluate transfers its original references into this job-local batch. Until
+// Execute+Signal succeeds, no worker can enter FinalRelease. On an error the
+// caller retires accepted GPU work before this batch's synchronous cleanup.
+class NrResourceReleaseBatch {
+public:
+	explicit NrResourceReleaseBatch(NrResourceReleaseOwner* owner) noexcept : _owner(owner) {}
+	~NrResourceReleaseBatch() {
+		if (Empty()) return;
+		_owner->CountFallback(_references->size());
+		for (const auto& pending : *_references)
+			NrResourceReleaseOwner::ReleaseNow(pending.resource, pending.info, false);
+	}
+	NrResourceReleaseBatch(const NrResourceReleaseBatch&) = delete;
+	NrResourceReleaseBatch& operator=(const NrResourceReleaseBatch&) = delete;
+	bool Empty() const noexcept { return !_references || _references->empty(); }
+	bool TryEnqueue(IUnknown* resource, const NrReleaseInfo& info) noexcept {
+		if (!_owner) return false;
+		if (!_owner->Accepting() || !resource) { _owner->CountFallback(1); return false; }
+		try {
+			// MSVC's empty list allocates a sentinel. Keep callback-free jobs
+			// allocation-free and contain every staging allocation here.
+			if (!_references) _references = std::make_unique<std::list<NrResourceReleaseOwner::Pending>>();
+			_references->push_back({ resource, info, {}, 0 });
+		}
+		catch (...) { _owner->CountFallback(1); return false; }
+		return true;
+	}
+	bool Submit(ID3D12Fence* fence, uint64_t value) noexcept {
+		return Empty() || (_owner && _owner->Submit(*_references, fence, value));
+	}
+private:
+	NrResourceReleaseOwner* _owner;
+	std::unique_ptr<std::list<NrResourceReleaseOwner::Pending>> _references;
+};
+
+static std::unique_ptr<NrResourceReleaseOwner> CreateNrResourceReleaseOwner() noexcept {
+	try {
+		auto owner = std::make_unique<NrResourceReleaseOwner>();
+		if (owner->Start()) return owner;
+	} catch (...) { /* Owner allocation failure retains synchronous release. */ }
+	return {};
+}
+
+// SDK callbacks carry no application context. Only a bound signed-NR call may
+// transfer its reference to the runtime owner. Unknown callback threads release
+// synchronously and never borrow a different call's owner.
+struct NrResourceReleaseContext {
+	const void* owner = nullptr;
+	uint64_t frame = 0;
+	uint32_t pass = 0;
+	const char* phase = "unbound";
+	NrResourceReleaseBatch* batch = nullptr;
+	bool defer = false;
+};
+thread_local NrResourceReleaseContext g_nrResourceReleaseContext;
+
+class NrResourceReleaseScope {
+public:
+	NrResourceReleaseScope(const void* owner, uint64_t frame, uint32_t pass, const char* phase,
+		NrResourceReleaseBatch* batch = nullptr, bool defer = false) noexcept
+		: _active(owner != nullptr) {
+		if (_active) {
+			_previous = g_nrResourceReleaseContext;
+			g_nrResourceReleaseContext = { owner, frame, pass, phase, batch, defer };
+		}
+	}
+	~NrResourceReleaseScope() noexcept {
+		if (_active) g_nrResourceReleaseContext = _previous;
+	}
+	NrResourceReleaseScope(const NrResourceReleaseScope&) = delete;
+	NrResourceReleaseScope& operator=(const NrResourceReleaseScope&) = delete;
+private:
+	NrResourceReleaseContext _previous;
+	bool _active;
+};
+
+bool NrSynchronousReleaseRequested(bool signedSnippet) noexcept {
+	if (!signedSnippet || !FrameTrace::NativeNrStagesEnabled()) return false;
+	wchar_t option[2]{};
+	return GetEnvironmentVariableW(L"MAGPIE_DIAG_NR_RELEASE_CALLBACK", option, 2) == 1 && option[0] == L'1';
+}
+
+std::atomic_uint64_t g_nrResourceReleaseCalls{ 0 };
+std::atomic_bool g_nrReleaseDiagnostics{ false };
+
+void NVSDK_CONV NrResourceReleaseCallback(IUnknown* resource) noexcept {
+	const auto context = g_nrResourceReleaseContext;
+	const uint64_t call = g_nrResourceReleaseCalls.fetch_add(1, std::memory_order_relaxed) + 1;
+	const NrReleaseInfo info{ context.owner, context.frame, context.pass, context.phase, call,
+		g_nrReleaseDiagnostics.load(std::memory_order_relaxed) };
+	if (context.batch && context.defer && resource) {
+		FrameTrace::NativeNrScope trace(FrameTrace::NativeNrStage::InferenceResourceReleaseQueue, context.frame, context.pass);
+		if (context.batch->TryEnqueue(resource, info)) return;
+	}
+	NrResourceReleaseOwner::ReleaseNow(resource, info, false);
+}
+
+static NrResourceReleaseOwner* SignedReleaseOwner(const DLSSNRFilter::Impl& impl) noexcept {
+	return impl.snippetSession ? impl.snippetSession->resourceReleaseOwner.get() : impl.resourceReleaseOwner.get();
+}
+
+static void DrainResourceReleases(const DLSSNRFilter::Impl& impl) noexcept {
+	if (auto* owner = SignedReleaseOwner(impl)) {
+		const auto started = std::chrono::steady_clock::now();
+		const auto statistics = owner->Drain();
+		Logger::Get().Info(fmt::format(
+			"DLSSNR resource release drain: owner={:#x} accepted={} completed={} fallback={} maxPending={} releaseCpuMs={:.3f} maxReleaseCpuMs={:.3f} drainCpuMs={:.3f} retained={} retainedBytes={} retainedTotal={} releasedFromRetention={} maxRetainedBytes={} limitBytes={}",
+			reinterpret_cast<uintptr_t>(owner), statistics.accepted, statistics.completed, statistics.fallback,
+			statistics.maxPending, statistics.releaseCpuUs / 1000.0, statistics.maxReleaseCpuUs / 1000.0,
+				std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - started).count(),
+				statistics.retained, statistics.retainedBytes, statistics.retainedTotal, statistics.releasedFromRetention,
+				statistics.maxRetainedBytes, NR_UPLOAD_RETENTION_LIMIT_BYTES));
+	}
+}
+
 NVSDK_NGX_Result CallCreateFeatureSafely(
 	DLSSNRFilter::Impl::CreateFeatureFn function,
 	ID3D12GraphicsCommandList* commandList,
 	NVSDK_NGX_Feature featureId,
 	NVSDK_NGX_Parameter* parameters,
 	NVSDK_NGX_Handle** feature,
-	DWORD* sehCode
+	DWORD* sehCode,
+	const void* releaseIdentity = nullptr,
+	uint32_t releasePass = 0
 ) noexcept {
 	return NgxRuntimeGuard::Invoke([&]() {
+		NrResourceReleaseScope releaseContext(releaseIdentity, 0, releasePass, "create");
 		return function(commandList, featureId, parameters, feature);
 	}, NVSDK_NGX_Result_FAIL_PlatformError, sehCode);
 }
@@ -942,9 +1309,17 @@ NVSDK_NGX_Result CallEvaluateFeatureSafely(
 	ID3D12GraphicsCommandList* commandList,
 	const NVSDK_NGX_Handle* feature,
 	const NVSDK_NGX_Parameter* parameters,
-	DWORD* sehCode
+	DWORD* sehCode,
+	uint64_t frameId,
+	uint32_t passIndex,
+	const void* releaseIdentity = nullptr,
+	NrResourceReleaseBatch* releaseBatch = nullptr,
+	bool deferRelease = false
 ) noexcept {
+	FrameTrace::NativeNrScope trace(FrameTrace::NativeNrStage::InferenceEvaluate, frameId, passIndex);
 	return NgxRuntimeGuard::Invoke([&]() {
+		FrameTrace::NativeNrScope locked(FrameTrace::NativeNrStage::InferenceEvaluateLocked, frameId, passIndex);
+		NrResourceReleaseScope releaseContext(releaseIdentity, frameId, passIndex, "evaluate", releaseBatch, deferRelease);
 		return function(commandList, feature, parameters, nullptr);
 	}, NVSDK_NGX_Result_FAIL_PlatformError, sehCode);
 }
@@ -952,9 +1327,12 @@ NVSDK_NGX_Result CallEvaluateFeatureSafely(
 NVSDK_NGX_Result CallReleaseFeatureSafely(
 	DLSSNRFilter::Impl::ReleaseFeatureFn function,
 	NVSDK_NGX_Handle* feature,
-	DWORD* sehCode
+	DWORD* sehCode,
+	const void* releaseIdentity = nullptr,
+	uint32_t releasePass = 0
 ) noexcept {
 	return NgxRuntimeGuard::Invoke([&]() {
+		NrResourceReleaseScope releaseContext(releaseIdentity, 0, releasePass, "feature-release");
 		return function(feature);
 	}, NVSDK_NGX_Result_FAIL_PlatformError, sehCode);
 }
@@ -1171,7 +1549,7 @@ bool RestoreSnippetCallerCompatibility(DLSSNRFilter::Impl& impl) noexcept {
 
 }
 
-static bool WaitForFence(DLSSNRFilter::Impl& impl, uint64_t value) noexcept {
+static bool WaitForFence(DLSSNRFilter::Impl& impl, uint64_t value, DWORD timeout = 5000) noexcept {
 	const uint64_t completed = impl.fence12->GetCompletedValue();
 	if (completed == std::numeric_limits<uint64_t>::max()) {
 		Logger::Get().Error("DLSSNR device removed while waiting for a fence");
@@ -1184,15 +1562,15 @@ static bool WaitForFence(DLSSNRFilter::Impl& impl, uint64_t value) noexcept {
 		Logger::Get().Error("DLSSNR fence event is unavailable");
 		return false;
 	}
-	ResetEvent(impl.fenceEvent.get());
-	const HRESULT hr = impl.fence12->SetEventOnCompletion(
+	HRESULT hr = impl.fence12->SetEventOnCompletion(
 		value, impl.fenceEvent.get());
+	if (SUCCEEDED(hr)) hr = WaitForGpuFence(impl.fence12.get(), value, impl.fenceEvent.get(), timeout);
 	if (FAILED(hr)) {
-		Logger::Get().ComError("Set DLSSNR fence event failed", hr);
+		const HRESULT reason = impl.device12->GetDeviceRemovedReason();
+		Logger::Get().ComError("Wait for DLSSNR D3D12 fence", FAILED(reason) ? reason : hr);
 		return false;
 	}
-	impl.fenceEvent.wait();
-	return impl.fence12->GetCompletedValue() != std::numeric_limits<uint64_t>::max();
+	return true;
 }
 
 static bool WaitForQueue(DLSSNRFilter::Impl& impl) noexcept {
@@ -1202,7 +1580,8 @@ static bool WaitForQueue(DLSSNRFilter::Impl& impl) noexcept {
 		Logger::Get().ComError("Signal DLSSNR D3D12 fence failed", hr);
 		return false;
 	}
-	return WaitForFence(impl, value);
+	// Destruction and failed-submission cleanup require confirmed retirement.
+	return WaitForFence(impl, value, INFINITE);
 }
 
 static HRESULT SubmitDlssnrEvaluation(DLSSNRFilter::Impl& impl,
@@ -1291,6 +1670,11 @@ DLSSNRFilter::Impl::~Impl() {
 	if (queue12 && fence12) {
 		WaitForQueue(*this);
 	}
+	// No NGX guard is held while worker Releases finish. The runtime stops and
+	// joins its worker before Shutdown/DLL/device destruction; feature owners
+	// drain their accepted references before releasing the SDK feature itself.
+	DrainResourceReleases(*this);
+	if (resourceReleaseOwner) resourceReleaseOwner->Stop();
 	const double waitMs = std::chrono::duration<double, std::milli>(
 		std::chrono::steady_clock::now()-releaseStart).count();
 	// Release all child features before the runtime and Core owner.
@@ -1301,7 +1685,8 @@ DLSSNRFilter::Impl::~Impl() {
 		const auto function = useSignedSnippet ? snippetReleaseFeature :
 			static_cast<ReleaseFeatureFn>(&NVSDK_NGX_D3D12_ReleaseFeature);
 		const NVSDK_NGX_Result result = function ?
-			CallReleaseFeatureSafely(function, feature, &sehCode) :
+			CallReleaseFeatureSafely(function, feature, &sehCode,
+				useSignedSnippet ? this : nullptr, releasePassIndex) :
 			NVSDK_NGX_Result_FAIL_NotInitialized;
 		if (sehCode) {
 			Logger::Get().Warn(fmt::format(
@@ -1321,6 +1706,9 @@ DLSSNRFilter::Impl::~Impl() {
 		}
 		parameters = nullptr;
 	}
+	if (diagnosticSynchronousRelease) Logger::Get().Info(fmt::format(
+		"DLSSNR release callback synchronous control summary: owner={:#x} pass={} processCallsSoFar={} direct=true",
+		reinterpret_cast<uintptr_t>(this), releasePassIndex, g_nrResourceReleaseCalls.load(std::memory_order_relaxed)));
 	snippetSession.reset();
 	if (snippetInitialized && snippetShutdown && device12) {
 		DWORD sehCode = 0;
@@ -1334,6 +1722,7 @@ DLSSNRFilter::Impl::~Impl() {
 				"DLSSNR signed snippet Shutdown1 failed ({:#x})", (uint32_t)result));
 		}
 		snippetInitialized = false;
+		g_nrReleaseDiagnostics.store(false, std::memory_order_relaxed);
 	}
 	const bool callerCompatibilityRestored =
 		RestoreSnippetCallerCompatibility(*this);
@@ -1656,6 +2045,8 @@ static NVSDK_NGX_Result NVSDK_CONV SetScalingRatioCallback(
 }
 
 static void SetCreateParametersUnsafe(DLSSNRFilter::Impl& impl) {
+	if (impl.useSignedSnippet) impl.parameters->Set(
+		NVSDK_NGX_Parameter_ResourceReleaseCallback, reinterpret_cast<void*>(&NrResourceReleaseCallback));
 	impl.parameters->Set(PARAM_WIDTH, impl.width);
 	impl.parameters->Set(PARAM_HEIGHT, impl.height);
 	impl.parameters->Set(PARAM_INPUT_WIDTH, impl.width);
@@ -1781,6 +2172,10 @@ static bool InitializeSignedSnippetSession(
 		return false;
 	}
 	impl.useSignedSnippet = true;
+	impl.resourceReleaseOwner = CreateNrResourceReleaseOwner();
+	g_nrReleaseDiagnostics.store(FrameTrace::NativeNrStagesEnabled(), std::memory_order_relaxed);
+	if (!impl.resourceReleaseOwner) Logger::Get().Warn(
+		"DLSSNR resource release owner unavailable; callbacks retain synchronous release");
 	return true;
 }
 
@@ -1855,9 +2250,14 @@ static bool SetEvaluateParametersSafely(
 	const DLSSNRSettings& settings,
 	const FrameGuidanceView& guidance,
 	bool resetHistory,
-	DWORD* sehCode
+	DWORD* sehCode,
+	uint64_t frameId,
+	uint32_t passIndex
 ) noexcept {
+	FrameTrace::NativeNrScope trace(FrameTrace::NativeNrStage::InferenceParameters, frameId, passIndex);
 	return NgxRuntimeGuard::Invoke([&]() {
+		FrameTrace::NativeNrScope locked(FrameTrace::NativeNrStage::InferenceParametersLocked, frameId, passIndex);
+		NrResourceReleaseScope releaseContext(&impl, frameId, passIndex, "parameters");
 		SetEvaluateParametersUnsafe(impl, settings, guidance, resetHistory);
 		return true;
 	}, false, sehCode);
@@ -2278,7 +2678,8 @@ bool DLSSNRFilter::Initialize(
 
 bool DLSSNRFilter::InitializeChain(DeviceResources& resources, NgxD3D12Core& ngxCore,
 	ID3D11Texture2D* input, ID3D11Texture2D* output,
-	std::span<const DLSSNRSettings> passes) noexcept {
+	std::span<const DLSSNRSettings> passes, bool collectForegroundTiming) noexcept {
+	_collectForegroundTiming = collectForegroundTiming;
 	return !passes.empty() && IsDLSSNRSparseProcessingMode(passes.front().processingMode)
 		? InitializeSparse(resources, ngxCore, input, output, passes)
 		: InitializeChainResources(resources, ngxCore, input, output, passes, false);
@@ -2573,6 +2974,7 @@ bool DLSSNRFilter::InitializeChainResources(DeviceResources& resources, NgxD3D12
 		impl->failure = coreFailure(DlssNrStage::CreateFeature);
 		return false;
 	}
+	impl->diagnosticSynchronousRelease = NrSynchronousReleaseRequested(impl->useSignedSnippet);
 	sehCode = 0;
 	if (!SetCreateParametersSafely(*impl, &sehCode)) {
 		impl->failure = DlssNrApiFailure(DlssNrStage::CreateFeature, DlssNrCodeKind::Seh, sehCode, "SetCreateParameters");
@@ -2580,6 +2982,11 @@ bool DLSSNRFilter::InitializeChainResources(DeviceResources& resources, NgxD3D12
 			"DLSSNR creation parameter setup raised SEH {:#x}", sehCode));
 		return false;
 	}
+	if (impl->useSignedSnippet) Logger::Get().Info(fmt::format(
+		"DLSSNR resource release policy: owner={:#x} pass=1 mode={} allocator=SDK-default retirement=session-Evaluate-GPU-fence retention=upload-buffer-until-drain limitBytes={}",
+		reinterpret_cast<uintptr_t>(impl.get()), impl->diagnosticSynchronousRelease ? "diagnostic-synchronous" :
+		SignedReleaseOwner(*impl) ? "deferred" : "synchronous-fallback",
+		NR_UPLOAD_RETENTION_LIMIT_BYTES));
 
 	const Impl::CreateFeatureFn createFeature =
 		ENABLE_CORE_FEATURE18_DIAGNOSTIC ?
@@ -2590,7 +2997,8 @@ bool DLSSNRFilter::InitializeChainResources(DeviceResources& resources, NgxD3D12
 	const auto firstCreateStart = std::chrono::steady_clock::now();
 	result = CallCreateFeatureSafely(
 		createFeature, impl->commandList12.get(), FEATURE_DLSSNR,
-		impl->parameters, &impl->feature, &sehCode);
+		impl->parameters, &impl->feature, &sehCode,
+		impl->useSignedSnippet ? impl.get() : nullptr, 1);
 	createMs[0] = elapsedMs(firstCreateStart);
 	if (sehCode) {
 		Logger::Get().Error(fmt::format(
@@ -2624,6 +3032,8 @@ bool DLSSNRFilter::InitializeChainResources(DeviceResources& resources, NgxD3D12
 		child->snippetReleaseFeature = impl->snippetReleaseFeature;
 		child->snippetEvaluateFeature = impl->snippetEvaluateFeature;
 		child->useSignedSnippet = impl->useSignedSnippet;
+		child->diagnosticSynchronousRelease = impl->diagnosticSynchronousRelease;
+		child->releasePassIndex = static_cast<uint32_t>(i) + 1;
 		if (!CreateSharedTexture(*impl, sharedDesc, true,
 			child->sharedOutput11, child->sharedOutput12)) return false;
 		if (impl->useResolutionScaling && i + 1 == passes.size() && FAILED(impl->device11->CreateShaderResourceView(
@@ -2640,7 +3050,8 @@ bool DLSSNRFilter::InitializeChainResources(DeviceResources& resources, NgxD3D12
 		resourcesMs += elapsedMs(childResourcesStart);
 		const auto childCreateStart = std::chrono::steady_clock::now();
 		result = CallCreateFeatureSafely(createFeature, impl->commandList12.get(), FEATURE_DLSSNR,
-			child->parameters, &child->feature, &sehCode);
+			child->parameters, &child->feature, &sehCode,
+			child->useSignedSnippet ? child.get() : nullptr, child->releasePassIndex);
 		createMs[i] = elapsedMs(childCreateStart);
 		if (sehCode || !NGXSucceeded(result) || !child->feature) {
 			impl->failure = DlssNrApiFailure(DlssNrStage::CreateFeature, sehCode ? DlssNrCodeKind::Seh : DlssNrCodeKind::Ngx,
@@ -2720,14 +3131,17 @@ bool DLSSNRFilter::InitializeChainResources(DeviceResources& resources, NgxD3D12
 		impl->experimentalHdrPath, impl->experimentalHdrScale));
 	_failure = {};
 	_libraryInfo = impl->libraryInfo;
-	if (!impl->foregroundTimer.Initialize(impl->device11) || FAILED(impl->device11->CreateFence(
+	// Performance-mode counters and diagnostic builds still read these queries.
+	const bool timeForeground = _collectForegroundTiming || settings.processingMode != DLSSNRProcessingMode::EveryFrame ||
+		NativeBackendTiming::Enabled || FrameTrace::NativeNrStagesEnabled();
+	if ((timeForeground && !impl->foregroundTimer.Initialize(impl->device11)) || FAILED(impl->device11->CreateFence(
 		0, D3D11_FENCE_FLAG_NONE, IID_PPV_ARGS(impl->retirementFence.put())))) return false;
 	resourcesMs += elapsedMs(finalResourcesStart);
 	Logger::Get().Info(fmt::format(
-		"DLSSNR initialize timings: size={}x{} passes={} resourcesMs={:.3f} runtimeMs={:.3f} createMs=[{:.3f},{:.3f},{:.3f}] initGpuWaitMs={:.3f} deferredGpuWait={} cpuPrepareMs={:.3f}",
+		"DLSSNR initialize timings: size={}x{} passes={} resourcesMs={:.3f} runtimeMs={:.3f} createMs=[{:.3f},{:.3f},{:.3f}] initGpuWaitMs={:.3f} deferredGpuWait={} cpuPrepareMs={:.3f} foregroundGpuTiming={}",
 		impl->width, impl->height, passes.size(), resourcesMs, runtimeMs,
 		createMs[0], createMs[1], createMs[2], impl->initializationWaitMs,
-		deferInitialization, elapsedMs(initializeStart)));
+		deferInitialization, elapsedMs(initializeStart), timeForeground));
 	_impl = std::move(impl);
 	return settings.processingMode == DLSSNRProcessingMode::EveryFrame ||
 		InitializePerformance(input, output);
@@ -2739,7 +3153,7 @@ bool DLSSNRFilter::Resize(
 	ID3D11Texture2D* output
 ) noexcept {
 	const auto settings = _passSettings;
-	return _ngxCore && InitializeChain(resources, *_ngxCore, input, output, settings);
+	return _ngxCore && InitializeChain(resources, *_ngxCore, input, output, settings, _collectForegroundTiming);
 }
 
 bool DLSSNRFilter::Drain() noexcept {
@@ -2749,7 +3163,7 @@ bool DLSSNRFilter::Drain() noexcept {
 	if (_sparse && !DrainSparse()) return false;
 	if (_resolutionChange) {
 		for (auto* branch : { _resolutionChange->full.get(), _resolutionChange->retiredFull.get(),
-			_resolutionChange->hotFull.get() })
+			_resolutionChange->hotFull.get(), _resolutionChange->recoveryFull.get() })
 			if (branch && !branch->Drain()) return false;
 	}
 	if (_impl && _impl->queue12 && _impl->fence12 && !WaitForQueue(*_impl)) return false;
@@ -2761,8 +3175,9 @@ bool DLSSNRFilter::Drain() noexcept {
 			FAILED(p.poolFence->SetEventOnCompletion(value, retired.get()))) return false;
 		p.composition.context11->Flush();
 		// Stop/resize may wait; normal producer/consumer progress never does.
-		if (WaitForSingleObject(retired.get(), INFINITE) != WAIT_OBJECT_0) return false;
+		if (FAILED(WaitForGpuFence(p.poolFence.get(), value, retired.get(), INFINITE))) return false;
 	}
+	if (_impl) DrainResourceReleases(*_impl);
 	return submissionHealthy;
 }
 
@@ -2809,7 +3224,8 @@ static void TransitionColor(ID3D12GraphicsCommandList* list, ID3D12Resource* res
 bool DLSSNRFilter::Draw(const NativeEffectDrawContext& context) noexcept {
 	if (!_impl) return false;
 	auto* dc = _impl->context11;
-	{
+	const bool timeForeground = _impl->foregroundTimer.IsInitialized();
+	if (timeForeground) {
 		FrameTrace::NativeNrScope trace(FrameTrace::NativeNrStage::FilterTimingBegin, context.frameId);
 		_impl->foregroundTimer.Poll(dc);
 		if (context.isNewCaptureFrame) _impl->foregroundTimer.Begin(dc);
@@ -2819,7 +3235,7 @@ bool DLSSNRFilter::Draw(const NativeEffectDrawContext& context) noexcept {
 		FrameTrace::NativeNrScope trace(FrameTrace::NativeNrStage::FilterDraw, context.frameId);
 		result = _sparse ? DrawSparse(context) : _performance ? DrawPerformance(context) : DrawInference(context);
 	}
-	if (context.isNewCaptureFrame) {
+	if (timeForeground && context.isNewCaptureFrame) {
 		FrameTrace::NativeNrScope trace(FrameTrace::NativeNrStage::FilterTimingEnd, context.frameId);
 		_impl->foregroundTimer.End(dc);
 	}
@@ -2840,6 +3256,20 @@ void DLSSNRFilter::Submission::Execute(Job& job) noexcept {
 		// record/Evaluate/submit order across workers, without a CPU fence wait.
 		sessionLock = std::unique_lock(impl.snippetSession->snippetEvaluateMutex);
 	}
+	NrResourceReleaseBatch releaseBatch(impl.useSignedSnippet ? SignedReleaseOwner(impl) : nullptr);
+	const auto retireUnsubmittedReleases = wil::scope_exit([&] {
+		if (releaseBatch.Empty()) return;
+		// Close/Signal failure has no guaranteed outputReady signal. Drain the
+		// already-published session predecessor and this queue with a fresh
+		// ticket before the local batch consumes its original references.
+		auto* session = impl.snippetSession.get();
+		if (session && session->snippetEvaluateValue) {
+			const auto hr = impl.queue12->Wait(session->snippetEvaluateFence.get(), session->snippetEvaluateValue);
+			if (FAILED(hr)) Logger::Get().ComError("Order failed NR release batch retirement failed", hr);
+		}
+		if (!WaitForQueue(impl)) Logger::Get().Warn(
+			"DLSSNR failed release batch: GPU drain unavailable; consuming original references during failed-device cleanup");
+	});
 	auto& slot = impl.commandSlots[job.slot];
 	const size_t first = job.first, count = job.count;
 	auto passAt = [&](size_t i) -> Impl& { return i ? *impl.laterPasses[i - 1] : impl; };
@@ -2862,38 +3292,52 @@ void DLSSNRFilter::Submission::Execute(Job& job) noexcept {
 	bool success = true;
 	for (size_t i = first; i < count; ++i) {
 		Impl& pass = passAt(i);
-		TransitionColor(list, pass.sharedOutput12.get(), D3D12_RESOURCE_STATE_COMMON,
-			D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+		const uint32_t passIndex = static_cast<uint32_t>(i) + 1;
+		{
+			FrameTrace::NativeNrScope trace(FrameTrace::NativeNrStage::InferenceRecord, job.frame, passIndex);
+			TransitionColor(list, pass.sharedOutput12.get(), D3D12_RESOURCE_STATE_COMMON,
+				D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+		}
 		const bool reset = job.guidanceReset[i];
 		DWORD seh = 0;
-		if (!SetEvaluateParametersSafely(pass, job.settings[i], job.guidance, job.resetHistory[i] || reset, &seh)) {
+		if (!SetEvaluateParametersSafely(pass, job.settings[i], job.guidance, job.resetHistory[i] || reset, &seh,
+			job.frame, passIndex)) {
 			job.failure = DlssNrApiFailure(DlssNrStage::Evaluate, DlssNrCodeKind::Seh, seh, "SetEvaluateParameters");
 			list->Close();
 			fail("parameters-seh"); return;
 		}
 		const uint32_t query = slot.timestampQuery + 2 + static_cast<uint32_t>(i) * 2;
-		if (impl.timestampQueryHeap) list->EndQuery(impl.timestampQueryHeap.get(), D3D12_QUERY_TYPE_TIMESTAMP, query);
-		const auto function = pass.useSignedSnippet ? pass.snippetEvaluateFeature :
-			static_cast<Impl::EvaluateFeatureFn>(&NVSDK_NGX_D3D12_EvaluateFeature);
-		const auto result = CallEvaluateFeatureSafely(function, list, pass.feature, pass.parameters, &seh);
-		job.attempted[i] = true;
-		const bool evaluated = !seh && NGXSucceeded(result);
-		job.evaluated[i] = evaluated;
-		if (!evaluated || job.evaluateNumbers[i] == 1) Logger::Get().Info(fmt::format(
-			"DLSSNR pass {}: frame={} result={:#x} SEH={:#x}", i + 1, job.frame, static_cast<uint32_t>(result), seh));
-		if (impl.timestampQueryHeap) {
-			list->EndQuery(impl.timestampQueryHeap.get(), D3D12_QUERY_TYPE_TIMESTAMP, query + 1);
-			list->ResolveQueryData(impl.timestampQueryHeap.get(), D3D12_QUERY_TYPE_TIMESTAMP, query, 2,
-				impl.timestampReadback.get(), uint64_t(query) * sizeof(uint64_t));
+		Impl::EvaluateFeatureFn function = nullptr;
+		{
+			FrameTrace::NativeNrScope trace(FrameTrace::NativeNrStage::InferenceRecord, job.frame, passIndex);
+			if (impl.timestampQueryHeap) list->EndQuery(impl.timestampQueryHeap.get(), D3D12_QUERY_TYPE_TIMESTAMP, query);
+			function = pass.useSignedSnippet ? pass.snippetEvaluateFeature :
+				static_cast<Impl::EvaluateFeatureFn>(&NVSDK_NGX_D3D12_EvaluateFeature);
 		}
-		TransitionColor(list, pass.sharedInput12.get(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
-			D3D12_RESOURCE_STATE_COMMON);
-		TransitionColor(list, pass.sharedOutput12.get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
-			evaluated && i + 1 < count ? D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE : D3D12_RESOURCE_STATE_COMMON);
-		if (!evaluated) {
-			job.failure = DlssNrApiFailure(DlssNrStage::Evaluate, seh ? DlssNrCodeKind::Seh : DlssNrCodeKind::Ngx,
-				seh ? seh : static_cast<uint32_t>(result), fmt::format("EvaluateFeature(18), pass {}", i + 1));
-			success = false; break;
+		const auto result = CallEvaluateFeatureSafely(function, list, pass.feature, pass.parameters, &seh,
+			job.frame, passIndex, pass.useSignedSnippet ? &pass : nullptr, &releaseBatch,
+			!pass.diagnosticSynchronousRelease);
+		{
+			FrameTrace::NativeNrScope trace(FrameTrace::NativeNrStage::InferenceRecord, job.frame, passIndex);
+			job.attempted[i] = true;
+			const bool evaluated = !seh && NGXSucceeded(result);
+			job.evaluated[i] = evaluated;
+			if (!evaluated || job.evaluateNumbers[i] == 1) Logger::Get().Info(fmt::format(
+				"DLSSNR pass {}: frame={} result={:#x} SEH={:#x}", i + 1, job.frame, static_cast<uint32_t>(result), seh));
+			if (impl.timestampQueryHeap) {
+				list->EndQuery(impl.timestampQueryHeap.get(), D3D12_QUERY_TYPE_TIMESTAMP, query + 1);
+				list->ResolveQueryData(impl.timestampQueryHeap.get(), D3D12_QUERY_TYPE_TIMESTAMP, query, 2,
+					impl.timestampReadback.get(), uint64_t(query) * sizeof(uint64_t));
+			}
+			TransitionColor(list, pass.sharedInput12.get(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
+				D3D12_RESOURCE_STATE_COMMON);
+			TransitionColor(list, pass.sharedOutput12.get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
+				evaluated && i + 1 < count ? D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE : D3D12_RESOURCE_STATE_COMMON);
+			if (!evaluated) {
+				job.failure = DlssNrApiFailure(DlssNrStage::Evaluate, seh ? DlssNrCodeKind::Seh : DlssNrCodeKind::Ngx,
+					seh ? seh : static_cast<uint32_t>(result), fmt::format("EvaluateFeature(18), pass {}", i + 1));
+				success = false; break;
+			}
 		}
 	}
 	job.evaluateMs = NativeBackendTiming::ElapsedMilliseconds(evaluateStart);
@@ -2910,6 +3354,14 @@ void DLSSNRFilter::Submission::Execute(Job& job) noexcept {
 	// it does not serialize unrelated NGX consumers or add a CPU wait.
 	hr = SubmitDlssnrEvaluation(impl, list, job.outputReady);
 	job.submitted = SUCCEEDED(hr);
+	if (job.submitted && !releaseBatch.Empty()) {
+		// This GPU-only fence is advanced only after ExecuteCommandLists and
+		// ordered behind every preceding signed-NR queue. Input-ready signals
+		// from D3D11 cannot advance it past an unfinished Evaluate submission.
+		auto* session = impl.useSignedSnippet ? impl.snippetSession.get() : nullptr;
+		releaseBatch.Submit(session ? session->snippetEvaluateFence.get() : impl.fence12.get(),
+			session ? session->snippetEvaluateValue : job.outputReady);
+	}
 	job.completedPassCount = success ? static_cast<uint32_t>(count) : static_cast<uint32_t>(first);
 	job.submitMs = NativeBackendTiming::ElapsedMilliseconds(submitStart);
 	if (FAILED(hr)) { fail("output-signal"); return; }
@@ -3140,6 +3592,7 @@ bool DLSSNRFilter::DrawInference(const NativeEffectDrawContext& context,
 	Submission::Execute(job);
 	if (!submission.Complete(*this)) return false;
 	if (FAILED(impl.context11->Wait(impl.fence11.get(), job.outputReady))) return fail("output-wait");
+	impl.foregroundTimer.MarkFullInference();
 	if (compositeOutput) {
 		if (!composite()) return fail("composite");
 		impl.residualParametersDirty = false;
@@ -3185,6 +3638,7 @@ double DLSSNRFilter::ResolutionPreparationMs() const noexcept { return 0; }
 bool DLSSNRFilter::PrewarmResolution(DeviceResources&, ID3D11Texture2D*, ID3D11Texture2D*, uint32_t) noexcept { return false; }
 bool DLSSNRFilter::WarmPreparedResolution(const NativeEffectDrawContext&) noexcept { return true; }
 bool DLSSNRFilter::GetHotResolution(uint32_t&) const noexcept { return false; }
+bool DLSSNRFilter::GetRecoveryResolution(uint32_t&) const noexcept { return false; }
 bool DLSSNRFilter::HasHotResolution(uint32_t) const noexcept { return false; }
 void DLSSNRFilter::InvalidateHotResolution() noexcept {}
 DLSSNRPerformanceSnapshot DLSSNRFilter::GetPerformanceSnapshot() const noexcept { return {}; }
@@ -3202,7 +3656,7 @@ bool DLSSNRFilter::Initialize(
 	return false;
 }
 bool DLSSNRFilter::InitializeChain(DeviceResources&, NgxD3D12Core&,
-	ID3D11Texture2D*, ID3D11Texture2D*, std::span<const DLSSNRSettings>) noexcept {
+	ID3D11Texture2D*, ID3D11Texture2D*, std::span<const DLSSNRSettings>, bool) noexcept {
 	_failure = { DlssNrStage::Initialize, DlssNrReason::BuildDisabled, DlssNrCodeKind::None, 0, "MP_ENABLE_DLSSNR" };
 	Logger::Get().Error("DLSSNR support is disabled at build time");
 	return false;

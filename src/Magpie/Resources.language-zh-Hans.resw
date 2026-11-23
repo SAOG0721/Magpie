@@ -1500,6 +1500,7 @@
   <data name="Home_RecentIssue_Reopen.Content" xml:space="preserve"><value>查看最近问题</value></data>
   <data name="AppSettings_ReadFailedGuidance" xml:space="preserve"><value>请在文件资源管理器中打开下方位置，确认磁盘已连接、文件已下载到本机且当前账户可以读取，然后重新启动 Magpie。原配置未被修改。</value></data>
   <data name="AppSettings_ReadAccessDenied" xml:space="preserve"><value>请在文件资源管理器中打开下方位置，确认当前账户具有该文件的读取权限，然后重新启动 Magpie。原配置未被修改。</value></data>
+  <data name="AppSettings_ConfigTooLarge" xml:space="preserve"><value>配置文件超过 {} MiB 上限。请保留原文件的副本，从下方位置恢复可用的配置或备份后重新启动 Magpie。</value></data>
   <data name="AppSettings_CopyFailed" xml:space="preserve"><value>暂未能复制。请记录下方路径和错误码，处理后重新启动 Magpie。</value></data>
   <data name="AppSettings_ConfigLocationFailed" xml:space="preserve"><value>暂未能访问配置位置。请确认配置所在磁盘已连接、当前账户有访问和写入权限，然后重新启动 Magpie。相关位置：</value></data>
   <data name="AppSettings_BackupFailed" xml:space="preserve"><value>暂未能保留配置原件。请检查下方备份路径的写入权限和磁盘空间，再重新启动 Magpie；原配置仍可用于恢复。备份目标：</value></data>
@@ -2852,4 +2853,26 @@
   <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_sparseUpdateInterval_Option_3" xml:space="preserve"><value>每 3 帧</value></data>
   <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_sparseUpdateInterval_Option_4" xml:space="preserve"><value>每 4 帧</value></data>
   <data name="EffectParam_DLSSNR_DLSSNR_AI_Filter_sparseUpdateInterval_Description" xml:space="preserve"><value>隔帧每 2、3 或 4 个新捕获帧更新一次完整 NR，默认每 2 帧。重复刷新、重绘和生成帧不计数。间隔越长，推理工作越少，历史修正也越旧。</value></data>
+  <data name="Profile_Launch.[using:Windows.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>启动</value></data>
+  <data name="Profile_MoreOptions.[using:Windows.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>更多选项</value></data>
+  <data name="EffectParam_CRT_CRT_Easymode_maskStrength_Description" xml:space="preserve"><value>调整荧光粉遮罩对原始画面色彩的影响程度。</value></data>
+  <data name="EffectParam_CRT_CRT_Easymode_scanlineStrength_Description" xml:space="preserve"><value>调整模拟扫描线之间的暗化程度。</value></data>
+  <data name="EffectParam_CRT_CRT_Geom_curvature_Description" xml:space="preserve"><value>启用模拟 CRT 屏幕的弯曲几何形状。</value></data>
+  <data name="EffectParam_CRT_CRT_Geom_radius_Description" xml:space="preserve"><value>设置弯曲屏幕模型的曲率半径。</value></data>
+  <data name="EffectParam_CRT_CRT_Geom_overScanX_Description" xml:space="preserve"><value>调整用于模拟屏幕边缘过扫描的水平缩放。</value></data>
+  <data name="EffectParam_CRT_CRT_Geom_overScanY_Description" xml:space="preserve"><value>调整用于模拟屏幕边缘过扫描的垂直缩放。</value></data>
+  <data name="EffectParam_CRT_CRT_Hyllian_scanlinesStrength_Description" xml:space="preserve"><value>调整发光扫描线与线间暗部的对比。</value></data>
+  <data name="EffectParam_CRT_CRT_Hyllian_crtAntiRinging_Description" xml:space="preserve"><value>限制重建滤波器在高对比边缘周围产生的光晕。</value></data>
+  <data name="EffectParam_CRT_CRT_Lottes_hardScan_Description" xml:space="preserve"><value>控制每条扫描线周围亮度沿垂直方向衰减的速度。</value></data>
+  <data name="EffectParam_CRT_CRT_Lottes_hardPix_Description" xml:space="preserve"><value>控制重建滤波器在水平方向混合相邻像素的范围。</value></data>
+  <data name="EffectParam_CRT_CRT_Lottes_warpX_Description" xml:space="preserve"><value>调整水平弯曲程度，上下边缘的变化更明显。</value></data>
+  <data name="EffectParam_CRT_CRT_Lottes_warpY_Description" xml:space="preserve"><value>调整垂直弯曲程度，左右边缘的变化更明显。</value></data>
+  <data name="EffectParam_CRT_CRT_Lottes_shadowMask_Description" xml:space="preserve"><value>选择模拟的荧光粉遮罩图案。</value></data>
+  <data name="EffectParam_CRT_CRT_Lottes_bloomAmount_Description" xml:space="preserve"><value>调整亮像素周围柔和光晕的叠加量。</value></data>
+  <data name="EffectParam_CRT_GTU_v050_compositeConnection_Description" xml:space="preserve"><value>模拟复合视频连接，可分别控制亮度与色度信号带宽。</value></data>
+  <data name="EffectParam_CRT_GTU_v050_signalResolution_Description" xml:space="preserve"><value>设置亮度信号的带宽，控制水平方向可保留的细节。</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_contrast_Description" xml:space="preserve"><value>围绕对比度中心拉伸或压缩明度。设为 1 保留原有对比度。</value></data>
+  <data name="EffectParam_OKLabImageAdjustment_tint_Description" xml:space="preserve"><value>调整白平衡在绿色与洋红之间的偏移。</value></data>
+  <data name="Rtss_Failure_ProtectedLaunch" xml:space="preserve"><value>请从安装目录手动启动 RTSS 或 MSI Afterburner，再重新检测。</value></data>
+  <data name="Rtss_Failure_UntrustedInstallation" xml:space="preserve"><value>无法验证 RTSS 或 MSI Afterburner 的安装来源。</value></data>
 </root>

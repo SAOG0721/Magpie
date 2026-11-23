@@ -42,8 +42,8 @@ public:
 		return _sharingEnabled ? _frontendSlots[slot].mutex.get() : nullptr;
 	}
 	ID3D11Texture2D* FrontendTexture(bool presented = false) const noexcept {
-		return presented ? (_presentedValid ? _presented.get() : nullptr)
-			: (_baseValid ? _base.get() : nullptr);
+		if (presented) return _presentedValid ? _presented.get() : nullptr;
+		return _baseValid ? (_baseIsPresented ? _presented.get() : _base.get()) : nullptr;
 	}
 	uint64_t PresentedCaptureFrameId() const noexcept { return _presentedFrameId; }
 	const HdrFrameMetadata& PresentedFrameMetadata() const noexcept {
@@ -102,6 +102,7 @@ private:
 	winrt::com_ptr<ID3D11Texture2D> _presented;
 	bool _baseValid = false;
 	bool _presentedValid = false;
+	bool _baseIsPresented = false;
 	uint64_t _baseFrameId = 0;
 	uint64_t _presentedFrameId = 0;
 	HdrFrameMetadata _baseMetadata{};

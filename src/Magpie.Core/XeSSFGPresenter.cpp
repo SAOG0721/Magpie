@@ -155,13 +155,20 @@ struct XeSSFGPresenter::Impl {
 };
 
 static bool WaitForFence(XeSSFGPresenter::Impl& impl, uint64_t value) noexcept {
-	if (!value || impl.fence12->GetCompletedValue() >= value) {
+	const uint64_t completed = impl.fence12->GetCompletedValue();
+	if (completed == UINT64_MAX) return false;
+	if (!value || completed >= value) {
 		return true;
 	}
-	if (FAILED(impl.fence12->SetEventOnCompletion(value, impl.fenceEvent.get()))) {
+	if (!impl.fenceEvent || !ResetEvent(impl.fenceEvent.get()) ||
+		FAILED(impl.fence12->SetEventOnCompletion(value, impl.fenceEvent.get()))) {
 		return false;
 	}
-	return WaitForSingleObject(impl.fenceEvent.get(), 3000) == WAIT_OBJECT_0;
+	// A prior timed-out registration may signal this reusable event first.
+	// Only the fence value certifies allocator/resource reuse or queue shutdown.
+	if (WaitForSingleObject(impl.fenceEvent.get(), 3000) != WAIT_OBJECT_0) return false;
+	const uint64_t finalValue = impl.fence12->GetCompletedValue();
+	return finalValue != UINT64_MAX && finalValue >= value;
 }
 
 static bool WaitForQueue(XeSSFGPresenter::Impl& impl) noexcept {
@@ -752,7 +759,8 @@ bool XeSSFGPresenter::SetBaseFrameRateLimit(double baseFPS) noexcept {
 		static_cast<uint32_t>(std::max(1.0, std::round(1'000'000.0 / outputFPS))) : 0;
 	if (intervalUs == impl.limiterIntervalUs && impl.limiterEnabled == !impl.idleGenerationSuspended) return true;
 	// Only configuration changes drain outstanding work, never every frame.
-	_WaitForGpu();
+	const HRESULT frontendWait = _WaitForGpu();
+	if (FAILED(frontendWait)) return impl.Fail("XeSSFG frame limit render fence failed", frontendWait);
 	if (!WaitForQueue(impl)) return false;
 	xell_sleep_params_t params{};
 	params.bLowLatencyMode = !impl.idleGenerationSuspended;
@@ -802,7 +810,8 @@ bool XeSSFGPresenter::_BeginFrame(winrt::com_ptr<ID3D11Texture2D>& frameTex,
 	if (idle) XeSSFGCompatibility::Pacing::outputProfiler.SetActive(false);
 	if (impl.frameGenerationEnabled && idle != impl.idleGenerationSuspended) {
 		// Toggle only on entering/leaving idle, never on every cached present.
-		_WaitForGpu();
+		const HRESULT frontendWait = _WaitForGpu();
+		if (FAILED(frontendWait)) return impl.Fail("XeSSFG idle transition render fence failed", frontendWait);
 		if (!WaitForQueue(impl)) return impl.Fail("XeSSFG idle transition queue timed out");
 		// XeLL must be enabled before enabling FG. When entering idle,
 		// disable FG first, then remove XeLL low-latency/limiter pacing.

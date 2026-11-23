@@ -591,6 +591,7 @@ void ScalingWindow::_BeginDestroy(HWND window) noexcept {
 	_pendingSourceTransition = 0;
 	_sourceStateCheckDeferred = false;
 	NvidiaForegroundCompatibility::Retire();
+	_ngxFaultedAtRetirementStart = NgxRuntimeGuard::IsFaulted();
 	// Only atomic cancellation/event wakeups precede the owner cut.
 	if (_cursorManager) _cursorManager->BeginShutdown();
 	if (_renderer) _renderer->BeginShutdown();
@@ -613,6 +614,8 @@ bool ScalingWindow::CompletePendingDestroy() noexcept {
 	// Keep the input owner alive if USER32 temporarily rejects verified clip
 	// restoration. Runtime retirement passes continue independently of rendering.
 	if (_cursorManager && !_cursorManager->ReleasePendingCursorReposition()) return false;
+	// Keep the backend's resources alive while its owning thread retires without blocking the window pump.
+	if (_renderer && !_renderer->CanFinishShutdown()) return false;
 	_finalizingRetirement = true;
 	_FinishDestroy();
 	_retirement.Complete();
@@ -1457,7 +1460,6 @@ void ScalingWindow::_FinishDestroy() noexcept {
 	Logger::Get().Info(fmt::format("Window retirement complete before blocking cleanup: output={:#x} run={}",
 		uintptr_t(_retirement.Window()), RunId()));
 	if (_renderer) _renderer->ReleaseParameterInput();
-	const bool ngxWasFaulted = NgxRuntimeGuard::IsFaulted();
 	Logger::Get().Info("缩放结束");
 	if (_renderer) {
 		_renderer->BeginShutdown();
@@ -1481,7 +1483,7 @@ void ScalingWindow::_FinishDestroy() noexcept {
 	_renderer.reset();
 	NvidiaForegroundCompatibility::FinishRetire();
 	Logger::Get().Info("Renderer 已析构");
-	if (!ngxWasFaulted && NgxRuntimeGuard::IsFaulted()) {
+	if (!_ngxFaultedAtRetirementStart && NgxRuntimeGuard::IsFaulted()) {
 		if (const auto report = _options.reportErrorDetails) {
 			report(_srcTracker.Handle(), ScalingError::NgxRestartRequired,
 				fmt::format("NGX teardown fault at {:#x}, thread={}; restart required",
@@ -1926,8 +1928,10 @@ bool ScalingWindow::_Show() noexcept {
 }
 
 void ScalingWindow::_ResizeRenderer() noexcept {
+	if (!_renderer || _renderer->IsStopping()) return;
 	if (!_renderer->OnResize()) {
 		Logger::Get().Error("更改 Renderer 尺寸失败");
+		_DelayedStop();
 		return;
 	}
 
@@ -1997,6 +2001,12 @@ bool ScalingWindow::_UpdateSrcState(
 		isSrcInvisibleOrMinimized, srcFocusedChanged, srcRectChanged, srcSizeChanged, srcMovingChanged)) {
 		_sourceStateChangeReason = "source tracker rejected window";
 		return false;
+	}
+
+	if (_srcTracker.IsPlacementChangeDeferred()) {
+		// Reuse the outer pump's bounded, non-spinning source-state retry path.
+		_sourceStateCheckDeferred = true;
+		return true;
 	}
 
 	if (isSrcInvisibleOrMinimized || srcSizeChanged || (!_options.IsWindowedMode() && srcRectChanged)) {

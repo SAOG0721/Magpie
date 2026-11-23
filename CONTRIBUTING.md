@@ -87,9 +87,7 @@ We are using Weblate for localization work. If you'd like to help translate Magp
 
 ### I'd like to contribute to the documentations 📖
 
-Because of the laziness of the developers, the documentation of Magpie is constantly missing or out of date. Contributions to documentation are more than welcome! The MagPie wiki is automatically published from the docs folder in the `main` branch, so editing the documentation follows the same procedures of contributing code.
-
-Please merge to the `main` branch if you are improving the documentations of existing features. Otherwise merge to the `dev` branch. All changes in the `dev` branch will be merged to the `main` branch when new versions are released, this will also trigger the wiki will to be updated as well.
+Submit documentation changes for Magpie Experimental to `experimental`. After reviewing the public pages, a maintainer can run **Publish wiki** from the default branch in GitHub Actions. The workflow copies tracked Markdown pages at the top level of `docs/`.
 
 ### I'd like to fund Magpie 💰
 

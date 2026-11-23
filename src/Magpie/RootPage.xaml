@@ -96,6 +96,13 @@
 								</MenuFlyoutItem.Icon>
 							</MenuFlyoutItem>
 							<MenuFlyoutSeparator />
+							<MenuFlyoutItem x:Uid="Profile_MoreOptions_ReorderFlyout_MoveUp"
+							                Click="{x:Bind MoveUp}"
+							                IsEnabled="{x:Bind CanMoveUp, Mode=OneWay}" />
+							<MenuFlyoutItem x:Uid="Profile_MoreOptions_ReorderFlyout_MoveDown"
+							                Click="{x:Bind MoveDown}"
+							                IsEnabled="{x:Bind CanMoveDown, Mode=OneWay}" />
+							<MenuFlyoutSeparator />
 							<MenuFlyoutItem x:Uid="Profile_MoreOptions_Rename"
 							                Click="ProfileRenameMenuItem_Click">
 								<MenuFlyoutItem.Icon>

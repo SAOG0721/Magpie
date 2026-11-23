@@ -50,6 +50,8 @@ public:
 	uint64_t ResourceGeneration() const noexcept { return _resourceGeneration; }
 	bool IsCaptureInterrupted() const noexcept { return _captureInterrupted; }
 	int64_t CaptureTimestamp100ns() const noexcept { return _captureTimestamp100ns; }
+	// Applies to the acquisition that just returned NewFrame.
+	bool CaptureQueued() const noexcept { return _captureQueued; }
 	const char* CaptureErrorContext() const noexcept { return _captureErrorContext; }
 	HRESULT CaptureErrorCode() const noexcept { return _captureErrorCode; }
 
@@ -101,6 +103,7 @@ protected:
 	uint64_t _captureSequence = 0;
 	bool _captureInterrupted = false;
 	int64_t _captureTimestamp100ns = 0;
+	bool _captureQueued = false;
 	const char* _captureErrorContext = "Capture frame update";
 	HRESULT _captureErrorCode = S_OK;
 

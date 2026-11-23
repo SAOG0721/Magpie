@@ -1,16 +1,13 @@
 # Magpie 实验分支文档索引
 
-## 0.6.12 发布候选 / Release candidate
+## 0.6.13 Beta 1 本机验证 / Local validation
 
-- [0.6.12 完整中英说明](../RELEASE_NOTES_v0.6.12-experimental.md)：汇总相对 0.6.11 保留的功能、使用方法和升级说明；本地准备完成后仍按发布流程审核，尚未公开发布。
 - [开发基线](DEVELOPMENT-BASELINE.md)与[下一版计划](../RELEASE_NOTES_NEXT.md)：后续开发、构建和当前公开版本入口。
 - [DLSSNR 功能与参数](effects/DLSSNR-MULTIPASS.md)、[帧率与刷新](../FRAME_SYNC_GUIDE.md)、[发布流程](RELEASE-WORKFLOW.md)。
 
-## 0.6.11 已公开版本 / Published release
+## 0.6.12 已公开版本 / Published release
 
-[Magpie Experimental v0.6.11](https://github.com/SAOG0721/Magpie/releases/tag/v0.6.11-experimental) 已于 2026-10-23 公开，保持 Pre-release，标签对应 `4fc74a19`。[完整中英更新说明](../RELEASE_NOTES_v0.6.11-experimental.md)汇总性能分析浮窗与双曲线、XeSS 输出间隔、DLSS 参数、SM86 0.4.0、默认社区 DLSSNR、暂停截图和时间戳命名。`version.json` 和公开下载入口已同步为 0.6.11。[发布准备历史 TODO](todos/20261023-xess-output-interval-release-TODO.md)保留当时的审核记录。
-
-[Version 0.6.11](https://github.com/SAOG0721/Magpie/releases/tag/v0.6.11-experimental) was published on 2026-10-23 as a Pre-release at `4fc74a19`. The update manifest and public download links now refer to this release. See its [bilingual notes](../RELEASE_NOTES_v0.6.11-experimental.md) for features and installation.
+[Magpie Experimental v0.6.12](https://github.com/SAOG0721/Magpie/releases/tag/v0.6.12-experimental) 的功能与升级方法见[完整中英更新说明](../RELEASE_NOTES_v0.6.12-experimental.md)。上一版的[说明](../RELEASE_NOTES_v0.6.11-experimental.md)和[发布准备记录](todos/20261023-xess-output-interval-release-TODO.md)保留在历史文档中。
 
 ## 维护规范
 

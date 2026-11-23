@@ -5,6 +5,7 @@
 #include "Logger.h"
 #include "ScalingWindow.h"
 #include "StrHelper.h"
+#include "Win32Helper.h"
 
 #ifdef MP_ENABLE_RTX_VIDEO_DENOISE
 
@@ -20,53 +21,39 @@ namespace Magpie {
 
 using NvVFXCudaStreamSynchronizeFn = NvCV_Status(NvVFX_API*)(CUstream);
 
-static std::wstring GetExecutableDirectory() noexcept {
-	wchar_t modulePath[MAX_PATH]{};
-	const DWORD moduleLength = GetModuleFileNameW(nullptr, modulePath, ARRAYSIZE(modulePath));
-	if (moduleLength == 0 || moduleLength >= ARRAYSIZE(modulePath)) {
-		return {};
-	}
-	std::wstring directory(modulePath, moduleLength);
-	const size_t separator = directory.find_last_of(L"\\/");
-	if (separator == std::wstring::npos) {
-		return {};
-	}
-	directory.resize(separator);
-	return directory;
-}
-
 static std::wstring GetModulePath(HMODULE module) noexcept {
-	wchar_t modulePath[MAX_PATH]{};
-	const DWORD moduleLength = GetModuleFileNameW(module, modulePath, ARRAYSIZE(modulePath));
-	return moduleLength == 0 || moduleLength >= ARRAYSIZE(modulePath)
-		? std::wstring{}
-		: std::wstring(modulePath, moduleLength);
+	if (!module) return {};
+	std::wstring path(32768, L'\0');
+	const DWORD length = GetModuleFileNameW(module, path.data(), static_cast<DWORD>(path.size()));
+	if (!length || length >= path.size()) return {};
+	path.resize(length);
+	return path;
 }
 
-static HMODULE LoadRuntimeModule(const std::wstring& directory, const wchar_t* name) noexcept {
-	const std::wstring expectedPath = directory + L"\\" + name;
+static HMODULE LoadRuntimeModule(const std::filesystem::path& directory, const wchar_t* name) noexcept {
+	const auto expectedPath = directory / name;
 	HMODULE module = GetModuleHandleW(name);
 	if (!module) {
 		SetLastError(ERROR_SUCCESS);
 		module = LoadLibraryExW(
 			expectedPath.c_str(), nullptr,
-			LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR | LOAD_LIBRARY_SEARCH_DEFAULT_DIRS | LOAD_LIBRARY_SEARCH_SYSTEM32);
+			LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR | LOAD_LIBRARY_SEARCH_SYSTEM32);
 	}
-	const std::wstring loadedPath = GetModulePath(module);
 	if (!module) {
 		const DWORD error = GetLastError();
 		Logger::Get().ComError(fmt::format(
-			"RTX Video LoadLibraryExW failed: {} path={}",
-			StrHelper::UTF16ToUTF8(expectedPath), error), HRESULT_FROM_WIN32(error));
+			"RTX Video LoadLibraryExW failed: {}", StrHelper::UTF16ToUTF8(expectedPath.native())),
+			HRESULT_FROM_WIN32(error));
 		return nullptr;
 	}
+	const std::wstring loadedPath = GetModulePath(module);
 	Logger::Get().Info(fmt::format(
 		"RTX Video runtime module: {} handle=0x{:X}",
 		StrHelper::UTF16ToUTF8(loadedPath), reinterpret_cast<uintptr_t>(module)));
 	if (_wcsicmp(loadedPath.c_str(), expectedPath.c_str()) != 0) {
 		Logger::Get().Error(fmt::format(
 			"RTX Video runtime module path mismatch: expected={}, loaded={}",
-			StrHelper::UTF16ToUTF8(expectedPath), StrHelper::UTF16ToUTF8(loadedPath)));
+			StrHelper::UTF16ToUTF8(expectedPath.native()), StrHelper::UTF16ToUTF8(loadedPath)));
 		return nullptr;
 	}
 	return module;
@@ -184,18 +171,20 @@ bool RTXVideoDenoiser::Initialize(
 		return false;
 	}
 
-	const std::wstring runtimeDirectory = GetExecutableDirectory();
+	const auto runtimeDirectory = Win32Helper::GetExePath().parent_path();
 	if (runtimeDirectory.empty()) {
 		Logger::Get().Error("RTX Video executable directory lookup failed");
 		return false;
 	}
-	SetDllDirectoryW(runtimeDirectory.c_str());
 	Logger::Get().Info(fmt::format(
 		"RTX Video runtime directory: {}",
-		StrHelper::UTF16ToUTF8(runtimeDirectory)));
-	// Keep the shared initialization order explicit: CUDA driver, NGX runtime,
-	// image ABI, effect ABI, then the VideoSuperRes implementation.
-	SetEnvironmentVariableW(L"NV_VIDEO_EFFECTS_PATH", L"USE_APP_PATH");
+		StrHelper::UTF16ToUTF8(runtimeDirectory.native())));
+	// The SDK proxies load by name. USE_APP_PATH suppresses their global
+	// directory change, and these absolute-path loads supply their modules.
+	if (!SetEnvironmentVariableW(L"NV_VIDEO_EFFECTS_PATH", L"USE_APP_PATH")) {
+		Logger::Get().Win32Error("Set RTX Video SDK application-path mode failed");
+		return false;
+	}
 	HMODULE cudaModule = LoadSystemModule(L"nvcuda.dll");
 	HMODULE ngxModule = LoadRuntimeModule(runtimeDirectory, L"nvngxruntime.dll");
 	HMODULE cvModule = LoadRuntimeModule(runtimeDirectory, L"NVCVImage.dll");
@@ -205,6 +194,10 @@ bool RTXVideoDenoiser::Initialize(
 		Logger::Get().Error("RTX Video runtime dependency initialization failed");
 		return false;
 	}
+	// Newer packages include the feature payload as a separate DLL. Older
+	// legacy SDK layouts keep their own NGX feature discovery.
+	if (Win32Helper::FileExists((runtimeDirectory / L"nvngx_vsr.dll").c_str()) &&
+		!LoadRuntimeModule(runtimeDirectory, L"nvngx_vsr.dll")) return false;
 	LogExport(cvModule, "NvCVImage_Alloc");
 	LogExport(vfxModule, "NvVFX_CreateEffect");
 	LogExport(vfxModule, "NvVFX_GetVersion");

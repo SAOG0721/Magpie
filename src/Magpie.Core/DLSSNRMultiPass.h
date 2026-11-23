@@ -24,6 +24,9 @@ public:
 		_outputContentVersion = _lastFilterContentVersion = 0;
 		_forceOutputVersion = true;
 		_lastPublishedAt = 0;
+		_outputAdmissionTime = 0;
+		_publicationMs = -1;
+		_lastObservation = 0;
 		_libraryInfo.clear();
 		if (!Drain()) return false;
 		_filter.reset();
@@ -73,7 +76,7 @@ public:
 		}
 		auto filter = std::make_unique<DLSSNRFilter>();
 		if (!filter->InitializeChain(resources, core, input,
-			antiFlicker ? _rawOutput.get() : output, settings)) {
+			antiFlicker ? _rawOutput.get() : output, settings, _adaptiveEnabled)) {
 			_failure = filter->GetDlssNrFailure();
 			_libraryInfo = filter->LibraryInfo();
 			return false;
@@ -84,9 +87,13 @@ public:
 		if (antiFlicker) {
 			_failure.operation = "Initialize DLSSNR anti-flicker resources";
 			_temporal = std::make_unique<DLSSNRTemporal>();
+			const auto& primary = settings.front();
+			const bool recoverNvidiaHistory = !hdr && primary.processingMode == DLSSNRProcessingMode::Alternating &&
+				primary.motionRequest.method == OpticalFlowMethod::Nvidia;
 			if (!_temporal->Initialize(resources, input, input,
 				_rawOutput.get(), output, antiFlicker, hdr,
-				NormalizeDLSSNRAntiFlickerTimeMs(Value("antiFlickerTimeMs", DLSSNR_ANTI_FLICKER_TIME_DEFAULT_MS)))) return false;
+				NormalizeDLSSNRAntiFlickerTimeMs(Value("antiFlickerTimeMs", DLSSNR_ANTI_FLICKER_TIME_DEFAULT_MS)),
+				recoverNvidiaHistory)) return false;
 		}
 		ConfigureDetail();
 		if (_adaptiveEnabled) {
@@ -137,7 +144,7 @@ public:
 		NativeEffectDrawContext chain = context;
 		if (_resolutionChanged) {
 			Logger::Get().Info(fmt::format("DLSSNR adaptive first capture: prepareMs={:.3f} captureGapMs={:.3f}",
-				_switchPrepareMs, (double(context.frameGuidance.motion.metadata.timestamp100ns)/1e7-_switchCaptureTime)*1000));
+				_switchPrepareMs, (CaptureTime(context)-_switchCaptureTime)*1000));
 			// Changed features start clean; an unchanged branch keeps its own
 			// history. The enhancement pool uses a distinct generation after commit.
 			_resolutionChanged = false;
@@ -172,7 +179,10 @@ public:
 		if (success && _processing) {
 			_failure = {};
 			if (_adaptiveEnabled) _visibleResolution = _adaptive.Active();
-			if (targetContext.isNewCaptureFrame) _outputCaptureFrame = targetContext.frameId;
+			if (targetContext.isNewCaptureFrame) {
+				_outputCaptureFrame = targetContext.frameId;
+				_outputAdmissionTime = targetContext.captureAdmissionTime100ns;
+			}
 			CommitOutputVersion();
 			UpdateResolution(context, chain.output);
 		}
@@ -204,6 +214,7 @@ public:
 		const double now = Now();
 		if (_outputCaptureFrame && _outputCaptureFrame != _deliveredCaptureFrame) {
 			++_contentDelivered; _deliveredCaptureFrame = _outputCaptureFrame;
+			_publicationMs = _outputAdmissionTime > 0 ? std::max(0., (now-double(_outputAdmissionTime)/1e7)*1000) : -1;
 			const double intervalMs = _lastPublishedAt ? (now-_lastPublishedAt)*1000 : 0;
 			if (_contentDelivered <= 8 || _contentDelivered%120 == 0 || _resolutionProposed ||
 				(_adaptive.Target() > 0 && intervalMs > 2000./_adaptive.Target()))
@@ -216,11 +227,8 @@ public:
 			_filter->ServiceAfterOutput();
 			return;
 		}
-		const auto active = _adaptive.Active();
-		const bool upgrading = _proposedResolution.full > active.full;
-		if (upgrading && !_filter->HasHotResolution(_proposedResolution.full)) {
-			// Readiness can change between Draw's proposal and publication. An
-			// upgrade never turns this cache miss into a cold Create on the owner.
+		if (_adaptive.RequiresHotResolution() && !_filter->HasHotResolution(_proposedResolution.full)) {
+			// A cache miss on a probe or recovery must not create a feature on the owner.
 			_adaptive.Reject(Now()); _resolutionProposed = false;
 			_filter->ServiceAfterOutput();
 			return;
@@ -298,31 +306,45 @@ private:
 	static double Now() noexcept {
 		return std::chrono::duration<double>(std::chrono::steady_clock::now().time_since_epoch()).count();
 	}
+	static double CaptureTime(const NativeEffectDrawContext& context) noexcept {
+		const auto timestamp = context.frameGuidance.motion.metadata.timestamp100ns;
+		// Some capture methods provide only the renderer's accepted-frame clock.
+		return timestamp > 0 ? double(timestamp)/1e7 : double(context.captureAdmissionTime100ns)/1e7;
+	}
 	void UpdateResolution(const NativeEffectDrawContext& context, ID3D11Texture2D* output) noexcept {
 		if (!_adaptiveEnabled || !_resources || !_core || _resolutionProposed ||
 			!_filter->CanPrepareResolution() || !context.isNewCaptureFrame) return;
 		const auto telemetry = _filter->GetPerformanceSnapshot();
 		const double now = Now();
-		const auto mode = DLSSNRMode([&](std::string_view name, float fallback) { return Value(name, fallback); });
-		DLSSNRAdaptiveResolution::Resolution hot;
+		const auto parameter = [&](std::string_view name, float fallback) { return Value(name, fallback); };
+		const auto mode = DLSSNRMode(parameter);
+		DLSSNRAdaptiveResolution::Resolution hot, recovery;
 		const bool hotReady = _filter->GetHotResolution(hot.full);
+		const bool recoveryReady = _filter->GetRecoveryResolution(recovery.full);
+		const double previousTarget = _adaptive.Target();
+		const double captureTime = CaptureTime(context);
 		const auto next = _adaptive.Observe({
 			.now = now,
-			.captureTime = double(context.frameGuidance.motion.metadata.timestamp100ns)/1e7,
+			.captureTime = captureTime,
 			.explicitTarget = context.targetContentFrameRate,
+			.captureLimit = context.contentFrameRateLimit,
 			.foregroundGpuMs = telemetry.foregroundGpuMs,
 			.fixedGpuMs = context.guidanceGpuMs,
 			.fullTurnaroundMs = telemetry.fullTurnaroundMs,
 			.enhancementCoverage = telemetry.enhancementCoverage,
-			.gpuSamples = telemetry.foregroundGpuSamples,
+			.gpuSamples = telemetry.foregroundGpuSampleId,
 			.completed = telemetry.fullCompleted,
 			.late = telemetry.fullLate,
 			.published = telemetry.fullPublished,
 			.contentDelivered = _contentDelivered,
+			.publicationMs = _publicationMs,
 			.newCapture = true,
 			.reset = context.inputHistoryReset || context.frameGuidance.requiresHistoryReset,
 			.asynchronous = mode == DLSSNRProcessingMode::Pipeline,
 			.fixedGpuKnown = Value("opticalFlowMethod") == 0 || context.guidanceGpuSample != 0,
+			.captureQueued = context.captureQueued,
+			.fullInference = telemetry.foregroundGpuFullInference,
+			.updateInterval = mode == DLSSNRProcessingMode::Alternating ? DLSSNRSparseUpdateInterval(parameter) : 1,
 			.fullGpuMs = telemetry.fullGpuMs,
 			.fullReadyMs = telemetry.fullReadyMs,
 			.fullAdoptionMs = telemetry.fullAdoptionMs,
@@ -332,18 +354,34 @@ private:
 			.fullAdopted = telemetry.fullAdopted,
 			.coverageSamples = telemetry.coverageSamples,
 			.hasHotResolution = hotReady,
-			.hotResolution = hot
+			.hasRecoveryResolution = recoveryReady,
+			.hotResolution = hot,
+			.recoveryResolution = recovery
 		});
+		if (_adaptive.Target() != previousTarget) {
+			Logger::Get().Info(fmt::format("DLSSNR adaptive target: targetFps={:.3f} source={}",
+				_adaptive.Target(), context.targetContentFrameRate > 0 ? "configured" : "capture"));
+		}
+		const auto& observation = _adaptive.LastObservation();
+		if (observation.sequence != _lastObservation) {
+			_lastObservation = observation.sequence;
+			Logger::Get().Info(fmt::format(
+				"DLSSNR adaptive observation: full={} sourceFps={:.2f} deliveredFps={:.2f} gpuMs={:.3f} scalableMs={:.3f} budgetMs={:.3f} gpuShare={:.3f} queued={:.3f} late={:.3f} publishP90Ms={:.3f} reason={}",
+				_adaptive.Active().full, observation.sourceFps, observation.deliveredFps, observation.gpuMs,
+				observation.scaledMs, observation.budgetMs, observation.gpuShare, observation.queuedFraction, observation.lateFraction,
+				observation.publicationP90,
+				DLSSNRAdaptiveResolution::ReasonName(_adaptive.LastReason())));
+		}
 		if (next == _adaptive.Active()) return;
 		Logger::Get().Info(fmt::format("DLSSNR adaptive proposal: full={}->{} reason={} hot={}",
 			_adaptive.Active().full, next.full,
-			DLSSNRAdaptiveResolution::ReasonName(_adaptive.LastReason()), hotReady && hot == next));
+			DLSSNRAdaptiveResolution::ReasonName(_adaptive.LastReason()), (hotReady && hot == next) || (recoveryReady && recovery == next)));
 		// Default source-sized motion is shared by every NR resolution. Resource
 		// preparation starts only after Renderer publishes this completed output.
 		_proposedResolution = next;
 		_resolutionProposed = true;
 		_prepareInput = context.input; _prepareOutput = output;
-		_switchCaptureTime = double(context.frameGuidance.motion.metadata.timestamp100ns)/1e7;
+		_switchCaptureTime = captureTime;
 	}
 	DlssNrFailure _failure;
 	std::string _libraryInfo;
@@ -386,6 +424,9 @@ private:
 	ID3D11Texture2D* _prepareInput = nullptr;
 	ID3D11Texture2D* _prepareOutput = nullptr;
 	uint64_t _contentDelivered = 0, _outputCaptureFrame = 0, _deliveredCaptureFrame = 0;
+	int64_t _outputAdmissionTime = 0;
+	uint64_t _lastObservation = 0;
+	double _publicationMs = -1;
 	double _lastPublishedAt = 0;
 	double _switchPrepareMs = 0, _switchCaptureTime = 0;
 };

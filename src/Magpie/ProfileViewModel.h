@@ -60,6 +60,10 @@ struct ProfileViewModel : ProfileViewModelT<ProfileViewModel>,
 	void RenameButton_Click();
 
 	bool CanDrag() const noexcept;
+	bool CanMoveUp() const noexcept;
+	bool CanMoveDown() const noexcept;
+	void MoveUp();
+	void MoveDown();
 
 	void Delete();
 

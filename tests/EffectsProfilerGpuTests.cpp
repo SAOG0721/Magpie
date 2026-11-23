@@ -1,5 +1,6 @@
 #include "pch.h"
 #include "EffectsProfiler.h"
+#include "FrameTrace.h"
 #include <cassert>
 #include <cstdio>
 #include <thread>
@@ -24,6 +25,9 @@ static void Run(D3D_DRIVER_TYPE type) {
     assert(profiler.IsProfiling() && profiler.GetSnapshot().gpuAvailable);
     bool measured=false;
     for(int i=0;i<20;++i){
+        const auto previousSampleTime = profiler.GetSnapshot().sampleTime;
+        bool completed = false;
+        FrameTrace::SetFrame(100 + i);
         profiler.OnFrame(device.get(),1,1, i%2==0);
         profiler.OnBeginEffects(context.get());
         float color[]{float(i)/20.0f,0.2f,0.3f,1};
@@ -31,18 +35,23 @@ static void Run(D3D_DRIVER_TYPE type) {
         profiler.OnEndPass(context.get());
         profiler.OnEndPass(context.get(),false);
         profiler.OnEndEffects(context.get());
+        // Completing a query under another current frame must retain its
+        // original submission identity in the exported GPU sample.
+        FrameTrace::SetFrame(9000 + i);
         context->Flush(); // Normal work submission, never done by the profiler.
         for(int retry=0;retry<100;++retry){
             profiler.Poll(context.get());
             auto snapshot=profiler.GetSnapshot();
-            if(!snapshot.passTimings.empty()){
+            if(!snapshot.passTimings.empty() && snapshot.sampleTime > previousSampleTime){
                 assert(snapshot.passTimings.size()==2 && snapshot.passTimings[1]==0);
                 assert(snapshot.passTimings[0]>=0);
                 measured=true;
+                completed=true;
                 break;
             }
             std::this_thread::sleep_for(1ms);
         }
+        assert(completed); // Every fixture submission must finish before queries are reset.
     }
     assert(measured);
     std::this_thread::sleep_for(110ms); profiler.Poll(context.get());
@@ -86,8 +95,12 @@ static void Run(D3D_DRIVER_TYPE type) {
 }
 
 int main() try {
+#ifdef MP_ENABLE_FRAME_TRACE
+    assert(FrameTrace::Start());
+#endif
     Run(D3D_DRIVER_TYPE_WARP);
     Run(D3D_DRIVER_TYPE_HARDWARE);
+    FrameTrace::Stop();
 } catch(const winrt::hresult_error& error) {
     std::fprintf(stderr,"GPU profiler test HRESULT: %08x\n",unsigned(error.code().value));
     return 1;

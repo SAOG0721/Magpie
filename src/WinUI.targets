@@ -7,6 +7,8 @@
       <WinUIWinmdPath Required="true" />
       <ObjDir Required="true" />
       <Platform Required="true" />
+      <WindowsSdkRoot Required="true" />
+      <WindowsSdkVersion Required="true" />
       <WinUIDllPath Output="true" />
       <WinUIPriPath Output="true" />
       <IsWinUIPrerelease ParameterType="System.Boolean" Output="true" />
@@ -28,6 +30,7 @@ if (!WinUIWinmdPath.EndsWith(WinUIWinmdSuffix)) {
 string winuiPkgDir = WinUIWinmdPath.Substring(0, WinUIWinmdPath.Length - WinUIWinmdSuffix.Length);
 string winuiPkgId = winuiPkgDir.Substring(winuiPkgDir.LastIndexOf('\\') + 1);
 IsWinUIPrerelease = winuiPkgId.Contains("prerelease");
+string extractionVersion = winuiPkgId + "|" + WindowsSdkVersion;
 
 string intDir = $"{ObjDir}\\{Platform}\\WinUI\\";
 
@@ -47,7 +50,7 @@ bool needExtract() {
     }
     
     using (StreamReader reader = new("version.txt")) {
-       if (reader.ReadToEnd() != winuiPkgId) {
+       if (reader.ReadToEnd() != extractionVersion) {
            return true;
        }
     }
@@ -64,6 +67,7 @@ bool needExtract() {
 if (!needExtract()) {
     return true;
 }
+File.Delete("version.txt");
 
 if (IsWinUIPrerelease) {
     // 预发行版直接复制 dll 和 pri
@@ -78,10 +82,6 @@ if (IsWinUIPrerelease) {
     }
 }
 
-using (StreamWriter writer = new("version.txt")) {
-    writer.Write(winuiPkgId);
-}
-
 ///////////////////////////////////////////////////////////////////
 //
 // 修剪 resources.pri
@@ -89,18 +89,10 @@ using (StreamWriter writer = new("version.txt")) {
 //
 ///////////////////////////////////////////////////////////////////
     
-// 获取最新的 Windows SDK 目录
-string programFilesX86Path = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86);
-string windowsSdkDir = Directory.GetDirectories(Path.Combine(programFilesX86Path, "Windows Kits\\10\\bin"))
-    .OrderByDescending(dir => dir)
-    .FirstOrDefault(dir => dir.Contains("10."));
-if (windowsSdkDir == null) {
-    throw new Exception("未找到 Windows SDK");
-}
-
-string makepriPath = Path.Combine(windowsSdkDir, "x64\\makepri.exe");
+// 使用当前项目选定的 Windows SDK。
+string makepriPath = Path.Combine(WindowsSdkRoot, "bin", WindowsSdkVersion, "x64", "makepri.exe");
 if (!File.Exists(makepriPath)) {
-    throw new Exception("未找到 makepri");
+    throw new Exception("未在选定的 Windows SDK 中找到 makepri: " + makepriPath);
 }
 
 void RunProcess(string fileName, string arguments, string errorMsg) {
@@ -179,6 +171,7 @@ RunProcess(makepriPath, "new /pr . /of Microsoft.UI.Xaml.pri /cf " + configFileN
 // 删除临时文件
 File.Delete(dumpFileName);
 File.Delete(configFileName);
+File.WriteAllText("version.txt", extractionVersion);
       ]]></Code>
     </Task>
   </UsingTask>
@@ -207,7 +200,9 @@ File.Delete(configFileName);
       <_WinUIObjRoot>$(SolutionDir)\obj</_WinUIObjRoot>
       <_WinUIObjRoot Condition="'$(MagpieIntermediateRoot)' != ''">$(MagpieIntermediateRoot)</_WinUIObjRoot>
     </PropertyGroup>
-    <ExtractWinUIRuntime Condition="'@(_WinUIWinmdReference)' != ''" WinUIWinmdPath="@(_WinUIWinmdReference)" ObjDir="$(_WinUIObjRoot)" Platform="$(Platform)">
+    <ExtractWinUIRuntime Condition="'@(_WinUIWinmdReference)' != ''" WinUIWinmdPath="@(_WinUIWinmdReference)"
+                         ObjDir="$(_WinUIObjRoot)" Platform="$(Platform)"
+                         WindowsSdkRoot="$(WindowsSdkDir)" WindowsSdkVersion="$(WindowsTargetPlatformVersion)">
       <Output TaskParameter="WinUIDllPath" PropertyName="WinUIDllPath" />
       <Output TaskParameter="WinUIPriPath" PropertyName="WinUIPriPath" />
       <Output TaskParameter="IsWinUIPrerelease" PropertyName="IsWinUIPrerelease" />

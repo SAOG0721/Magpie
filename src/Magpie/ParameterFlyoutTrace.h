@@ -1,5 +1,6 @@
 #pragma once
 #include "Logger.h"
+#include "Win32Helper.h"
 #include <atomic>
 
 namespace Magpie {
@@ -26,7 +27,7 @@ inline void TraceParameterFlyout(const char* event, uintptr_t object, int64_t a 
 inline void TraceParameterFlyoutWindow(const char* event, HWND window, WPARAM wParam, LPARAM lParam) {
 	if (!IsParameterFlyoutTraceEnabled()) return;
 	TraceParameterFlyout(event, uintptr_t(window), int64_t(wParam), int64_t(lParam));
-	const HWND foreground = GetForegroundWindow();
+	const HWND foreground = Win32Helper::GetRealForegroundWindow();
 	DWORD process = 0;
 	GetWindowThreadProcessId(foreground, &process);
 	TraceParameterFlyout("host.foreground", uintptr_t(foreground), process, intptr_t(GetWindow(foreground, GW_OWNER)));

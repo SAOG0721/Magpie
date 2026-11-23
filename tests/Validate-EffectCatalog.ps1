@@ -1,4 +1,6 @@
 #Requires -Version 7.0
+param([switch]$CatalogOnly)
+
 $ErrorActionPreference = 'Stop'
 $repoRoot = Split-Path $PSScriptRoot -Parent
 & (Join-Path $repoRoot 'scripts/Generate-EffectCatalog.ps1') -Check
@@ -27,8 +29,11 @@ foreach ($entry in $review.effects) {
     if ($hashes) {
         $paths = @($hashes.PSObject.Properties.Name)
         if (!$paths.Count -or @(Compare-Object @($entry.review.runtimeEvidence) $paths).Count) { throw "Incomplete backend evidence: $($entry.id)" }
-        foreach ($path in $paths) {
-            if ((Get-CanonicalHash (Join-Path $repoRoot $path)) -ine $hashes.$path) { throw "Backend changed since description review: $($entry.id) / $path" }
+        # Catalog checks can run independently of the dated native source audit.
+        if (!$CatalogOnly) {
+            foreach ($path in $paths) {
+                if ((Get-CanonicalHash (Join-Path $repoRoot $path)) -ine $hashes.$path) { throw "Backend changed since description review: $($entry.id) / $path" }
+            }
         }
     }
     foreach ($language in @('zh-Hans', 'en-US')) {

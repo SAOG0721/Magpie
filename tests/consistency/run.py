@@ -23,6 +23,7 @@ import re
 import sys
 import xml.etree.ElementTree as ET
 from pathlib import Path
+from urllib.parse import unquote
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -42,24 +43,32 @@ def read_text(p: Path) -> str:
     return p.read_text(encoding='utf-8', errors='replace')
 
 
-# R1: version.json must not equal a version that RELEASE_NOTES_NEXT still
-# marks as a draft ("草稿"/"尚未发布"). The next version is taken from the
-# RELEASE_NOTES_v*-experimental.md reference in NEXT.
-def r1_next_doc_stale(f: Findings) -> None:
+# R1: the download entry points agree with the public release manifest.
+def r1_public_release(f: Findings) -> None:
     vj = json.loads(read_text(ROOT / 'version.json'))
-    nxt = read_text(ROOT / 'docs' / 'RELEASE_NOTES_NEXT.md')
-    m = re.search(r'RELEASE_NOTES_v([0-9.]+)-experimental\.md', nxt)
-    if not m:
-        f.add('R1', 'WARN', 'RELEASE_NOTES_NEXT.md 中找不到 RELEASE_NOTES_v*-experimental.md 引用')
+    version, tag = vj['version'], vj['tag']
+    release = f'https://github.com/SAOG0721/Magpie/releases/tag/{tag}'
+    if not re.fullmatch(r'\d+\.\d+\.\d+', version) or not re.fullmatch(
+        rf'v{re.escape(version)}(?:-[A-Za-z0-9.-]+)?', tag
+    ) or vj['releasePage'] != release:
+        f.add('R1', 'FAIL', 'version.json 的公开版本、标签或链接不一致')
         return
-    declared = 'v' + m.group(1)
-    is_draft = any(k in nxt for k in ('草稿', '尚未发布', '未发布', 'draft'))
-    if declared == vj['tag'] and is_draft:
-        f.add('R1', 'WARN',
-              f'NEXT 文档仍把已发布的 {declared} 标为草稿(version.json.tag 已指向它)——'
-              '按发布记录维护规范应更新 NEXT 文档(作者例行簿记,非 PR 代劳项)')
-    else:
-        f.add('R1', 'INFO', f"version.json={vj['tag']}; NEXT 指向下一版本={declared}")
+
+    for name, label in (('README.md', 'Current release:'), ('README_ZH.md', '当前版本：')):
+        text = read_text(ROOT / name)
+        header = re.search(rf'^\*\*{re.escape(label)}[^\n]+', text, re.MULTILINE)
+        if not header or f']({release})' not in header.group():
+            f.add('R1', 'FAIL', f'{name} 的当前下载链接应指向 {tag}')
+
+    notes = read_text(ROOT / 'docs' / 'RELEASE_NOTES_NEXT.md')
+    regions = re.split(r'^## 当前公开版本 / Current public release\s*$', notes, maxsplit=1, flags=re.MULTILINE)
+    if len(regions) != 2 or f']({release})' not in regions[1]:
+        f.add('R1', 'FAIL', f'RELEASE_NOTES_NEXT.md 的当前公开版本应指向 {tag}')
+    next_section = regions[0]
+    references_public_notes = f'(RELEASE_NOTES_{tag}.md)' in next_section
+    if references_public_notes and re.search('草稿|未发布|尚未公开|not (?:been )?(?:uploaded|published)|draft', next_section, re.I):
+        f.add('R1', 'FAIL', f'RELEASE_NOTES_NEXT.md 仍将公开版本 {tag} 列为待发布版本')
+    f.add('R1', 'INFO', f'公开版本清单：{tag}')
 
 
 # R2: main experimental release notes are bilingual. Accepted conventions:
@@ -101,6 +110,11 @@ _R3_MIGRATED = {
     'nrPreset', 'guidanceMode', 'depthInferenceInterval',  # DLSSNR 旧键(删除/迁移)
     'enableJitter',                           # SR 标记变体合并
 }
+# Startup and import both migrate these names in XeSSFGParameters.h.
+_R3_EFFECT_ALIASES = {
+    'XeSSFG/XeSS_FrameGeneration_x2_ZeroMV': 'XeSSFG/XeSS_FrameGeneration',
+    'XeSSFG/XeSS_MultiFrameGeneration_ZeroMV': 'XeSSFG/XeSS_FrameGeneration',
+}
 
 
 def r3_presets(f: Findings) -> None:
@@ -109,10 +123,13 @@ def r3_presets(f: Findings) -> None:
         for mode in data.get('scalingModes', []):
             for eff in mode.get('effects', []):
                 name = eff['name'].replace('\\', '/')
-                cand = ROOT / 'src' / 'Effects' / (name + '.hlsl')
+                canonical = _R3_EFFECT_ALIASES.get(name, name)
+                cand = ROOT / 'src' / 'Effects' / (canonical + '.hlsl')
                 if not cand.is_file():
-                    f.add('R3', 'FAIL', f'{p.name}: 效果不存在 src/Effects/{name}.hlsl')
+                    f.add('R3', 'FAIL', f'{p.name}: 效果不存在 src/Effects/{canonical}.hlsl')
                     continue
+                if canonical != name:
+                    f.add('R3', 'WARN', f'{p.name}: 旧效果 {name} 由运行时迁移到 {canonical}')
                 declared = _effect_params(cand)
                 for key in (eff.get('parameters') or {}):
                     if key in declared:
@@ -185,12 +202,12 @@ def r6_resource_usage(f: Findings) -> None:
     names = [d.attrib['name'] for d in tree.getroot().iter('data')]
 
     def stem_of(name: str) -> str:
-        # XAML Uid conventions: "<Uid>.<Property>", or
-        # "<Uid>.[using:...]ToolTipService.ToolTip" (attached property).
-        i = name.find('.[using:')
-        if i > 0:
-            return name[:i]
-        return name.rsplit('.', 1)[0] if '.' in name else name
+        # RESW contains dotted XAML property identifiers and PRI-style paths.
+        uid, *attached = re.split(r'[./]\[using:', name, maxsplit=1)
+        if attached:
+            return uid
+        separator = max(name.rfind('.'), name.rfind('/'))
+        return name if separator < 0 else name[:separator]
 
     stems = {stem_of(n) for n in names}
     corpus = ''
@@ -207,22 +224,24 @@ def r6_resource_usage(f: Findings) -> None:
             f.add('R6', 'FAIL', f'XAML 引用了 en-US 中不存在的键:{u}')
 
 
-# R7: relative links in docs/** must resolve. Dated review records
-# (docs/**/reviews/) may point at files that later refactors renamed, so a
-# missing target there is WARN, not FAIL; living docs stay FAIL. Web links and
-# absolute local paths (C:/...) are outside the repo-relative contract.
+# R7: links within the checkout must resolve. Historical reviews and links
+# into the surrounding workspace can refer to archived evidence.
 def r7_doc_links(f: Findings) -> None:
     link_re = re.compile(r'\[[^\]]*\]\(<([^>]+)>\)|\[[^\]]*\]\(([^)\s]+)\)')
     for p in sorted((ROOT / 'docs').rglob('*.md')):
         is_review = '/reviews/' in p.as_posix()
         for m in link_re.finditer(read_text(p)):
-            target = (m.group(1) or m.group(2)).split('#', 1)[0]
-            if re.match(r'[a-z]+://', target) or re.match(r'^[A-Za-z]:[/\\]', target):
+            target = unquote((m.group(1) or m.group(2)).split('#', 1)[0])
+            if re.match(r'^[a-z][a-z0-9+.-]*://|^/?[a-z]:[/\\]|^(//|\\\\)', target, re.I):
                 continue
-            if not (p.parent / target).exists():
-                level = 'WARN' if is_review else 'FAIL'
-                f.add('R7', level, f'{p.relative_to(ROOT)}: 死链 {target}'
-                      + ('(历史评审记录,目标文件可能已被重构)' if is_review else ''))
+            destination = (p.parent / target).resolve()
+            if not destination.exists():
+                if not destination.is_relative_to(ROOT):
+                    f.add('R7', 'WARN', f'{p.relative_to(ROOT)}: 工作区证据不可用 {target}')
+                else:
+                    level = 'WARN' if is_review else 'FAIL'
+                    f.add('R7', level, f'{p.relative_to(ROOT)}: 死链 {target}'
+                          + ('(历史评审记录,目标文件可能已被重构)' if is_review else ''))
 
 
 # R8: files referenced by CI workflow must exist.
@@ -242,7 +261,7 @@ def r9_release_layout(f: Findings) -> None:
 
 
 RULES = [
-    ('R1', r1_next_doc_stale),
+    ('R1', r1_public_release),
     ('R2', r2_release_notes_bilingual),
     ('R3', r3_presets),
     ('R4', r4_resw),
