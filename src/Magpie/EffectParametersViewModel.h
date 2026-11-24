@@ -200,23 +200,38 @@ struct ScalingModeParameter : ScalingModeParameterT<ScalingModeParameter>,
 	void EditableValue(hstring const& value);
 	hstring InputError() const noexcept { return _inputError; }
 	bool HasInputError() const noexcept { return !_inputError.empty(); }
-	double SliderMinimum() const noexcept { return IsPreciseInput() ? 0 : _minimum; }
-	double SliderMaximum() const noexcept {
-		return IsPreciseInput() ? double(::Magpie::GetEffectParameterInteractionTicks(*_descriptor).size() - 1) : _maximum;
+	double SliderMinimum() const noexcept {
+		// Keep every discrete slider on a 0-based tick range so XAML x:Bind
+		// initialization (Maximum -> Minimum -> Value) never triggers RangeBase
+		// coercion from default Value=0 back into TwoWay SliderValue when MIN>0 or MAX<0.
+		return _UseSliderTicks() ? 0.0 : _minimum;
 	}
-	double SliderStep() const noexcept { return IsPreciseInput() ? 1 : _step; }
-	double SliderValue() const noexcept {
-		if (!IsPreciseInput()) return _value;
+	double SliderMaximum() const noexcept {
 		int tick = 0, maximum = 0;
-		::Magpie::GetEffectParameterTicks(*_descriptor, float(_value), tick, maximum);
-		return tick;
+		if (_descriptor && ::Magpie::GetEffectParameterTicks(*_descriptor, float(_value), tick, maximum)) {
+			return double(maximum);
+		}
+		return _maximum;
+	}
+	double SliderStep() const noexcept { return _UseSliderTicks() ? 1.0 : _step; }
+	double SliderValue() const noexcept {
+		int tick = 0, maximum = 0;
+		if (_descriptor && ::Magpie::GetEffectParameterTicks(*_descriptor, float(_value), tick, maximum)) {
+			return double(tick);
+		}
+		return _value;
 	}
 	void SliderValue(double value) {
 		if (!IsFloat() || !_isEnabled || !std::isfinite(value)) return;
-		if (!IsPreciseInput()) { Value(value); return; }
-		// Binding initialization must not quantize an existing non-grid value.
-		if (value == SliderValue()) return;
-		Value(::Magpie::GetEffectParameterValueFromTick(*_descriptor, int(std::lround(value)), int(SliderMaximum())));
+		int tick = 0, maximum = 0;
+		if (_descriptor && ::Magpie::GetEffectParameterTicks(*_descriptor, float(_value), tick, maximum)) {
+			// Binding initialization must not quantize an existing non-grid value.
+			const int targetTick = int(std::lround(value));
+			if (targetTick == tick) return;
+			Value(::Magpie::GetEffectParameterValueFromTick(*_descriptor, targetTick, maximum));
+			return;
+		}
+		Value(value);
 	}
 	void StepValue(bool up, bool coarse = false) {
 		if (IsPreciseInput()) Value(::Magpie::StepEffectParameter(*_descriptor, float(_value), up, coarse));
@@ -292,6 +307,11 @@ struct ScalingModeParameter : ScalingModeParameterT<ScalingModeParameter>,
 	}
 
 private:
+	bool _UseSliderTicks() const noexcept {
+		int tick = 0, maximum = 0;
+		return _descriptor && ::Magpie::GetEffectParameterTicks(*_descriptor, float(_value), tick, maximum);
+	}
+
 	const uint32_t _index;
 	const hstring _label;
 	hstring _tooltip;

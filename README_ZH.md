@@ -17,7 +17,7 @@
 
 <br>
 
-**当前版本：[⬇ 下载 v0.6.13](https://github.com/SAOG0721/Magpie/releases/tag/v0.6.13-experimental)**
+**当前版本：[⬇ 下载 v0.6.14](https://github.com/SAOG0721/Magpie/releases/tag/v0.6.14-experimental)**
 &nbsp;·&nbsp;
 [**🌍 English**](./README.md)
 &nbsp;·&nbsp;
@@ -42,14 +42,12 @@
 > [!NOTE]
 > 本项目**不代表** Magpie 官方发布。实验分支相关的使用问题与兼容性反馈请提交到[本仓库 Issues](https://github.com/SAOG0721/Magpie/issues)。
 
-## 最新更新 · v0.6.13
+## 最新更新 · v0.6.14
 
-- **DLSSNR 自适应分辨率**结合源端供帧和 GPU 负载减少误降档，试档收益不足时自动回退。
-- **SDR 同步隔帧**改进 NVIDIA 光流路径的亮度与细节衔接，低输入比例下更明显。
-- **原生效果器**改进 FSR 和 XeSS 的 GPU 同步与恢复，修复 DLSSNR 和 NVIDIA VFX VSR 的内联着色器编译。
-- **档案与设置**支持用键盘调整档案顺序，补齐繁中效果目录，改进配置恢复、自启任务权限和 RTSS 安装校验。
+- **效果组参数滑动条修复（v0.6.13 热修复）**：修复效果组参数弹窗中 DLSS FG / XeSS FG / NVIDIA VFX VFG 补帧倍率及其他 `MIN > 0` / `MAX < 0` 滑动条在重新打开弹窗时被钳位重置回边界值的问题。
+- **包含 v0.6.13 全部更新**：DLSSNR 自适应分辨率与 SDR NVIDIA 光流同步隔帧改进、FSR/XeSS GPU 同步与恢复、内联效果参数修复、侧栏档案排序与繁体中文效果目录等。
 
-👉 [查看 v0.6.13 完整更新说明（中／英）](docs/RELEASE_NOTES_v0.6.13-experimental.md)
+👉 [查看 v0.6.14 完整更新说明（中／英）](docs/RELEASE_NOTES_v0.6.14-experimental.md)
 
 ## 主要功能
 

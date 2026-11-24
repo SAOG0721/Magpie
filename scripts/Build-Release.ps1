@@ -23,6 +23,21 @@ Set-StrictMode -Version Latest
 
 $sourceRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot ".."))
 
+function Get-RelativePathCompat([string]$BaseDir, [string]$TargetPath) {
+    $baseFull = [System.IO.Path]::GetFullPath($BaseDir).TrimEnd('\', '/') + [System.IO.Path]::DirectorySeparatorChar
+    $targetFull = [System.IO.Path]::GetFullPath($TargetPath)
+    $baseUri = New-Object System.Uri($baseFull)
+    $targetUri = New-Object System.Uri($targetFull)
+    return [System.Uri]::UnescapeDataString($baseUri.MakeRelativeUri($targetUri).ToString())
+}
+
+function Get-FullPathCompat([string]$PathValue, [string]$BaseDir) {
+    if ([System.IO.Path]::IsPathRooted($PathValue)) {
+        return [System.IO.Path]::GetFullPath($PathValue)
+    }
+    return [System.IO.Path]::GetFullPath((Join-Path $BaseDir $PathValue))
+}
+
 $featureOptions = [ordered]@{}
 $buildOptionsPath = Join-Path $sourceRoot "src\BuildOptions.props"
 [xml]$buildOptions = Get-Content -LiteralPath $buildOptionsPath
@@ -55,7 +70,7 @@ if (Test-Path -LiteralPath $userOptionsPath) {
 }
 if ($dlssnrRuntimeDirectory) {
     $dlssnrRuntimeDirectory = $dlssnrRuntimeDirectory.Replace('$(MSBuildThisFileDirectory)', (Join-Path $sourceRoot 'src/'))
-    $dlssnrRuntimeDirectory = [IO.Path]::GetFullPath($dlssnrRuntimeDirectory, (Join-Path $sourceRoot 'src'))
+    $dlssnrRuntimeDirectory = Get-FullPathCompat $dlssnrRuntimeDirectory (Join-Path $sourceRoot 'src')
 }
 # Match the compatibility defaults as well as explicit user overrides.
 if (!$featureOptions.Contains("EnableDLSSSR") -and
@@ -257,7 +272,7 @@ if ($featureOptions['EnableNvidiaVfx'] -eq 'true') {
 
 function Get-StagedPayload {
     Get-ChildItem -LiteralPath $stagingDir -File -Recurse | Where-Object {
-        $relative = [IO.Path]::GetRelativePath($stagingDir, $_.FullName).Replace('\', '/')
+        $relative = (Get-RelativePathCompat $stagingDir $_.FullName).Replace('\', '/')
         ($relative.Split('/')[0] -notin $runtimeStateNames) -and $relative -ne 'build-manifest.json'
     } | Sort-Object FullName
 }
@@ -288,7 +303,7 @@ if ($SkipBuild) {
         throw 'Existing package files do not match the manifest. Rebuild from this checkout.'
     }
     foreach ($file in $stagedFiles) {
-        $relative = [IO.Path]::GetRelativePath($stagingDir, $file.FullName).Replace('\', '/')
+        $relative = (Get-RelativePathCompat $stagingDir $file.FullName).Replace('\', '/')
         $record = $expectedFiles[$relative]
         if (!$record -or $file.Length -ne $record['bytes'] -or
             (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash -ne $record['sha256']) {
@@ -500,7 +515,7 @@ if (!(Test-Path -LiteralPath $versionNotes)) {
 if ($PrepareRelease -and (Test-Path -LiteralPath $versionNotes)) {
     Copy-Item -LiteralPath $versionNotes -Destination (Join-Path $stagingDir "RELEASE-NOTES.md")
     $releaseNotesSource = [ordered]@{
-        repositoryPath = [IO.Path]::GetRelativePath($sourceRoot, $versionNotes).Replace('\', '/')
+        repositoryPath = (Get-RelativePathCompat $sourceRoot $versionNotes).Replace('\', '/')
         commit = $commit
     }
 }
@@ -545,7 +560,7 @@ if ($featureOptions["EnableFrameTrace"] -eq "true") {
 }
 
 $fileRecords = Get-StagedPayload | ForEach-Object {
-    $relativePath = [IO.Path]::GetRelativePath($stagingDir, $_.FullName).Replace('\', '/')
+    $relativePath = (Get-RelativePathCompat $stagingDir $_.FullName).Replace('\', '/')
     [ordered]@{
         path = $relativePath
         bytes = $_.Length
@@ -581,8 +596,8 @@ if (!$PrepareRelease) {
     # Move obsolete release assets out of the active version instead of leaving
     # an old ZIP/note beside a newer executable. Nothing is regenerated here.
     $oldAssets = @($zipPath, (Join-Path $stagingDir 'RELEASE-NOTES.md')) + @(
-        'RELEASE_BODY.md', 'RELEASE-REVIEW.md', 'SHA256SUMS.txt', 'PACKAGE-AUDIT.json', 'DLSSNR-DLL-Options.zip'
-    | ForEach-Object { Join-Path $releaseContainer $_ })
+        'RELEASE_BODY.md', 'RELEASE-REVIEW.md', 'SHA256SUMS.txt', 'PACKAGE-AUDIT.json', 'DLSSNR-DLL-Options.zip' |
+        ForEach-Object { Join-Path $releaseContainer $_ })
     foreach ($asset in $oldAssets) {
         if (Test-Path -LiteralPath $asset -PathType Leaf) {
             $archiveDirectory = Join-Path $backupDirectory 'release-materials'

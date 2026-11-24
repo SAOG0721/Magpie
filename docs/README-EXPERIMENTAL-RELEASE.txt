@@ -1,4 +1,4 @@
-Magpie Experimental v0.6.13 x64
+Magpie Experimental v0.6.14 x64
 
 安装或升级
 备份设置并从托盘完全退出旧版 Magpie，将完整 Magpie-Experimental-x64.zip 解压到新目录，再运行 Magpie.exe。

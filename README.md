@@ -17,7 +17,7 @@
 
 <br>
 
-**Current release: [⬇ Download v0.6.13](https://github.com/SAOG0721/Magpie/releases/tag/v0.6.13-experimental)**
+**Current release: [⬇ Download v0.6.14](https://github.com/SAOG0721/Magpie/releases/tag/v0.6.14-experimental)**
 &nbsp;·&nbsp;
 [**🇨🇳 简体中文**](./README_ZH.md)
 &nbsp;·&nbsp;
@@ -42,14 +42,12 @@
 > [!NOTE]
 > This is **not** an official Magpie release. Please report experimental-fork issues and discussions in [this repository](https://github.com/SAOG0721/Magpie/issues).
 
-## Latest Update · v0.6.13
+## Latest Update · v0.6.14
 
-- **DLSSNR adaptive resolution.** Uses source delivery and GPU load to avoid unnecessary downshifts and rolls back trials that yield too little benefit.
-- **SDR alternating frames.** NVIDIA Optical Flow improves brightness and detail consistency between full inference and reused frames, especially at lower input scales.
-- **Native effects.** Improves GPU synchronization and recovery for FSR and XeSS, and fixes inline shader compilation for DLSSNR and NVIDIA VFX VSR.
-- **Profiles and settings.** Adds keyboard-accessible profile reordering and expands the Traditional Chinese effect catalog. Improves configuration recovery, auto-start task permissions, and RTSS installation checks.
+- **Effect parameter slider fix (hotfix for v0.6.13).** Fixes a XAML slider initialization coercion bug in scaling-mode parameter flyouts where Frame Generation multipliers (DLSS FG / XeSS FG / NVIDIA VFX VFG) and other sliders with `MIN > 0` or `MAX < 0` reset back to their boundary value when reopening the flyout.
+- **Includes all v0.6.13 updates**: DLSSNR adaptive resolution and SDR NVOF alternating frames improvements, FSR/XeSS GPU sync and recovery, inline effect parameter fix, sidebar profile reordering, and Traditional Chinese effect catalog.
 
-👉 [Read the full v0.6.13 release notes (EN / 中文)](docs/RELEASE_NOTES_v0.6.13-experimental.md)
+👉 [Read the full v0.6.14 release notes (EN / 中文)](docs/RELEASE_NOTES_v0.6.14-experimental.md)
 
 ## Main Features
 
