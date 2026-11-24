@@ -27,9 +27,7 @@ public:
 			return;
 		}
 
-		// XAML Islands 的独立窗口化轻退浮层（ShouldConstrainToRootBounds=False）在内部控件
-		// （如 Slider / Canvas）捕获指针并拖到浮窗外释放后，可能丢失轻退同步；同时点击自定义标题栏
-		// 也不会经过 XAML Island。这里在点击落到主窗口宿主时兜底关闭这类轻退浮窗。
+		// 点击自定义标题栏或非客户区不会经过 XAML Island，这里兜底关闭窗口化轻退浮层。
 		if (_content && _hwndXamlIsland &&
 			(msg.message == WM_LBUTTONDOWN || msg.message == WM_RBUTTONDOWN ||
 			 msg.message == WM_MBUTTONDOWN || msg.message == WM_XBUTTONDOWN ||

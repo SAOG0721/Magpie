@@ -1,4 +1,5 @@
 #include "pch.h"
+#include <winrt/Windows.Devices.Input.h>
 #include "EffectParametersViewModel.h"
 #include "EffectChoiceItems.h"
 #include "OKLabParameters.h"
@@ -134,7 +135,10 @@ void EffectParametersViewModel::OKCurvePressed(IInspectable const& sender,Input:
 }
 void EffectParametersViewModel::OKCurveMoved(IInspectable const& sender,Input::PointerRoutedEventArgs const& args) {
     if(_okDragPoint<0 || !OKCurveVisible())return;
-    auto canvas=sender.as<Controls::Canvas>();auto point=args.GetCurrentPoint(canvas).Position();
+    auto canvas=sender.as<Controls::Canvas>();auto current=args.GetCurrentPoint(canvas);
+    if(current.PointerDevice().PointerDeviceType()==Windows::Devices::Input::PointerDeviceType::Mouse &&
+       !current.Properties().IsLeftButtonPressed()){OKCurveReleased(sender,args);return;}
+    auto point=current.Position();
     auto values=_OKSnapshot();const auto prefix="curve"+std::to_string(_okCurve);
     auto get=[&](std::string name)->float&{return values[OKLab::Find(name)-OKLab::Parameters];};
     const auto points=OKCurvePoints();
@@ -178,7 +182,10 @@ void EffectParametersViewModel::OKWheelPressed(IInspectable const& sender,Input:
 }
 void EffectParametersViewModel::OKWheelMoved(IInspectable const& sender,Input::PointerRoutedEventArgs const& args){
     if(!_okWheelDragging||!OKWheelVisible())return;
-    const auto point=args.GetCurrentPoint(sender.as<Controls::Canvas>()).Position();auto values=_OKSnapshot();
+    const auto current=args.GetCurrentPoint(sender.as<Controls::Canvas>());
+    if(current.PointerDevice().PointerDeviceType()==Windows::Devices::Input::PointerDeviceType::Mouse &&
+       !current.Properties().IsLeftButtonPressed()){OKWheelReleased(sender,args);return;}
+    const auto point=current.Position();auto values=_OKSnapshot();
     const auto prefix="wheel"+std::to_string(_okWheel);
     const auto hueIndex=OKLab::Find(prefix+"Hue")-OKLab::Parameters,chromaIndex=OKLab::Find(prefix+"Chroma")-OKLab::Parameters;
     const auto selected=OKLab::WheelValue((point.X-80)/80,(80-point.Y)/80,values[hueIndex]);

@@ -110,8 +110,14 @@ private:
 	IInspectable _parameterSliderCanceled{ nullptr };
 	IInspectable _parameterSliderCaptureLost{ nullptr };
 	std::unordered_set<uintptr_t> _parameterSliders;
+	std::unordered_set<uintptr_t> _parameterFlyoutContents;
+	IInspectable _flyoutContentPressed{ nullptr };
 	weak_ref<Slider> _resetHeldSlider;
+	weak_ref<Slider> _draggingSlider;
+	DispatcherQueueTimer _sliderDragWatchTimer{ nullptr };
 	bool _capturingResetPointer = false;
+	void _StartFlyoutPointerWatch(Slider const& slider = nullptr);
+	void _CancelActiveSliderDrag();
 
 	struct ReorderPreviewItem {
 		uint32_t index = 0;

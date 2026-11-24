@@ -186,6 +186,9 @@ void ScalingModesPage::ParameterSlider_Unloaded(IInspectable const& sender, Rout
 	}
 	_parameterResetGesture.Clear();
 	_resetHeldSlider = {};
+	if (_draggingSlider.get() == slider) {
+		_draggingSlider = {};
+	}
 }
 
 void ScalingModesPage::ParameterSlider_LostFocus(IInspectable const&, RoutedEventArgs const&) {
@@ -243,11 +246,63 @@ void ScalingModesPage::ParameterSlider_ValueChanged(
 	}
 }
 
+void ScalingModesPage::_StartFlyoutPointerWatch(Slider const& slider) {
+	if (slider) {
+		_draggingSlider = slider;
+	}
+	if (!_sliderDragWatchTimer) {
+		_sliderDragWatchTimer = App::Get().Dispatcher().CreateTimer();
+		_sliderDragWatchTimer.Interval(std::chrono::milliseconds(16));
+		_sliderDragWatchTimer.IsRepeating(true);
+		_sliderDragWatchTimer.Tick([weak = get_weak()](auto const& timer, auto const&) {
+			const int primaryVk = GetSystemMetrics(SM_SWAPBUTTON) ? VK_RBUTTON : VK_LBUTTON;
+			if ((GetAsyncKeyState(primaryVk) & 0x8000) != 0) {
+				return;
+			}
+			timer.Stop();
+			if (const auto self = weak.get()) {
+				self->_CancelActiveSliderDrag();
+			}
+		});
+	}
+	if (!_sliderDragWatchTimer.IsRunning()) {
+		_sliderDragWatchTimer.Start();
+	}
+}
+
+void ScalingModesPage::_CancelActiveSliderDrag() {
+	if (_sliderDragWatchTimer && _sliderDragWatchTimer.IsRunning()) {
+		_sliderDragWatchTimer.Stop();
+	}
+	const auto slider = _draggingSlider.get();
+	_draggingSlider = {};
+	if (XamlRoot()) {
+		XamlHelper::CancelStaleSliderDrags(XamlRoot());
+	}
+	if (slider) {
+		if (const auto parameter = slider.DataContext().try_as<Magpie::ScalingModeParameter>()) {
+			auto impl = get_self<ScalingModeParameter>(parameter);
+			if (impl->IsEnabled()) {
+				// WinUI Slider stores an internal m_isPressed flag on SliderContainer that
+				// can remain set if button-up occurs outside a windowed Popup without an
+				// active PointerCapture. Toggling IsEnabled via the bound ViewModel resets
+				// Slider::m_isPressed synchronously without disturbing the x:Bind binding.
+				impl->IsEnabled(false);
+				impl->IsEnabled(true);
+			}
+		}
+	}
+}
+
 void ScalingModesPage::_ParameterSlider_Pressed(
 	IInspectable const& sender, PointerRoutedEventArgs const& args) {
 	const auto slider = sender.as<Slider>();
 	const auto point = args.GetCurrentPoint(slider);
 	const auto parameter = slider.DataContext().try_as<Magpie::ScalingModeParameter>();
+	if (point.PointerDevice().PointerDeviceType() == Windows::Devices::Input::PointerDeviceType::Mouse &&
+		point.Properties().IsLeftButtonPressed() && slider.IsEnabled()) {
+		_StartFlyoutPointerWatch(slider);
+	}
 	if (point.PointerDevice().PointerDeviceType() != Windows::Devices::Input::PointerDeviceType::Mouse ||
 		!point.Properties().IsLeftButtonPressed() || (GetKeyState(VK_CONTROL) & 0x8000) ||
 		!slider.IsEnabled() || !parameter || !parameter.IsFloat() || !parameter.IsVisible()) {
@@ -270,15 +325,29 @@ void ScalingModesPage::_ParameterSlider_Pressed(
 
 void ScalingModesPage::_ParameterSlider_Moved(
 	IInspectable const& sender, PointerRoutedEventArgs const& args) {
-	const auto point = args.GetCurrentPoint(sender.as<Slider>());
+	const auto slider = sender.as<Slider>();
+	const auto point = args.GetCurrentPoint(slider);
+	if (_draggingSlider.get() == slider &&
+		point.PointerDevice().PointerDeviceType() == Windows::Devices::Input::PointerDeviceType::Mouse &&
+		!point.Properties().IsLeftButtonPressed()) {
+		_CancelActiveSliderDrag();
+		args.Handled(true);
+		return;
+	}
 	_parameterResetGesture.Move(point.Position().X, point.Position().Y, 4.0f);
-	if (_resetHeldSlider.get() == sender.try_as<Slider>()) args.Handled(true);
+	if (_resetHeldSlider.get() == slider) args.Handled(true);
 }
 
 void ScalingModesPage::_ParameterSlider_Released(
 	IInspectable const& sender, PointerRoutedEventArgs const& args) {
 	const auto slider = sender.as<Slider>();
 	const auto point = args.GetCurrentPoint(slider);
+	if (_draggingSlider.get() == slider) {
+		_draggingSlider = {};
+		if (_sliderDragWatchTimer && _sliderDragWatchTimer.IsRunning()) {
+			_sliderDragWatchTimer.Stop();
+		}
+	}
 	_parameterResetGesture.Move(point.Position().X, point.Position().Y, 4.0f);
 	_parameterResetGesture.Release();
 	if (_resetHeldSlider.get() == slider) {
@@ -321,6 +390,20 @@ void ScalingModesPage::EffectParametersFlyout_Opening(
 	if (!content.ContentTemplate()) {
 		content.ContentTemplate(Resources().Lookup(box_value(L"EffectParametersFlyout")).as<DataTemplate>());
 	}
+	if (_parameterFlyoutContents.insert(reinterpret_cast<uintptr_t>(get_abi(content))).second) {
+		if (!_flyoutContentPressed) {
+			_flyoutContentPressed = box_value(PointerEventHandler{ [weak = get_weak()](IInspectable const& s, PointerRoutedEventArgs const& a) {
+				const auto self = weak.get();
+				if (!self) return;
+				const auto pt = a.GetCurrentPoint(s.try_as<UIElement>());
+				if (pt.PointerDevice().PointerDeviceType() == Windows::Devices::Input::PointerDeviceType::Mouse &&
+					pt.Properties().IsLeftButtonPressed()) {
+					self->_StartFlyoutPointerWatch();
+				}
+			} });
+		}
+		content.AddHandler(UIElement::PointerPressedEvent(), _flyoutContentPressed, true);
+	}
 
 	const auto anchor = flyout.Target();
 	TraceParameterFlyout("parent.context", uintptr_t(get_abi(flyout)),
@@ -357,9 +440,13 @@ void ScalingModesPage::EffectParametersFlyout_Closing(IInspectable const& sender
 
 void ScalingModesPage::EffectParametersFlyout_Closed(IInspectable const& sender, IInspectable const&) {
 	TraceParameterFlyout("parent.Closed", uintptr_t(get_abi(sender)));
+	_CancelActiveSliderDrag();
 	// Keep the model (including edits, presets and undo), but do not reuse an
 	// unloaded selector tree whose cached selection can write back on reattach.
 	if (const auto content = sender.as<Flyout>().Content().try_as<ContentControl>()) {
+		if (_parameterFlyoutContents.erase(reinterpret_cast<uintptr_t>(get_abi(content))) && _flyoutContentPressed) {
+			content.RemoveHandler(UIElement::PointerPressedEvent(), _flyoutContentPressed);
+		}
 		content.ContentTemplate(nullptr);
 	}
 }

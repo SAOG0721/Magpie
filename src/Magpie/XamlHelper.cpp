@@ -49,6 +49,20 @@ void XamlHelper::CloseComboBoxPopup(const XamlRoot& root) {
 	}
 }
 
+bool XamlHelper::IsInsideOpenWindowedPopup(const XamlRoot& root, const DependencyObject& target) {
+	if (!root || !target) {
+		return false;
+	}
+	for (const Popup& popup : VisualTreeHelper::GetOpenPopupsForXamlRoot(root)) {
+		if (!popup.ShouldConstrainToRootBounds()) {
+			if (const UIElement child = popup.Child(); child && (child == target || ContainsControl(child, target))) {
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
 bool XamlHelper::CloseLightDismissWindowedPopups(const XamlRoot& root) {
 	if (!root) {
 		return false;
@@ -62,6 +76,44 @@ bool XamlHelper::CloseLightDismissWindowedPopups(const XamlRoot& root) {
 		}
 	}
 	return closed;
+}
+
+void XamlHelper::CancelStaleSliderDrags(const XamlRoot& root) {
+	if (!root) {
+		return;
+	}
+	for (const Popup& popup : VisualTreeHelper::GetOpenPopupsForXamlRoot(root)) {
+		if (popup.ShouldConstrainToRootBounds()) {
+			continue;
+		}
+		UIElement child = popup.Child();
+		if (!child) {
+			continue;
+		}
+		SmallVector<DependencyObject> elems{ std::move(child) };
+		do {
+			SmallVector<DependencyObject> temp;
+			for (const DependencyObject& elem : elems) {
+				if (const auto thumb = elem.try_as<Thumb>()) {
+					if (thumb.IsDragging()) {
+						thumb.CancelDrag();
+					}
+				}
+				// WinUI Slider captures the pointer on its internal SliderContainer Grid,
+				// not on Slider or Thumb directly. Release captures on every UIElement.
+				if (const auto uiElem = elem.try_as<UIElement>()) {
+					if (auto captures = uiElem.PointerCaptures(); captures && captures.Size() > 0) {
+						uiElem.ReleasePointerCaptures();
+					}
+				}
+				const int count = VisualTreeHelper::GetChildrenCount(elem);
+				for (int i = 0; i < count; ++i) {
+					temp.emplace_back(VisualTreeHelper::GetChild(elem, i));
+				}
+			}
+			elems = std::move(temp);
+		} while (!elems.empty());
+	}
 }
 
 void XamlHelper::ClosePopups(const XamlRoot& root) {

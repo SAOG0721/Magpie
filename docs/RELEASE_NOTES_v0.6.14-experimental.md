@@ -10,8 +10,8 @@
   - 在效果组中配置 **DLSS Frame Generation**（倍率 **2–4x**）、**XeSS Frame Generation**（倍率 **2–4x**）、**NVIDIA VFX VFG**（倍率 **2–8x**）等效果器时，此前重新打开参数弹窗会触发 XAML `Slider` 初始化钳位回写，导致已保存的倍率（如 3x / 4x / 8x）被立即重置回最小值（2x）并覆盖配置。
   - 同时修复了其他同类非精确输入滑条（`MIN > 0` 或 `MAX < 0`，如部分 CRT、Anime4K、xBR、MLAA、DLSSNR 参数）在打开参数弹窗时被钳位到边界值的问题。
   - 全部离散步进滑条现统一映射到 0 基刻度空间，重开弹窗保持已保存数值。
-- **修复参数浮窗拖出窗外后不再自动收回的问题**：
-  - 修复在效果参数浮窗（以及效果选择器等窗口化浮层）内拖动滑条或 OKLab 曲线／色轮并把指针移出浮窗外松手后，再次点击喜鹊主界面或标题栏时浮窗无法自动收回的问题；切出到其他应用窗口时也会正确收回。
+- **修复参数浮窗拖出窗外松手后滑条粘连及浮窗不收回的问题**：
+  - 修复在效果参数浮窗（以及效果选择器等窗口化浮层）内拖动滑条或 OKLab 曲线／色轮并把指针移出浮窗外松手后，移回浮窗时滑条／画布继续跟随光标拖动，以及再次点击喜鹊主界面或标题栏时浮窗无法自动收回的问题；切出到其他应用窗口时也会正确收回。
 - **前端异步回调安全性修复**：
   - 修复“新建档案”候选窗口异步解析名称时回调持有裸指针的潜在崩溃风险。
   - 修复 OKLab 导入 `.cube` LUT 返回主线程时未先校验效果组／效果索引有效性的越界风险。
@@ -47,8 +47,8 @@ This bugfix release for v0.6.13 fixes scaling-mode parameter slider resets and w
   - When configuring **DLSS Frame Generation** (multiplier **2–4x**), **XeSS Frame Generation** (multiplier **2–4x**), or **NVIDIA VFX VFG** (multiplier **2–8x**) in a scaling mode, reopening the parameter flyout previously triggered XAML `Slider` range coercion writeback, immediately resetting saved multipliers (such as 3x, 4x, or 8x) back to the minimum (2x) and overwriting saved settings.
   - Also fixes the same coercion reset for other non-precise sliders with `MIN > 0` or `MAX < 0` (such as certain CRT, Anime4K, xBR, MLAA, and DLSSNR parameters).
   - All discrete-step parameter sliders now map uniformly onto a 0-based tick range, preserving saved values across flyout reopens.
-- **Fixed parameter flyout failing to dismiss after dragging outside its bounds**:
-  - Fixed a XAML Islands windowed-popup light-dismiss desync where dragging a slider (or OKLab curve/wheel) past the flyout edge and releasing prevented subsequent clicks on the main Magpie window or title bar from dismissing the flyout. Switching to another application now also dismisses open windowed flyouts cleanly.
+- **Fixed stuck slider drags and parameter flyout light-dismiss after dragging outside its bounds**:
+  - Fixed a XAML Islands windowed-popup desync where dragging a slider (or OKLab curve/wheel) past the flyout edge and releasing left the slider/canvas stuck following the cursor upon re-entry and prevented subsequent clicks on the main Magpie window or title bar from dismissing the flyout. Switching to another application now also dismisses open windowed flyouts cleanly.
 - **Frontend async lifetime and bounds safety**:
   - Fixed a potential use-after-free when resolving candidate window names asynchronously in the New Profile flyout.
   - Added removed-state and index bounds checks after resuming on the UI thread in OKLab `.cube` LUT import.

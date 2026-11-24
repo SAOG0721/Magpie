@@ -90,6 +90,30 @@ void RootPage::InitializeComponent() {
 		// 用于占位
 		navMenuItems.InsertAt(navMenuItems.Size() - 1, item);
 	}
+
+	// XAML Islands 的 CoreInput 走独立 InputSink，不一定在主消息循环产生 WM_LBUTTONDOWN。
+	// 当窗口化轻退浮窗因拖出边界松手而丢失轻退状态时，在 RootPage 收到指针按下时兜底关闭，
+	// 并释放被点中控件的指针捕获以避免同一下点击误触底层按钮。
+	AddHandler(
+		UIElement::PointerPressedEvent(),
+		box_value(PointerEventHandler{ [weak = get_weak()](IInspectable const&, PointerRoutedEventArgs const& args) {
+			const auto self = weak.get();
+			if (!self || !self->XamlRoot()) return;
+			const DependencyObject source = args.OriginalSource().try_as<DependencyObject>();
+			if (XamlHelper::IsInsideOpenWindowedPopup(self->XamlRoot(), source)) return;
+			if (XamlHelper::CloseLightDismissWindowedPopups(self->XamlRoot())) {
+				for (DependencyObject cur = source; cur; cur = VisualTreeHelper::GetParent(cur)) {
+					if (const auto ui = cur.try_as<UIElement>()) {
+						if (auto captures = ui.PointerCaptures(); captures && captures.Size() > 0) {
+							ui.ReleasePointerCaptures();
+						}
+					}
+				}
+				args.Handled(true);
+			}
+		} }),
+		true
+	);
 }
 
 static void SkipToggleSwitchAnimations(const DependencyObject& elem) {

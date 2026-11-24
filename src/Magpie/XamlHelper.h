@@ -5,7 +5,11 @@ namespace Magpie {
 struct XamlHelper {
 	static void CloseComboBoxPopup(const winrt::XamlRoot& root);
 
+	static bool IsInsideOpenWindowedPopup(const winrt::XamlRoot& root, const winrt::DependencyObject& target);
+
 	static bool CloseLightDismissWindowedPopups(const winrt::XamlRoot& root);
+
+	static void CancelStaleSliderDrags(const winrt::XamlRoot& root);
 
 	static void ClosePopups(const winrt::XamlRoot& root);
 
