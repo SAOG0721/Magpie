@@ -97,7 +97,9 @@ static POINT ScalingToSrc(POINT pt, RoundMethod roundType = RoundMethod::Round) 
 }
 
 CursorManager::CursorManager() :
-	_lifetime(std::make_shared<ScalingSessionLifetime>(ScalingWindow::RunId())) {}
+	_lifetime(std::make_shared<ScalingSessionLifetime>(ScalingWindow::RunId())),
+	_avoidChromiumOcclusion(ScalingWindow::Get().AvoidChromiumOcclusion()),
+	_layeredAlpha(_avoidChromiumOcclusion ? 254 : 255) {}
 
 CursorManager::~CursorManager() noexcept {
 	BeginShutdown();
@@ -787,8 +789,7 @@ void CursorManager::_UpdateCursorState() noexcept {
 
 			// 缩放窗口始终透明
 			HWND hwndScaling = ScalingWindow::Get().Handle();
-			SetWindowLong(hwndScaling, GWL_EXSTYLE,
-				GetWindowExStyle(hwndScaling) | WS_EX_TRANSPARENT);
+			_SetScalingWindowTransparent(hwndScaling, GetWindowExStyle(hwndScaling), true);
 		}
 
 		// 开启“在 3D 游戏中限制光标”则每帧都限制一次光标
@@ -913,28 +914,16 @@ void CursorManager::_UpdateCursorState() noexcept {
 			}
 
 			if (stopCapture) {
-				if (style & WS_EX_TRANSPARENT) {
-					SetWindowLong(hwndScaling, GWL_EXSTYLE, style & ~WS_EX_TRANSPARENT);
-				}
+				_SetScalingWindowTransparent(hwndScaling, style, false);
 
 				// 源窗口被遮挡或者光标位于叠加层上，这时虽然停止捕获光标，但依然将光标隐藏
 				_StopCapture(cursorPos);
 			} else {
-				if (_isOnOverlay) {
-					if (style & WS_EX_TRANSPARENT) {
-						SetWindowLong(hwndScaling, GWL_EXSTYLE, style & ~WS_EX_TRANSPARENT);
-					}
-				} else {
-					if (!(style & WS_EX_TRANSPARENT)) {
-						SetWindowLong(hwndScaling, GWL_EXSTYLE, style | WS_EX_TRANSPARENT);
-					}
-				}
+				_SetScalingWindowTransparent(hwndScaling, style, !_isOnOverlay);
 			}
 		} else {
 			// 缩放窗口被遮挡
-			if (style & WS_EX_TRANSPARENT) {
-				SetWindowLong(hwndScaling, GWL_EXSTYLE, style & ~WS_EX_TRANSPARENT);
-			}
+			_SetScalingWindowTransparent(hwndScaling, style, false);
 
 			if (!_StopCapture(cursorPos)) {
 				_shouldDrawCursor = true;
@@ -987,15 +976,11 @@ void CursorManager::_UpdateCursorState() noexcept {
 				}
 
 				if (startCapture) {
-					if (!(style & WS_EX_TRANSPARENT)) {
-						SetWindowLong(hwndScaling, GWL_EXSTYLE, style | WS_EX_TRANSPARENT);
-					}
+					_SetScalingWindowTransparent(hwndScaling, style, true);
 					
 					_StartCapture(cursorPos);
 				} else {
-					if (style & WS_EX_TRANSPARENT) {
-						SetWindowLong(hwndScaling, GWL_EXSTYLE, style & ~WS_EX_TRANSPARENT);
-					}
+					_SetScalingWindowTransparent(hwndScaling, style, false);
 				}
 			} else if (skipLetterboxing) {
 				// 跳过黑边
@@ -1026,27 +1011,21 @@ void CursorManager::_UpdateCursorState() noexcept {
 					};
 
 					if (WindowFromPoint(hwndScaling, rendererRect, clampedPos, false) == hwndScaling) {
-						if (!(style & WS_EX_TRANSPARENT)) {
-							SetWindowLong(hwndScaling, GWL_EXSTYLE, style | WS_EX_TRANSPARENT);
-						}
+						_SetScalingWindowTransparent(hwndScaling, style, true);
 
 						_StartCapture(cursorPos);
 					} else {
 						// 要跳跃的位置被遮挡
-						if (style & WS_EX_TRANSPARENT) {
-							SetWindowLong(hwndScaling, GWL_EXSTYLE, style & ~WS_EX_TRANSPARENT);
-						}
+						_SetScalingWindowTransparent(hwndScaling, style, false);
 					}
 				}
 			} else {
 				// Unfocused sources and visible parameter panels allow letterboxing.
 				if (!_isOnOverlay && PtInRect(&destRect, cursorPos)) {
-					if (!(style & WS_EX_TRANSPARENT)) {
-						SetWindowLong(hwndScaling, GWL_EXSTYLE, style | WS_EX_TRANSPARENT);
-					}
+					_SetScalingWindowTransparent(hwndScaling, style, true);
 					_StartCapture(cursorPos);
-				} else if (style & WS_EX_TRANSPARENT) {
-					SetWindowLong(hwndScaling, GWL_EXSTYLE, style & ~WS_EX_TRANSPARENT);
+				} else {
+					_SetScalingWindowTransparent(hwndScaling, style, false);
 				}
 			}
 		}
@@ -1496,6 +1475,32 @@ void CursorManager::_RestoreClipCursor() noexcept {
 
 	if (ClipCursor(nullptr)) {
 		_lastClip = { std::numeric_limits<LONG>::max() };
+	}
+}
+
+void CursorManager::_SetScalingWindowTransparent(HWND hwndScaling, DWORD style, bool transparent) noexcept {
+	if (transparent) {
+		if (!(style & WS_EX_TRANSPARENT)) {
+			SetWindowLong(hwndScaling, GWL_EXSTYLE, style | WS_EX_TRANSPARENT);
+		}
+		if (_avoidChromiumOcclusion && _layeredAlpha != 255) {
+			if (SetLayeredWindowAttributes(hwndScaling, 0, 255, LWA_ALPHA)) {
+				_layeredAlpha = 255;
+			} else {
+				Logger::Get().Win32Error("SetLayeredWindowAttributes 失败");
+			}
+		}
+	} else {
+		if (_avoidChromiumOcclusion && _layeredAlpha != 254) {
+			if (SetLayeredWindowAttributes(hwndScaling, 0, 254, LWA_ALPHA)) {
+				_layeredAlpha = 254;
+			} else {
+				Logger::Get().Win32Error("SetLayeredWindowAttributes 失败");
+			}
+		}
+		if (style & WS_EX_TRANSPARENT) {
+			SetWindowLong(hwndScaling, GWL_EXSTYLE, style & ~WS_EX_TRANSPARENT);
+		}
 	}
 }
 

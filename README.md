@@ -44,7 +44,7 @@
 
 ## Latest Update · v0.6.14
 
-- **Effect parameter slider & flyout fixes (for v0.6.13).** Fixes XAML slider initialization coercion resets for Frame Generation multipliers (DLSS FG / XeSS FG / NVIDIA VFX VFG) and other `MIN > 0` / `MAX < 0` sliders, fixes windowed parameter flyouts failing to dismiss after dragging outside their bounds, and hardens frontend async callbacks.
+- **UI, parameter slider & browser occlusion fixes (for v0.6.13).** Fixes XAML slider initialization coercion resets for Frame Generation multipliers (DLSS FG / XeSS FG / NVIDIA VFX VFG) and other `MIN > 0` / `MAX < 0` sliders, fixes stuck slider drags and windowed parameter flyouts failing to dismiss after dragging outside their bounds, fixes fullscreen Edge / Chrome video freezing when clicking overlay toolbar controls, and hardens frontend async callbacks.
 - **Includes all v0.6.13 updates**: DLSSNR adaptive resolution and SDR NVOF alternating frames improvements, FSR/XeSS GPU sync and recovery, inline effect parameter fix, sidebar profile reordering, and Traditional Chinese effect catalog.
 
 👉 [Read the full v0.6.14 release notes (EN / 中文)](docs/RELEASE_NOTES_v0.6.14-experimental.md)

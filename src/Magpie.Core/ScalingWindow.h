@@ -151,6 +151,10 @@ public:
 		return _isFirstFrame;
 	}
 
+	bool AvoidChromiumOcclusion() const noexcept {
+		return _avoidChromiumOcclusion;
+	}
+
 	winrt::hstring GetLocalizedString(std::wstring_view resName) const;
 
 	void ShowToast(std::wstring_view msg) const noexcept {
@@ -307,6 +311,7 @@ private:
 	bool _shouldWaitForRender = false;
 	bool _areResizeHelperWindowsVisible = false;
 	bool _isSrcRepositioning = false;
+	bool _avoidChromiumOcclusion = false;
 	struct DLSSFGFrameJob {
 		uint32_t sharedTextureSlot = 0;
 		uint32_t sharedTextureGeneration = 0;

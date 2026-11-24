@@ -103,6 +103,8 @@ private:
 
 	void _RestoreClipCursor() noexcept;
 
+	void _SetScalingWindowTransparent(HWND hwndScaling, DWORD style, bool transparent) noexcept;
+
 	HCURSOR _hCursor = NULL;
 	POINT _cursorPos{ std::numeric_limits<LONG>::max() };
 
@@ -155,6 +157,8 @@ private:
 	bool _isCapturedOnOverlay = false;
 
 	bool _isSystemCursorShown = true;
+	bool _avoidChromiumOcclusion = false;
+	BYTE _layeredAlpha = 255;
 
 	static inline const HCURSOR _hDiagonalSize1Cursor = LoadCursor(NULL, IDC_SIZENWSE);
 	static inline const HCURSOR _hDiagonalSize2Cursor = LoadCursor(NULL, IDC_SIZENESW);

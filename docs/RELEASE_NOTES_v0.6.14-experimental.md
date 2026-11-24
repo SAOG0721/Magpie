@@ -1,8 +1,14 @@
 # Magpie Experimental v0.6.14
 
-本版为 v0.6.13 的修复版本，重点修复效果组参数面板中的滑动条重置与浮窗收回问题，并修正若干前端异步回调的稳定性隐患。
+本版为 v0.6.13 的修复版本，重点修复效果组参数面板中的滑动条重置与浮窗收回问题、Edge / Chrome 全屏视频点击工具栏卡住的问题，并修正若干前端异步回调的稳定性隐患。
 
 ## 修复内容
+
+### 浏览器全屏视频与工具栏交互
+
+- **修复 Edge / Chrome 全屏播放视频时点击工具栏（如对比切换）导致画面卡住的问题**：
+  - 此前在 Edge（`msedge.exe`）或 Chrome（`chrome.exe`）全屏播放视频并启用缩放时，鼠标悬停或点击覆盖层工具栏会临时移除缩放窗口的鼠标穿透样式（`WS_EX_TRANSPARENT`），触发 Chromium 的原生窗口遮挡检测（`NativeWindowOcclusionTrackerWin`）将浏览器判定为被完全遮挡并暂停视频渲染。
+  - 现仅针对 `msedge.exe` 与 `chrome.exe` 目标窗口，在缩放窗口未设置 `WS_EX_TRANSPARENT` 期间将分层窗口透明度临时设为 `254`（99.6%，视觉无差异），恢复穿透后切回 `255`，既避免 Chromium 误判遮挡暂停视频，也不影响其他应用的 DirectFlip / VRR / HDR 表现。
 
 ### 效果组参数面板与界面交互
 
@@ -37,9 +43,15 @@
 
 # Magpie Experimental v0.6.14 User Guide
 
-This bugfix release for v0.6.13 fixes scaling-mode parameter slider resets and windowed flyout light-dismiss failures, along with several frontend async callback safety issues.
+This bugfix release for v0.6.13 fixes scaling-mode parameter slider resets, windowed flyout light-dismiss failures, fullscreen Edge / Chrome video freezes when interacting with the overlay toolbar, and several frontend async callback safety issues.
 
 ## Fixes
+
+### Fullscreen browser video and overlay toolbar
+
+- **Fixed Edge / Chrome fullscreen video freezing when clicking overlay toolbar controls (such as Comparison)**:
+  - Previously, when scaling fullscreen video in Microsoft Edge (`msedge.exe`) or Google Chrome (`chrome.exe`), hovering or clicking the overlay toolbar temporarily removed `WS_EX_TRANSPARENT` from the scaling window, causing Chromium's `NativeWindowOcclusionTrackerWin` to treat the browser window as fully occluded and pause video rendering.
+  - Scoped strictly to `msedge.exe` and `chrome.exe` target windows, the scaling window now temporarily lowers its layered alpha from `255` to `254` (visually indistinguishable) while `WS_EX_TRANSPARENT` is cleared and restores `255` as soon as `WS_EX_TRANSPARENT` is re-applied—preventing Chromium occlusion pauses without affecting DirectFlip / VRR / HDR behavior for games or other apps.
 
 ### Scaling-mode effect parameters and UI
 

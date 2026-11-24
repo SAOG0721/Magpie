@@ -40,6 +40,16 @@ static bool IsTopmostWindow(HWND hWnd) noexcept {
 	return GetWindowExStyle(hWnd) & WS_EX_TOPMOST;
 }
 
+static bool ShouldAvoidChromiumOcclusion(HWND hwndSrc) noexcept {
+	if (!hwndSrc) {
+		return false;
+	}
+
+	std::wstring exeName = Win32Helper::GetWindowExeName(hwndSrc);
+	StrHelper::ToLowerCase(exeName);
+	return exeName == L"chrome.exe" || exeName == L"msedge.exe";
+}
+
 ScalingWindow::ScalingWindow() noexcept :
 	_resourceLoader(winrt::ResourceLoader::GetForViewIndependentUse(CommonSharedConstants::APP_RESOURCE_MAP_ID)) {}
 
@@ -1015,8 +1025,13 @@ LRESULT ScalingWindow::_MessageHandler(UINT msg, WPARAM wParam, LPARAM lParam) n
 
 		_currentDpi = GetDpiForWindow(Handle());
 
-		// 设置窗口不透明。不完全透明时可关闭 DirectFlip
-		if (!SetLayeredWindowAttributes(Handle(), 0, 255, LWA_ALPHA)) {
+		_avoidChromiumOcclusion = ShouldAvoidChromiumOcclusion(_srcTracker.Handle());
+
+		// 设置窗口不透明。不完全透明时可关闭 DirectFlip。
+		// 对 Chrome/Edge，缩放窗口在未设置 WS_EX_TRANSPARENT（创建初期、悬停/点击工具栏等）
+		// 时保持 alpha=254，可避免 Chromium NativeWindowOcclusionTrackerWin 误判遮挡并暂停视频渲染。
+		const BYTE initialAlpha = _avoidChromiumOcclusion ? 254 : 255;
+		if (!SetLayeredWindowAttributes(Handle(), 0, initialAlpha, LWA_ALPHA)) {
 			Logger::Get().Win32Error("SetLayeredWindowAttributes 失败");
 		}
 
