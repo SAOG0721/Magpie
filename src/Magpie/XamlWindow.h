@@ -27,6 +27,21 @@ public:
 			return;
 		}
 
+		// XAML Islands 的独立窗口化轻退浮层（ShouldConstrainToRootBounds=False）在内部控件
+		// （如 Slider / Canvas）捕获指针并拖到浮窗外释放后，可能丢失轻退同步；同时点击自定义标题栏
+		// 也不会经过 XAML Island。这里在点击落到主窗口宿主时兜底关闭这类轻退浮窗。
+		if (_content && _hwndXamlIsland &&
+			(msg.message == WM_LBUTTONDOWN || msg.message == WM_RBUTTONDOWN ||
+			 msg.message == WM_MBUTTONDOWN || msg.message == WM_XBUTTONDOWN ||
+			 msg.message == WM_NCLBUTTONDOWN || msg.message == WM_NCRBUTTONDOWN ||
+			 msg.message == WM_POINTERDOWN) &&
+			GetAncestor(msg.hwnd, GA_ROOT) == this->Handle()) {
+			if (XamlHelper::CloseLightDismissWindowedPopups(_content->XamlRoot()) &&
+				msg.hwnd == _hwndXamlIsland) {
+				return;
+			}
+		}
+
 		if (_xamlSourceNative2) {
 			BOOL processed = FALSE;
 			HRESULT hr = _xamlSourceNative2->PreTranslateMessage(&msg, &processed);
@@ -361,6 +376,10 @@ protected:
 			}
 			if (LOWORD(wParam) == WA_INACTIVE && _content) {
 				XamlHelper::CloseComboBoxPopup(_content->XamlRoot());
+				const HWND activated = HWND(lParam);
+				if (!activated || GetWindow(activated, GW_OWNER) != this->Handle()) {
+					XamlHelper::CloseLightDismissWindowedPopups(_content->XamlRoot());
+				}
 			}
 
 			return 0;

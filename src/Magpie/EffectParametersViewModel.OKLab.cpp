@@ -197,7 +197,9 @@ fire_and_forget EffectParametersViewModel::OKImportLut() {
     if(ec||size>16*1024*1024)error="LUT file must be at most 16 MiB";
     else if(!Win32Helper::ReadTextFile(path->c_str(),text))error="Could not read LUT";
     else if(!OKLab::ParseCube(text,cube,error))text.clear();
-    co_await App::Get().Dispatcher();auto self=weak.get();if(!self||!self->IsOKLab())co_return;
+    co_await App::Get().Dispatcher();auto self=weak.get();if(!self||self->_IsRemoved()||!self->IsOKLab())co_return;
+    const auto& modes=AppSettings::Get().ScalingModes();
+    if(self->_scalingModeIdx>=modes.size()||self->_effectIdx>=modes[self->_scalingModeIdx].effects.size())co_return;
     auto& item=ScalingModesService::Get().GetScalingMode(self->_scalingModeIdx).effects[self->_effectIdx];
     if(item.runtimeIdentity!=identity)co_return;
     if(error.empty()){item.oklabLut=std::move(text);self->_okStatus=OKText(L"OKLab_LutLoaded");_LazySaveAppSettings();}

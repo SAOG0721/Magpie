@@ -42,8 +42,12 @@ void ToastPage::InitializeComponent() {
 
 	_appThemeChangedRevoker = App::Get().ThemeChanged(
 		auto_revoke,
-		[this, dispatcher(DispatcherQueue::GetForCurrentThread())](bool) {
-			dispatcher.TryEnqueue([this] { _UpdateTheme(); });
+		[weakThis(get_weak()), dispatcher(DispatcherQueue::GetForCurrentThread())](bool) {
+			dispatcher.TryEnqueue([weakThis] {
+				if (auto strongThis = weakThis.get()) {
+					strongThis->_UpdateTheme();
+				}
+			});
 		}
 	);
 	_UpdateTheme();

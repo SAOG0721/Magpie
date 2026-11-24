@@ -49,6 +49,21 @@ void XamlHelper::CloseComboBoxPopup(const XamlRoot& root) {
 	}
 }
 
+bool XamlHelper::CloseLightDismissWindowedPopups(const XamlRoot& root) {
+	if (!root) {
+		return false;
+	}
+	bool closed = false;
+	for (const Popup& popup : VisualTreeHelper::GetOpenPopupsForXamlRoot(root)) {
+		if (popup.IsLightDismissEnabled() && !popup.ShouldConstrainToRootBounds()) {
+			TraceParameterFlyout("host.closeLightDismissWindowedPopup", uintptr_t(get_abi(popup)));
+			popup.IsOpen(false);
+			closed = true;
+		}
+	}
+	return closed;
+}
+
 void XamlHelper::ClosePopups(const XamlRoot& root) {
 	for (const auto& popup : VisualTreeHelper::GetOpenPopupsForXamlRoot(root)) {
 		popup.IsOpen(false);

@@ -1,15 +1,21 @@
 # Magpie Experimental v0.6.14
 
-本版为 v0.6.13 的快速修复版本，修复效果组参数面板中 FG 补帧倍率等非零下限（或负上限）滑动条在重新打开弹窗时被重置回边界值的问题。
+本版为 v0.6.13 的修复版本，重点修复效果组参数面板中的滑动条重置与浮窗收回问题，并修正若干前端异步回调的稳定性隐患。
 
 ## 修复内容
 
-### 效果组参数面板
+### 效果组参数面板与界面交互
 
 - **修复非零边界滑动条打开弹窗时重置的问题**：
   - 在效果组中配置 **DLSS Frame Generation**（倍率 **2–4x**）、**XeSS Frame Generation**（倍率 **2–4x**）、**NVIDIA VFX VFG**（倍率 **2–8x**）等效果器时，此前重新打开参数弹窗会触发 XAML `Slider` 初始化钳位回写，导致已保存的倍率（如 3x / 4x / 8x）被立即重置回最小值（2x）并覆盖配置。
-  - 同时修复了其他同类非精确输入滑条（`MIN > 0` 或 `MAX < 0`，如部分 CRT、Anime4K、xBR、MLAA、DLSSNR 参数）在打开参数弹窗时被钳位到最小值或最大值的问题。
-  - 全部离散步进滑条现统一映射到 0 基刻度空间，不再受控件初始值钳位影响，调整后即时保存且重开弹窗保持原值。
+  - 同时修复了其他同类非精确输入滑条（`MIN > 0` 或 `MAX < 0`，如部分 CRT、Anime4K、xBR、MLAA、DLSSNR 参数）在打开参数弹窗时被钳位到边界值的问题。
+  - 全部离散步进滑条现统一映射到 0 基刻度空间，重开弹窗保持已保存数值。
+- **修复参数浮窗拖出窗外后不再自动收回的问题**：
+  - 修复在效果参数浮窗（以及效果选择器等窗口化浮层）内拖动滑条或 OKLab 曲线／色轮并把指针移出浮窗外松手后，再次点击喜鹊主界面或标题栏时浮窗无法自动收回的问题；切出到其他应用窗口时也会正确收回。
+- **前端异步回调安全性修复**：
+  - 修复“新建档案”候选窗口异步解析名称时回调持有裸指针的潜在崩溃风险。
+  - 修复 OKLab 导入 `.cube` LUT 返回主线程时未先校验效果组／效果索引有效性的越界风险。
+  - 修复 Toast 弹窗跨线程主题切换回调的弱引用保护。
 
 本版包含 v0.6.13 的全部功能更新，详见 [v0.6.13 完整更新说明](RELEASE_NOTES_v0.6.13-experimental.md)。
 
@@ -31,16 +37,22 @@
 
 # Magpie Experimental v0.6.14 User Guide
 
-This hotfix release for v0.6.13 fixes an issue in the scaling-mode effect parameter flyout where sliders with a non-zero minimum (or negative maximum)—such as Frame Generation multipliers—reset back to their boundary value when reopening the flyout.
+This bugfix release for v0.6.13 fixes scaling-mode parameter slider resets and windowed flyout light-dismiss failures, along with several frontend async callback safety issues.
 
 ## Fixes
 
-### Scaling-mode effect parameters
+### Scaling-mode effect parameters and UI
 
 - **Fixed slider value reset on flyout reopen for non-zero bounds**:
   - When configuring **DLSS Frame Generation** (multiplier **2–4x**), **XeSS Frame Generation** (multiplier **2–4x**), or **NVIDIA VFX VFG** (multiplier **2–8x**) in a scaling mode, reopening the parameter flyout previously triggered XAML `Slider` range coercion writeback, immediately resetting saved multipliers (such as 3x, 4x, or 8x) back to the minimum (2x) and overwriting saved settings.
   - Also fixes the same coercion reset for other non-precise sliders with `MIN > 0` or `MAX < 0` (such as certain CRT, Anime4K, xBR, MLAA, and DLSSNR parameters).
-  - All discrete-step parameter sliders now map uniformly onto a 0-based tick range, preventing initialization clamping writeback and preserving saved values across flyout reopens.
+  - All discrete-step parameter sliders now map uniformly onto a 0-based tick range, preserving saved values across flyout reopens.
+- **Fixed parameter flyout failing to dismiss after dragging outside its bounds**:
+  - Fixed a XAML Islands windowed-popup light-dismiss desync where dragging a slider (or OKLab curve/wheel) past the flyout edge and releasing prevented subsequent clicks on the main Magpie window or title bar from dismissing the flyout. Switching to another application now also dismisses open windowed flyouts cleanly.
+- **Frontend async lifetime and bounds safety**:
+  - Fixed a potential use-after-free when resolving candidate window names asynchronously in the New Profile flyout.
+  - Added removed-state and index bounds checks after resuming on the UI thread in OKLab `.cube` LUT import.
+  - Guarded cross-thread theme-change callbacks in `ToastPage` with a weak reference.
 
 This release includes all changes from v0.6.13. See the [v0.6.13 release notes](RELEASE_NOTES_v0.6.13-experimental.md) for the full list.
 

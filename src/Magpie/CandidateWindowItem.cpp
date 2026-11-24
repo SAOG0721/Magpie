@@ -114,15 +114,15 @@ fire_and_forget CandidateWindowItem::_ResolveWindow(bool resolveIcon, bool resol
 		}
 
 		App::Get().Dispatcher().TryEnqueue(
-			[this, defaultProfileName(std::move(defaultProfileName)), aumid(reader.AUMID())]() {
+			[strongThis(std::move(strongThis)), defaultProfileName(std::move(defaultProfileName)), aumid(reader.AUMID())]() {
 				if (!defaultProfileName.empty()) {
-					_defaultProfileName = defaultProfileName;
+					strongThis->_defaultProfileName = defaultProfileName;
 				}
 				// 即使 defaultProfileName 为空也通知 DefaultProfileName 已更改，
 				// 这是为了正确设置 CandidateWindowIndex。
-				RaisePropertyChanged(L"DefaultProfileName");
+				strongThis->RaisePropertyChanged(L"DefaultProfileName");
 
-				_aumid = aumid;
+				strongThis->_aumid = aumid;
 			}
 		);
 	}
