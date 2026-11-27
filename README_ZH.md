@@ -10,8 +10,12 @@
 
 <br>
 
-[![Latest Release](https://img.shields.io/github/v/release/SAOG0721/Magpie?include_prereleases&style=for-the-badge&logo=github&label=Release)](https://github.com/SAOG0721/Magpie/releases)
+[![Frame Generation](https://img.shields.io/badge/Frame_Generation-%231-brightgreen?style=for-the-badge&logo=github)](https://github.com/topics/frame-generation)
+[![HLSL Ranking](https://img.shields.io/badge/HLSL_Ranking-%233_Worldwide-blue?style=for-the-badge)](https://gitranks.com/repos/language/HLSL/1)
+[![GitTrend Peak](https://img.shields.io/badge/GitTrend_Peak-Top_100-orange?style=for-the-badge)](https://gittrend.io/repo/SAOG0721/Magpie)
 [![Total Downloads](https://img.shields.io/github/downloads/SAOG0721/Magpie/total?style=for-the-badge&logo=github&label=Downloads)](https://github.com/SAOG0721/Magpie/releases)
+
+[![Latest Release](https://img.shields.io/github/v/tag/SAOG0721/Magpie?sort=date&style=for-the-badge&logo=github&label=Release)](https://github.com/SAOG0721/Magpie/releases)
 [![Platform](https://img.shields.io/badge/Platform-Windows%20x64-0078D6?style=for-the-badge&logo=windows)](https://github.com/SAOG0721/Magpie/releases)
 [![License](https://img.shields.io/github/license/SAOG0721/Magpie?style=for-the-badge&label=License)](LICENSE)
 
